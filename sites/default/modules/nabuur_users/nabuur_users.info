@@ -1,0 +1,5 @@
+; $Id: nabuur_users.info,v 1.1.1.1 2008/05/23 12:23:41 kester Exp $
+name = Nabuur users
+description = "Connections to user profiles"
+dependencies = nodeprofile
+package = nabuur

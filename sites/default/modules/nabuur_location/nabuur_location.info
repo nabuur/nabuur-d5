@@ -1,0 +1,5 @@
+; $Id: nabuur_location.info,v 1.1.2.1 2008/06/13 08:14:48 kester Exp $
+name = nabuur location
+description = "Hides location taxonomy and populates it from geonames_cck field"
+dependencies = geonames_cck taxonomy countries_api
+package = nabuur

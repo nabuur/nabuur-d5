@@ -1,0 +1,26 @@
+<?php
+// $Id: nabuur_sms_receive.install,v 1.1.2.1 2008/08/17 13:11:00 kester Exp $
+function nabuur_sms_receive_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE  {nabuur_sms_receive} (
+                    `mid` int(10) unsigned NOT NULL,
+                    `number` varchar(255) NOT NULL,
+                    `message` varchar(255) NOT NULL,
+                    `time` varchar(255) NOT NULL,
+                    PRIMARY KEY  (`mid`)
+                  )/*!40100 DEFAULT CHARACTER SET utf8 */");
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function nabuur_sms_receive_uninstall() {
+  db_query('DROP TABLE {nabuur_sms_receive}');
+  // remove set_variables here
+
+  drupal_set_message(t('nabuur SMS receive uninstalled successfully.'));
+}

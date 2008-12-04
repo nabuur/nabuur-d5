@@ -1,0 +1,6 @@
+; $Id: og_nodequeue.info,v 1.1.1.1 2008/05/23 12:23:41 kester Exp $
+name = Organic Groups Smart Queue
+description = Creates a node queue for each organic group
+package = Node Queue
+dependencies = nodequeue og
+

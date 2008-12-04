@@ -1,0 +1,365 @@
+<?php
+// $Id: nabuur_sms_receive.module,v 1.1.2.2 2008/08/22 16:35:19 admin Exp $
+
+function nabuur_sms_receive_menu($may_cache) {
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/smsframework/nabuur-receive',
+      'title' => t('Receive'),
+      'description' => t('Setting for the nabuur SMS receive module.'),
+      'access' => user_access('administer smsframework'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('nabuur_sms_receive_admin_form'),
+    );
+  }
+  else {
+    $items[] = array(
+      'path' => variable_get('nabuur_sms_receive_path', 'sms/localrep-in'),
+      'title' => t('SMS Receive'),
+      'callback' => 'nabuur_sms_receive_receive',
+      'type' => MENU_CALLBACK,
+      'access' => TRUE,
+    );
+  }
+  return $items;
+}
+
+function nabuur_sms_receive_admin_form() {
+  $types = node_get_types();
+  $node_types = array();
+  foreach ($types as $type) {
+    $node_types[$type->type] = $type->name;
+  }
+  $form['nabuur_sms_receive_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('SMS Receive Path'),
+    '#description' => t('Set the path for the callback URL'),
+    '#default_value' => variable_get('nabuur_sms_receive_path', 'sms/localrep-in'),
+  );
+  $form['nabuur_sms_recieve_api_id'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Clickatell API ID'),
+    '#description' => t('Clickatell incoming number api id'),
+    '#default_value' => variable_get('nabuur_sms_receive_api_id', '3023562'),
+  );
+  $form['nabuur_sms_receive_content_type'] = array(
+    '#type' => 'select',
+    '#title' => 'Message content type',
+    '#default_value' => variable_get('nabuur_sms_receive_content_type', 'news_sms'),
+    '#options' => $node_types,
+    '#description' => t('Set the content type that the message is mapped to.'),
+  );
+  
+  // This should be reworked to be much more configurable... multiple fields assigned either way
+  $node_fields = nabuur_sms_receive_type_fields(variable_get('nabuur_sms_receive_content_type', 'page'));
+  $sms_fields = nabuur_sms_receive_sms_fields();
+  if (!empty($sms_fields)) {
+    foreach ($sms_fields as $sms_field) {
+      $form['nabuur_sms_receive_fields']['nabuur_sms_receive_field_'. $sms_field] = array(
+        '#type' => 'select',
+        '#title' => t("Map '%field' to this text field", array('%field' => $sms_field)),
+        '#default_value' => variable_get('nabuur_sms_receive_field_'. $sms_field, ''),
+        '#options' => $node_fields,
+      );
+    }
+  }
+  
+  $form['submit'] = array(
+    '#type' => 'submit', 
+    '#value' => t('Submit'),
+  );
+  return $form;
+}
+
+function nabuur_sms_receive_admin_form_submit($form_id, $form_values) {
+  if ($form_values['nabuur_sms_receive_path']) {
+    // TODO: validation to check if path was actually set using nabuur_sms_receive_set_callback
+    global $base_url;
+    nabuur_sms_receive_set_callback($base_url .'/'. $form_values['nabuur_sms_receive_path']);
+    variable_set('nabuur_sms_receive_path', $form_values['nabuur_sms_receive_path']);
+  }
+  if ($form_values['nabuur_sms_receive_content_type']) {
+    variable_set('nabuur_sms_receive_content_type', $form_values['nabuur_sms_receive_content_type']);
+  }
+  $sms_fields = nabuur_sms_receive_sms_fields();
+  foreach ($sms_fields as $sms_field) {
+    variable_set('nabuur_sms_receive_field_'. $sms_field , $form_values['nabuur_sms_receive_field_'. $sms_field]);
+  }
+}
+
+function nabuur_sms_receive_get_callback($extra = array()) {
+  $gateway = sms_gateways('gateway', variable_get('sms_default_gateway', 0));
+  if (function_exists($gateway['get_callback'])) {
+    return $gateway['get_callback']();
+  }
+  else {
+    drupal_set_message('Invalid gateway callback.');
+  }
+}
+
+function nabuur_sms_receive_set_callback($url, $extra = array()) {
+  $gateway = sms_gateways('gateway', variable_get('sms_default_gateway', 0));
+  if (function_exists($gateway['set_callback'])) {
+    return $gateway['set_callback']($url);
+  }
+  else {
+    drupal_set_message('Invalid gateway callback.');
+  }
+}
+
+/**
+ * Creates an array of fields that can be mapped to
+ */
+function nabuur_sms_receive_type_fields($node_type) {
+  $field_mappers = array(
+    NULL => '', // This is the empty choice
+    'title' => t('title'),
+    'body' => t('body'), 
+  );
+
+  if (module_exists('content')) {
+    $fields = content_fields();
+    foreach ($fields as $field) {
+      if ($field['type_name'] == $node_type) {
+        $field_mappers[$field['field_name']] = $field['field_name'];
+      }
+    }
+  }
+  return $field_mappers;
+}
+
+/**
+ * Hook for gateways to define how incoming messages are parsed
+ */
+function nabuur_sms_receive_parse() {
+  $gateway = variable_get('sms_default_gateway', 0);
+  $function = 'sms_'. $gateway .'_receive_parse';
+  if (function_exists($function)) {
+    $sms_message = $function();
+  }
+  return $sms_message;
+}
+
+/**
+ * Hook for gateways to define incoming fields
+ */
+function nabuur_sms_receive_sms_fields() {
+  // Maybe 'from' and 'text' should be built-in fields and 
+  // this is used to collect extra fields, in our case 'type'
+  $gateway = variable_get('sms_default_gateway', 0);
+  $function = 'sms_'. $gateway .'_receive_fields';
+  if (function_exists($function)) {
+    $fields = $function();
+  }
+  return $fields;
+}
+
+/**
+ * Implements hook_perm()
+ */
+function nabuur_sms_receive_perm() { 
+  return array('receive sms message');
+}
+
+/*
+ * Handle a received message
+ * Loosely based on mailhandler_retreive()
+ */
+function nabuur_sms_receive_receive() {
+  $message = nabuur_sms_receive_parse();
+  
+  // Insert message into database, mostly for logging and debug right now
+  $mid = db_next_id('{sms_messages}');
+  db_query("INSERT INTO {nabuur_sms_receive} (mid, number, message, time) VALUES(%d, '%s', '%s', '%s')", $mid, $message['from'], $message['text'], time());
+  
+  $node = nabuur_sms_receive_process_message($message);
+  
+  // check if mail originates from an authenticated user
+  // Can't do this as a hook to sms_user because we need to authenticate as this user
+  $node = nabuur_sms_receive_authenticate($node, $message);
+
+  // only dealing with authenticated users here
+  if ($node->uid > 0) {
+    // we need to change the current user
+    // this has to be done here to allow modules
+    // to create users
+    nabuur_sms_receive_switch_user($node->uid);
+
+    // modules may override node elements before submitting. they do so by returning the node.
+    foreach (module_list() as $name) {
+      if (module_hook($name, 'sms_receive')) {
+        $function = $name .'_sms_receive';
+        if (!($function($node, $message))) {
+          // Exit if a module has handled the submitted data.
+          break;
+        }
+      }
+    }
+
+    // better as a hook link to the field mapping but for noo...
+    if (drupal_strlen($message['text']) > 50) {
+      $pos = strpos($message['text'], ' ', 50);
+      if ($pos > 70) { $pos = 50; }
+      $title = drupal_substr($message['text'], 0, $pos) .'...'; 
+    }
+    else {
+      $title = $message['text'];
+    }
+    $node->title = $title;
+    $node->body = $message['text'];
+    global $user;
+    foreach ($user->og_groups as $gid => $group) {
+      $group = node_load($gid);
+      $node->og_initial_groups = array();
+      if ($user->uid == $group->uid) {
+        // put in groups that the user is the node owner of
+        $node->og_groups[$group->nid] = $group->nid;
+        $node->og_public = 1;
+      }
+    }
+
+    if ($node && $node->uid) { // if node set and is from authorized user
+      if ($node->type == 'comment') {
+        nabuur_sms_receive_comment_submit($node);
+      }
+      else {
+        nabuur_sms_receive_node_submit($node);
+      }
+    }
+
+    $output = 'Message accepted';
+
+    // switch back to original user
+    nabuur_sms_receive_switch_user();
+  }
+  else {
+    $output = 'User unknown';
+  }  
+
+  return $output;
+}
+
+/**
+ * Based on mailhandler_process_message() but heavily modified
+ * Creates and return node object
+ */
+function nabuur_sms_receive_process_message($sms_message) {
+  $content_type = variable_get('nabuur_sms_receive_content_type', 'page');
+  $node_fields = nabuur_sms_receive_type_fields($content_type);
+  $sms_fields = nabuur_sms_receive_sms_fields();
+  
+  // Create a new node and set its options
+  $node = new stdClass();
+  $node->type = $content_type;
+  $node_options = variable_get('node_options_'. $content_type, array('status'));
+  foreach ($node_options as $node_option) {
+    $node->$node_option = 1;
+  }
+  
+  // Put the received data into their set fields
+  foreach ($sms_fields as $sms_field) {
+    if (!empty($sms_field)) {
+      $node_field = variable_get('nabuur_sms_receive_field_'. $sms_field, '');
+      if (!empty($node_field)) {
+        if ($node_field == 'title' || $node_field == 'body') {
+          $node->$node_field = $sms_message[$sms_field];
+        }
+        else {
+          $cck_field['0']['value'] = $sms_message[$sms_field];
+          $node->$node_field = $cck_field;
+        }
+      }
+    }
+  }
+  return $node;
+}
+
+/**
+ * Loosely based on mailhandler_authenticate()
+ * Determine who is the author of the upcoming node.
+ */
+function nabuur_sms_receive_authenticate($node, $sms_message) {
+  // is $sms_message['from'] a general case?
+  $number = $sms_message['from'];
+  
+  // check if correct api_id for this type of message 
+  if ($sms_message['api_id'] != variable_get('nabuur_sms_receive_api_id', '3023562')) {
+    // if not set to anonymous as user not authenticated for this method
+    $node->uid = 0;
+    return $node;
+  }
+ 
+  $uid = sms_user_get_uid($number);
+  $node->uid = $uid;
+  // Set to anonymous if no match
+  if(empty($node->uid)) {
+    $node->uid = 0;
+  }
+  return $node;
+}
+
+/**
+ * This is verbatim from mailhandler_switch_user()
+ * 
+ * Switch from original user to submission user and back.
+ *
+ * Note: You first need to run nabuur_sms_receive_switch_user without
+ * argument to store the current user. Call nabuur_sms_receive_switch_user
+ * without argument to set the user back to the original user.
+ *
+ * @param $uid The user ID to switch to
+ *
+ */
+function nabuur_sms_receive_switch_user($uid = NULL) {
+  global $user;
+  static $orig_user = array();
+
+  if ($uid != NULL) {
+    // store the initial user
+    $orig_user[] = $user;
+    $user = user_load(array('uid' => $uid));
+  }
+  // retrieve the initial user, can be called multiple times
+  elseif (count($orig_user)) {
+    $user = array_shift($orig_user);
+    array_unshift($orig_user, $user);
+  }
+  // no original user, and we have no user to swap to
+
+}
+
+/**
+ * Based on mailhandler_comment_submit()
+ * Create the comment.
+ */
+function nabuur_sms_receive_comment_submit($node) {
+  if (!$node->subject) $node->subject = $node->title;
+  if (!$node->comment) $node->comment = $node->body;
+  // We want the comment to have the email time, not the current time
+  // comment_save gets an array
+  $edit = (array)$node;
+}
+
+/**
+ * Based on mailhandler_node_submit()
+ * Create the node.
+ */
+function nabuur_sms_receive_node_submit($node) {
+  node_validate($node);
+  $error = form_get_errors();
+  if (!$error) {
+    // Prepare the node for save and allow modules make changes
+    $node = node_submit($node);
+    // Save the node
+    if ($node->nid) {
+      if (node_access('update', $node)) {
+        node_save($node);
+      }
+    }
+    else {
+      if (node_access('create', $node)) {
+        node_save($node);
+      }
+    }
+  }
+}

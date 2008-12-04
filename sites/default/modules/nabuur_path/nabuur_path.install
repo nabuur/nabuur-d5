@@ -1,0 +1,15 @@
+<?php
+// $Id: nabuur_path.install,v 1.1.2.1 2008/06/13 08:11:51 kester Exp $
+/**
+ * Implementation of hook_install()
+ */
+function nabuur_path_install() {
+  // -9 as i18n is -10 it wants to run immediately after before anything else
+  db_query("UPDATE {system} SET weight = -9 WHERE name = 'nabuur_path'");
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function nabuur_path_disable() {
+}

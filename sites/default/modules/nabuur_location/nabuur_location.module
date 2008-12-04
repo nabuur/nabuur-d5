@@ -1,0 +1,68 @@
+<?php
+// $Id: nabuur_location.module,v 1.1.2.1 2008/06/13 08:14:48 kester Exp $
+
+/**
+ * @file
+ * uses geonames_cck to populate a location taxonomy as well...
+ *
+ * for use till search etc. works well with geonames_cck
+ * as geonames_cck only handles a single location, so does this.
+ */
+
+define('LOCATION_VOCABULARY', 3);
+
+/********************************************************************
+ * Standard hooks
+ */
+
+/**
+ * Implementation of hook_init().
+ */
+function nabuur_location_form_alter($form_id, &$form) {
+  if (is_array($form['taxonomy']) && is_array($form['taxonomy'][LOCATION_VOCABULARY]) && is_array($form['field_location'])) {
+    $taxonomy = $form['taxonomy'][LOCATION_VOCABULARY];
+    unset($form['taxonomy'][LOCATION_VOCABULARY]);
+    $form['taxonomy'][LOCATION_VOCABULARY] = array (
+      '#type' => 'hidden',
+      '#value' => $taxonomy['#default_value'][0],
+    );
+  }
+}
+
+// @todo what about changing location - it's only one - so remove add
+function nabuur_location_nodeapi(&$node, $op, $arg = 0) {
+  if ($op == 'submit') {
+    if (is_array($node->field_location) && is_array($node->taxonomy)) {
+      $term = nabuur_location_get_taxonomy($node->field_location[0]['country']);
+      $node->taxonomy[LOCATION_VOCABULARY] = array($term => $term);
+    }
+  }
+}
+
+function nabuur_location_get_taxonomy($country_iso) {
+  if (! is_null($country = countries_api_get_name($country_iso))) {
+    // as we know the vocabulary and exact name taxonomy_get_term_name is more than needed
+    $sql =  "select tid from term_data where vid=3 and name = '%s'";
+    if (! $tid = db_result(db_query($sql, $country))) {
+      _nabuur_location_update_taxonomy();
+      $tid = db_result(db_query($sql, $country));
+    }
+    return $tid;
+  }
+}
+
+function _nabuur_location_update_taxonomy() {
+  $countries = countries_api_get_list();
+  foreach ($countries as $country) {
+    $sql =  "select tid from term_data where vid=3 and name = '%s'";
+    if (! db_result(db_query($sql, $country))) {
+      $term = array(
+        'name' => $country['name'],
+        'description' => $country['name'],
+        'weight' => 0,
+        'vid' => LOCATION_VOCABULARY,
+      );
+      taxonomy_save_term($term);
+    }
+  }
+}

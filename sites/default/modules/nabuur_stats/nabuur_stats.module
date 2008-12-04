@@ -1,0 +1,129 @@
+<?php
+// $Id: nabuur_stats.module,v 1.1.1.9 2008/09/19 12:46:27 kester Exp $
+
+/**
+ * @file
+ * Makes and updates stats block for nabuur front page.
+ */
+
+/**
+ * Implementation of hook_menu.
+ */
+function nabuur_stats_menu($may_cache) {
+  $items = array();
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/settings/nabuur/stats',
+      'title' => t('Nabuur front page statistics block'),
+      'description' => t('Setting for the statistics block.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'nabuur_stats_settings',
+      'access' => user_access('administer site configuration'),
+    );
+  }
+  return $items;
+}
+
+/**
+ * Configuration options for nabuur stats.
+ */
+function nabuur_stats_settings() {
+  $form = array();
+  $form['nabuur_stats_refresh'] = array(
+    '#type' => 'select',
+    '#title' => t('Refresh rate'),
+    '#options' => drupal_map_assoc(array(0, 60, 300, 600, 1800, 3200, 6400), 'format_interval'),
+    '#description' => t('Select how often to refresh the statistics - will only be refreshed when cron (cron.php) runs.'),
+    '#default_value' => variable_get('nabuur_stats_refresh', 60 * 60),
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * Implementation of hook_block.
+ */
+function nabuur_stats_block($op = 'list', $delta = 'en') {
+  switch ($op) {
+    case 'list':
+      $blocks[0]['info'] = t('Nabuur stats');
+      return $blocks;
+      break;
+    case 'view':
+      if (user_access('access content')) {
+        $block['subject'] = t('NABUUR today');
+        $stats = nabuur_stats_get();
+        $block['content'] = theme('nabuur_stats', $stats);
+        return $block;
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_cron.
+ * Checks for updates.
+ */
+function nabuur_stats_cron() {
+  $refresh = variable_get('nabuur_stats_refresh', 3200);
+  if (variable_get('nabuur_stats_updated', 0) + $refresh < time()) {
+    nabuur_stats_set();
+    variable_set('nabuur_stats_updated', time());
+  }
+}
+
+/**
+ * Updates stats.
+ */
+function nabuur_stats_set() {
+  $sql = array(
+    'users' => 'SELECT count(uid) FROM users',
+    'villages' => "SELECT count(n.nid) FROM {node} n INNER JOIN {node_access} a ON n.nid = a.nid WHERE n.type = 'village' and a.realm = 'og_public'",
+    'groups' => "SELECT count(n.nid) FROM {node} n INNER JOIN {node_access} a ON n.nid = a.nid WHERE n.type='group' and a.realm = 'og_public'",
+    'tasks' => "SELECT count(nid) FROM node WHERE type='task'",
+    'months_news' => "SELECT count(nid) FROM node WHERE type='news_item' && created > UNIX_TIMESTAMP(DATE_SUB(CURDATE(),INTERVAL 30 DAY))",
+  );
+  $stats = array();
+
+  foreach ($sql as $key => $query) {
+    $stats[$key] = db_result(db_query($query));
+  }
+
+  variable_set('nabuur_stats_data', $stats);
+  return $stats;
+}
+
+/**
+ * Returns stats.
+ */
+function nabuur_stats_get() {
+  $stats = variable_get('nabuur_stats_data', array());
+  if (! count($stats)) {
+    $stats = nabuur_stats_set();
+  }
+
+  // add users online
+  $interval = time() - variable_get('user_block_seconds_online', 900); // users module time setting
+  // from sess_count() but both anon and logged in - removing the uid * 0 
+  $stats['online'] = db_result(db_query('SELECT COUNT(sid) AS count FROM {sessions} WHERE timestamp >= %d', $interval));
+  return $stats;
+}
+
+/**
+ * Theme nabuurs stats block content
+ *
+ * @group themeable
+ */
+function theme_nabuur_stats($stats) {
+  $users = l(t('@users Neighbours', array('@users' => $stats['users'])), '/search/user');
+  $online = t('@online visitors at this moment.', array('@online' => $stats['online']));
+  $villages = l(t('@villages Villages', array('@villages' => $stats['villages'])), 'village');
+  $groups = l(t('@groups groups', array('@groups' => $stats['groups'])), 'group');
+  $tasks = l(t('@tasks ways you can help', array('@tasks' => $stats['tasks'])), 'search/node/results/content_type%3Atask');
+  $this_month = l(t('@news stories told this month', array('@news' => $stats['months_news'])), 'news');
+
+  $output = '<p class="stats">';
+  $output .= t('<span class="stats-neighbours">!neighbours,</span> <span class="stats-villages">!villages,</span> <span class="stats-groups">!groups,</span> <span class="stats-tasks">!tasks,</span> <span class="stats-stories">!this_month</span> with <span class="stats-online">@online</span>', array('!neighbours' => $users, '@online' => $online, '!villages' => $villages, '!groups' => $groups, '!tasks' => $tasks, '!this_month' => $this_month));
+  $output .= '</p>';
+
+  return $output;
+}

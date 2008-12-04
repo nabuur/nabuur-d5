@@ -1,0 +1,5 @@
+; $Id: nabuur_relativity.info,v 1.1.2.1 2008/06/13 08:13:27 kester Exp $
+name = nabuur relativity
+description = "project task relation additions"
+dependencies = relativity
+package = nabuur

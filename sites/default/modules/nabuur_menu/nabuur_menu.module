@@ -1,0 +1,280 @@
+<?php
+// $Id: nabuur_menu.module,v 1.1.2.12 2008/08/22 14:18:32 admin Exp $
+
+/**
+ * @file
+ * module to for Nabuur menus
+ */
+
+/********************************************************************
+ * Standard hooks
+ */
+
+/**
+ * Implementation of hook_perm().
+ */
+function nabuur_menu_perm() {
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function nabuur_menu_menu($may_cache) {
+  global $user;
+  $primary_links_pid = variable_get('menu_primary_menu', 0);
+  $secondary_links_pid = variable_get('menu_secondary_menu', 0);
+
+  $items = array();
+  //$access = user_access('access all Nabuur content');
+
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'group',
+      'title' => t('Groups'),
+      'access' => TRUE,
+      'pid' => $primary_links_pid,
+    );
+    $items[] = array(
+      'path' => 'village',
+      'title' => t('Villages'),
+      'access' => TRUE,
+      'pid' => $primary_links_pid,
+    );
+    $items[] = array(
+      'path' => 'user',
+      'title' => t('My Nabuur'),
+      'access' => TRUE,
+      'pid' => $primary_links_pid,
+      'weight' => -5,
+    );
+    $items[] = array(
+      'path' => 'search',
+      'title' => t('Search'),
+      'access' => TRUE,
+      'pid' => $primary_links_pid,
+      'weight' => 3,
+    );
+  }
+  else {
+    // while in development DO NOT cache any of this
+    // @todo change to cache and reinstall when finalised
+    // cachable
+    list($types, $subpages) = _nabuur_path_settings();
+
+    // get group context, if there is one
+    // require_once drupal_get_path('module', 'og') .'/og.module';
+    $og = og_get_group_context();
+
+    // groups page - add menu items for that group
+    if (is_object($og)) {
+      $og->type;
+      $og->title;
+      if (! $og->path) {
+        // not been generated yet, we know what it will be,
+        // using pathauto for future possible consistency
+        require_once(drupal_get_path('module', 'pathauto') .'/pathauto.module');
+        $placeholders = pathauto_get_placeholders('node', $og);
+        $og->path = pathauto_create_alias('node', 'bulkupdate', $placeholders, "node/$og->nid", $og->nid, $og->type);
+        // redirect to that page so it's in the visible url too, but only if it looks like it worked
+        $og_path_parts = explode('/', $og->path);
+        if (array_key_exists($og_path_parts[0], $types) && $og_path_parts[1] != '') {
+//          drupal_goto($og->path);
+        }
+      }
+
+      //// real pages
+      $items[] = array(
+        'path' => 'node' .'/'. $og->nid .'/neighbours',
+        'callback' => 'nabuur_og_list_users_page',
+        'callback arguments' => $og->nid,
+        'type' => MENU_CALLBACK,
+      );
+
+      // remove profiles from village
+      // @todo review: (1) if they must be in villages; 
+      // (2) if local one only want to be in a village;
+      // (3) if it is in a village is node_load or alias reverse lookup best?
+      // NOTE: new profiles are not going to be sync'ed so probably 
+      //   unnecessary
+      $node = node_load(array('nid' => arg(1)));
+      if (is_object($node) && $node->type == 'individual_profile') {
+        // unset context
+        $og = new stdClass();
+        $og->type = 'group';
+        og_set_group_context($og);
+      }
+      else {
+        //// menu items
+        // $items[] = $og->type is created by the index view of village / group
+        $items[] = array(
+          'path' => $og->path,
+          'title' => $og->title,
+        );
+        foreach ($subpages as $path => $page) {
+          $items[] = array(
+            'path' => $og->path .'/'. $path,
+            'title' => $page['title'],
+            'pid' => $secondary_links_pid,
+            'weight' => $page['weight'],
+          );
+        }
+        drupal_set_breadcrumb(array(l($types[$og->type], $og->type), l($og->title, $og->path)));
+      }
+    }
+
+    /***
+     * user page related 
+     */
+    if (is_object($user) && $user->uid >0) {
+      if (arg(0) == 'node') {
+        $node = node_load(array('nid' => arg(1)));
+      }
+      if ((arg(0) == 'user' && arg(1) == $user->uid) || (is_object($node) && $node->type == 'individual_profile' && $node->uid == $user->uid)) {
+/*      $items[] = array(
+        'path' => 'user/'. $user->uid .'/edit',
+        'title' => t('Edit my account'),
+        'pid' => $secondary_links_pid,
+      );*/
+      $items[] = array(
+        'path' => 'user/'. pathauto_cleanstring($user->name),
+        'title' => t('My Nabuur'),
+        'pid' => $secondary_links_pid,
+        'weight' => -15,
+      );
+      $items[] = array(
+        'path' => 'user/'. pathauto_cleanstring($user->name) .'/profile',
+        'title' => t('My Profile'),
+        'pid' => $secondary_links_pid,
+        'weight' => -10,
+      );
+      $items[] = array(
+        'path' => 'user/group',
+        'title' => t('My Groups'),
+        'pid' => $secondary_links_pid,
+      );
+      $items[] = array(
+        'path' => 'user/village',
+        'title' => t('My Villages'),
+        'pid' => $secondary_links_pid,
+      );
+      drupal_set_breadcrumb(array(l('My Nabuur', 'user')));
+      }
+    }
+    if (arg(0) == 'user' && arg(2) == 'profile') {
+      // should be fine unless alias not yet set, or profile not yet created
+      $profile_node = drupal_lookup_path('source', arg(0) .'/'. arg(1) .'/'. arg(2));
+      $profile_node_parts = explode('/', $profile_node);
+      if ($profile_node_parts[0] != 'node' || ! is_numeric($profile_node_parts[1])) {
+        // @todo this shouldn't be possible
+        drupal_set_message('This user hasn\'t created a profile yet');
+      }
+    }
+
+    /***
+     * search pages
+     */
+    if (arg(0) == 'facet_search') {
+      $items[] = array(
+        'path' => 'search/node',
+        'title' => t('Full site search'),
+        'pid' => $secondary_links_pid,
+      );
+      $items[] = array(
+        'path' => 'search/user',
+        'title' => t('Neighbours'),
+        'pid' => $secondary_links_pid,
+        'weight' => 10,
+      );
+      $items[] = array(
+        'path' => 'search/resource',
+        'title' => t('Resources'),
+        'pid' => $secondary_links_pid,
+      );
+      $items[] = array(
+        'path' => 'search/task',
+        'title' => t('Tasks'),
+        'pid' => $secondary_links_pid,
+      );
+    }
+  }
+ 
+
+  return $items;
+}
+
+function nabuur_menu_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    $blocks[0]['info'] = t('Nabuur village admin');
+    return $blocks;
+  }
+  elseif ($op == 'view') {
+    switch ($delta) {
+      case 0:
+        return nabuur_menu_og_block_admin();
+    }
+  }
+}
+
+function nabuur_menu_og_block_admin() {
+  global $user;
+
+  $group = og_get_group_context();
+//  if (is_object($group) && (user_access('see group create content block') && array_key_exists($group->nid, $user->og_groups))) {
+  if (is_object($group) && array_key_exists($group->nid, $user->og_groups)) {
+    list(,$subpages) = _nabuur_path_settings();
+    $page = substr($_GET['q'], strrpos($_GET['q'], '/') +1);
+    if ($_GET['q'] == 'node/'. $page) {
+      if (is_object($node = node_load($page))) {
+        if (node_access('create', $content_type)) {
+          $links[] = l(t('Create @name', array('@name' => node_get_types('name', $node))), 'node/add/'. $node->type, NULL, 'gids[]='. $group->nid);
+        }
+        if ($node->comment_type != '' && node_access('create', $node->comment_type)) {
+          $links[] = l(t('Reply to this @name', array('@name' => node_get_types('name', $node))), 'node/add/'. $node->comment_type .'/'. $node->nid, NULL, 'gids[]='. $group->nid);
+        }
+      }
+    }
+    elseif (array_key_exists($page, $subpages)) {
+      // village subpage
+      $links = array();
+      if (count($subpages[$page]['content-type'])) {
+        foreach ($subpages[$page]['content-type'] as $content_type) {
+          if (node_access('create', $content_type) && $page != 'project') {
+            $links[] = l(t('Create @name', array('@name' => node_get_types('name', $content_type))), 'node/add/'. $content_type, NULL, 'gids[]='. $group->nid);
+          }
+        }
+      }
+      // special case projects page
+      if ($page == 'project') {
+        $content_types = $subpages[$page]['content-type'];
+        $content_type = array_shift($content_types);
+        if (node_access('create', $content_type)) {
+          $links[] = l(t('Create new @name', array('@name' => node_get_types('name', $content_type))), 'node/add/'. $content_type, NULL, 'gids[]='. $group->nid);
+        }
+        // we know last created project is displayed on this page - so well....
+        $sql = "SELECT n.nid from {node} n INNER JOIN {og_ancestry} o ON o.nid = n.nid WHERE o.group_nid = %d AND n.type='%s' ORDER BY n.created DESC";
+        $result = db_query($sql, $group->nid, $content_type);
+        if ($project = db_result($result)) {
+          foreach ($content_types as $content_type) {
+            if (node_access('create', $content_type)) {
+              $links[] = l(t('Create @name for this project', array('@name' => node_get_types('name', $content_type))), 'node/add/'. $content_type .'/parent/'. $project, NULL, 'gids[]='. $group->nid);
+            }
+          }
+        }
+      }
+    }
+    if (count($links)) {
+      $block['title'] = t('Create content');
+      $block['content'] = theme('nabuur_menu_og_block_admin_list', $links);
+    }
+  return $block;
+  }
+}
+
+function theme_nabuur_menu_og_block_admin_list($links) {
+  $output = '<div class="item-list"><ul>';
+  foreach ($links as $link) {
+    $output .= '<li>'.$link.'</li>';
+  }
+  $output .= '</ul></div>';
+  return $output;
+}

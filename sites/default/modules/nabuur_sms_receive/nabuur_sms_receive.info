@@ -1,0 +1,5 @@
+; $Id: nabuur_sms_receive.info,v 1.1.2.1 2008/08/17 13:11:00 kester Exp $
+name = "nabuur SMS Receive"
+description = "Allows the SMS Framework to receive messages and post them to local reps groups."
+package = nabuur
+dependencies = sms

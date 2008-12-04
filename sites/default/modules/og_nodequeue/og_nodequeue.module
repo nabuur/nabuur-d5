@@ -1,0 +1,61 @@
+<?php
+// $Id: og_nodequeue.module,v 1.1.1.1 2008/05/23 12:23:41 kester Exp $
+
+/**
+ * Implementation of hook_nodequeue_info()
+ */
+function og_nodequeue_info() {
+  return array('og' => array(
+    'title' => t('Organic Groups queue'),
+    'description' => t('!! Using this with large or too many OG may degrade performance.'),
+    ));
+}
+
+/**
+ * Implementation of hook_nodequeue()
+ */
+function og_nodequeue_form($queue, &$form) {
+  $form['subqueue_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Subqueue title'),
+    '#default_value' => $queue->subqueue_title,
+    '#size' => 50,
+    '#maxlength' => 64,
+    '#description' => t('What to display for the subqueue title; use %subqueue to embed the actual subqueue title. This is used to distinguish multiple nodequeues with subqueues from each other, as internal subqueue title is filled automatically.'),
+  );
+}
+
+/**
+ * Implementation of hook_nodequeue()
+ */
+function og_nodequeue_form_validate($queue, $form_values, &$form) {
+}
+
+
+/**
+ * Implementation of hook_nodequeue_subqueues()
+ */
+function og_nodequeue_subqueues(&$queue, $node) {
+  foreach ($node->og_groups as $og) {
+  }
+
+  $exists = array();
+  $subqueues = nodequeue_load_subqueues_by_reference(array($queue->qid => $node->og_groups));
+  foreach ($subqueues as $subqueue) {
+    $exists[$subqueue->reference] = TRUE;
+  }
+
+  foreach ($node->og_groups as $og) {
+    if (empty($exists[$og])) {
+      nodequeue_add_subqueue($queue, $node->og_groups_both[$og], $og);
+    }
+  }
+
+  return $node->og_groups;
+}
+
+// @TODO:
+// @TODO Automatically add subqueues when OG are created?
+// @TODO Deletion of OG
+// @TODO Handle OG name changes (maybe?)
+// hook_og

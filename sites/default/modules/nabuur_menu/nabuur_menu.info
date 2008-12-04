@@ -1,0 +1,5 @@
+; $Id: nabuur_menu.info,v 1.1.2.2 2008/06/13 08:23:11 kester Exp $
+name = nabuur menu
+description = "Nabuur menus"
+dependencies = og nabuur_path
+package = nabuur

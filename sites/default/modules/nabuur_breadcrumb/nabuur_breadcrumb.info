@@ -1,0 +1,5 @@
+; $Id: nabuur_breadcrumb.info,v 1.1.1.1 2008/05/23 12:23:41 kester Exp $
+name = Nabuur breadcrumb
+description = "Sets the breadcrumb for village and group pages"
+dependencies = pathauto
+package = nabuur

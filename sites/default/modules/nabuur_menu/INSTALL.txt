@@ -1,0 +1,2 @@
+To make the secondary menus work, you need to create a menu admin/build/menu
+and then assign it as the secondary links admin/build/menu/settings

@@ -1,0 +1,287 @@
+<?php 
+// $Id: nabuur_users.module,v 1.1.1.9 2008/11/18 15:54:47 kester Exp $ 
+
+/**      
+ * @file  
+ * nabuur.com site specific additions for node profiles.
+ *
+ * Checks online status of users, links uid and nodeprofile. Adds
+ * these to phptemplate theme functions.
+ */
+
+define('NABUUR_PROFILE_NODE_TYPE', 'individual_profile');
+
+/**
+ * Implementation of hook_user().
+ */
+function nabuur_users_user($op, &$edit, &$user, $category = NULL) {
+  switch ($op) {
+    case 'load':
+       $user->nodeprofile = nabuur_users_nodeprofile_load($user->uid);
+       break;
+  }
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function nabuur_users_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    $blocks[0]['info'] = t('Add user as friend or privmsg');
+    return $blocks;
+  }
+  elseif ($op == 'view' && $delta == 0) {
+    if (arg(0) == 'node' && is_numeric(arg(1))) {
+      // this could really be a panels2 pane with context
+      $block['subject'] = t('Actions');
+      $block['content'] = nabuur_users_usernode_pageactions(arg(1));
+      return $block;
+    }
+  }
+}
+
+function nabuur_users_usernode_pageactions($nid) {
+  global $user;
+  $uid = nabuur_users_profile_get_uid($nid);
+  if ($uid > 0) {
+    if ($user->uid < 1) {
+      return t('You need to <a href="@login-page">login</a> to send this user a message or add them as a friend.', array('@login-page' => url('user')));
+    }
+    else {
+      $links[] = l(t('Add me as a friend'), '/buddy/add/'. $uid, array(), drupal_get_destination());
+      $links[] = l(t('Write me a private message'), '/privatemsg/new/'. $uid, array());
+      return theme('item_list', $links);
+    }
+  }
+}
+
+/**
+ * Test if users are online.
+ *
+ * @param $uid int user id
+ * @return bool true user is online
+ */
+function nabuur_users_user_online($uid) {
+  static $online = array( 0 => TRUE );
+
+  if ($online[0] === TRUE) {
+    $online = array();
+    // Count users active within the defined period.
+    // Using same period as the user_block that can be defined in admin.
+    $interval = time() - variable_get('user_block_seconds_online', 900);
+
+    // Perform database queries to gather online user lists.  We use s.timestamp
+    // rather than u.access because it is much faster.
+    $authenticated_users = db_query('SELECT DISTINCT u.uid, s.timestamp FROM {users} u INNER JOIN {sessions} s ON u.uid = s.uid WHERE s.timestamp >= %d AND s.uid > 0 ORDER BY s.timestamp DESC', $interval);
+    while ($user = db_fetch_object($authenticated_users)) {
+      $online[$user->uid] = $user->timestamp;
+    }
+  }
+
+  return array_key_exists($uid, $online);
+}
+
+/**
+ * Get profile node for a uid.
+ *
+ * Reliant on the first NABUUR_PROFILE_NODE_TYPE node being the users
+ * individual profile.
+ *
+ * @param $uid int user uid
+ * @return object profile node nid on success
+ */
+function nabuur_users_nodeprofile_load($uid) {
+  // nodeprofile_load is cached (twice) in called functions so not here)
+  return nodeprofile_load(NABUUR_PROFILE_NODE_TYPE, $uid);
+}
+
+/**
+ * Get uid for a profile node.
+ *
+ * Will return 0 (anonymous) if the profile node is not the primary, first,
+ * profile node for a user.
+ *
+ * @param $nid int node id.
+ * @return int user id.
+ */
+function nabuur_users_profile_get_uid($nid) {
+  $profile = node_load($nid);
+  $profile_types = nodeprofile_get_types();
+  foreach ($profile_types as $type => $name) {
+    $users_profile = nodeprofile_load($type, $profile->uid);
+    if ($users_profile->nid == $profile->nid) {
+      // is the an actual user profile
+      return $users_profile->uid;
+    }
+  }
+  return 0;
+}
+
+/**
+ * Implementation of hook_form_alter().
+ *
+ * User registration form and it's embedded node profile altered.
+ */
+function nabuur_users_form_alter($form_id, &$form) {
+  static $user_form = FALSE;
+
+  if ('user_register' == $form_id) {
+    $user_form = TRUE;
+    unset($form['account']['name']);
+    // Fake a real user name submission, because we have to validate against
+    // the bulit-in username validation even though we're going to change the
+    // name anyway
+    $form['account']['name'] = array(
+      '#type' => 'value',
+      '#value' => user_password(10),
+    );
+
+    if (isset($form['#submit']['logintoboggan_user_register_submit'])) {
+      unset($form['#submit']['logintoboggan_user_register_submit']);
+      $form['#submit']['nabuur_users_register_submit'] = array('logintoboggan_user_register_submit');
+    }
+    else { // on other submission handlers accounted for - using default
+           // if (isset($form['#submit']['user_register_submit'])) {
+      unset($form['#submit']['user_register_submit']);
+      $form['#submit']['nabuur_users_register_submit'] = array('user_register_submit');
+    }
+  }
+
+  if ($form_id == NABUUR_PROFILE_NODE_TYPE .'_node_form' && $user_form) {
+    // this is the nodeprofile form embedded in the registration form
+    // unset most of the form for the registration process
+    unset($form['taxonomy']);
+    unset($form['field_dob']);
+    unset($form['field_gender']);
+    unset($form['field_available']);
+    unset($form['field_user_motivation']);
+    unset($form['field_user_other']);
+    unset($form['field_user_image']);
+    unset($form['field_website']);
+    // add to generate name
+    $form['#validate']['nabuur_users_register_username'] = array();
+  }
+
+  if ($form_id == 'user_register') {
+    $form[NABUUR_PROFILE_NODE_TYPE]['#collapsible'] = false;
+  }
+}
+
+/**
+ * Form API node profile validation callback.
+ *
+ * Also stores the name from the form to present to the user from submission.
+ */
+function nabuur_users_register_username($form_id, $form_values = NULL) {
+  static $full_name;
+  if ($form_id == NABUUR_PROFILE_NODE_TYPE .'_node_form') {
+    $full_name = _nabuur_users_register_generate_username($form_values['title']);
+  }
+  elseif ($form_id == 'user_register_submit') {
+    return $full_name;
+  }
+}
+
+/**
+ * Form API submit callback.
+ *
+ * Places generated username into the form then calls the previously defined
+ * submit callback.
+ */
+function nabuur_users_register_submit($form_id, $form_values, $form_submit) {
+  $form_values['name'] = nabuur_users_register_username('user_register_submit');
+  if (function_exists($form_submit)) {
+    return call_user_func($form_submit, $form_id, $form_values);
+  }
+}
+
+/**
+ * Internal function to generate a valid non-existing username.
+ *
+ * @param $name string the full name entered as the title of the profile node
+ * @return string valid username
+ */
+function _nabuur_users_register_generate_username($name) {
+  // @todo get UTF8 output from preg:-
+  //$name = preg_replace('/[^\p{Ll}\p{Lu}\p{Nd}\s]/', '', $name);
+  $name = preg_replace('/[^\w\s]/', '', $name);
+  $name = preg_replace('/\s+/',' ', $name);
+  $name = trim($name);
+  if ($name > USERNAME_MAX_LENGTH) {
+    // remove beginning not end
+    $name = substr($name, -USERNAME_MAX_LENGTH);
+  }
+  if ($error = user_validate_name($name)) {
+    print $name;
+    die;
+    watchdog('user', 'nabuur_users module failed to generate a sane username,'. $error, WATCHDOG_ERROR);
+    $name = user_password(USERNAME_MAX_LENGTH);
+  }
+  if (db_num_rows(db_query("SELECT uid FROM {users} WHERE LOWER(name) = LOWER('%s')", $name)) > 0) {
+    return _nabuur_users_register_generate_username($name .' '. time());
+  }
+
+  return $name;
+}
+
+/********************************************************************
+ * Template level overrides
+ */
+
+/**
+ * Replace user link with real name and online status.
+ */
+function phptemplate_username($object) {
+  if ($object->uid > 0) {
+    $user_profile = nabuur_users_nodeprofile_load($object->uid);
+    if (is_object($user_profile)) {
+      $name = $user_profile->title;
+      $user_link = 'node/'. $user_profile->nid;
+    }
+    else {
+      $name = $object->name;
+      // deal with missing profiles on the profile pages
+      $user_link = 'user/'. $object->uid .'/profile';
+    }
+    $name = l($name, $user_link, array('title' => t('View user profile')), NULL, NULL, FALSE, TRUE);
+    // add online status
+    $name .= (nabuur_users_user_online($user_profile->uid)) ? ' <span class="online-status">'. t('online') .'</span>' : '';
+  }
+  else {
+    $name = t(variable_get('anonymous', 'Anonymous'));
+  }
+
+  return '<div class="username">'. $name .'</div>';
+}
+
+/**   
+ * Get nodeprofile cck_image node_picture for a user.
+ *  
+ * @attention
+ * Specific to nodeprofile typename and cck_image fieldname,
+ * any changes to these need to be reflected here.
+ *
+ * Rather than loading the full user object for each node, this
+ * is called directly as a specific theme function from template.php
+ * Alternative would be a x_user_picture($object) function needing
+ * to be called with $user object.
+ *
+ * functions to be called from the theme_
+ * all very phptemplate/drupal
+ */ 
+function theme_nabuur_users_user_picture($uid) {
+  if ($uid > 1) { 
+    // @todo are there going to be anonymous posts, do they want a picture?
+    $user_profile = nabuur_users_nodeprofile_load($uid);
+    $image = $user_profile->field_user_image[0];
+  }
+  // For uid == 0 || 1 we get the blank.gif
+  $picture = _nabuur_og_user_image($image);
+  // No link to profiles for uid == 0 || 1
+  if ($uid > 1) {
+    $alt = t('View @user\'s profile.', array('@user' => $user_profile->title));
+    $picture = l($picture, 'node/'. $user_profile->nid, array('title' => $alt), NULL, NULL, FALSE, TRUE);
+  }  
+  return "<div class=\"picture\">$picture</div>";
+}
+

@@ -1,0 +1,4 @@
+; $Id: nabuur_stats.info,v 1.1.1.1 2008/05/23 12:23:41 kester Exp $
+name = nabuur stats
+description = "A block of statistics for the front page" 
+package = nabuur

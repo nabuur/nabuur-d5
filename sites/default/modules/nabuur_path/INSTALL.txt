@@ -1,0 +1,7 @@
+Include both nabuur_pathalias.inc and i18n in your settings.php so they
+can both handle url rewrites....
+
+include_once('sites/default/modules/nabuur_path/nabuur_pathalias.inc');
+include_once('sites/all/modules/i18n/i18n.module');
+
+... but put nabuur_pathalias in first no it can call i18n module version.

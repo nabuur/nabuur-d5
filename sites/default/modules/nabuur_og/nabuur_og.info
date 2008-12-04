@@ -1,0 +1,5 @@
+; $Id: nabuur_og.info,v 1.1.2.1 2008/06/13 08:12:14 kester Exp $
+name = nabuur organic groups
+description = "Nabuur spocific groups blocks and pages"
+dependencies = og
+package = nabuur

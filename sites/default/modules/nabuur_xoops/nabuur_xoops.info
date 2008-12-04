@@ -1,0 +1,4 @@
+; $Id: nabuur_xoops.info,v 1.1.2.1 2008/07/20 09:48:33 kester Exp $
+name = nabuur xoops
+description = "Xoops url and files redirection and logging" 
+package = nabuur

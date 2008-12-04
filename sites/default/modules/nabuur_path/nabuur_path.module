@@ -1,0 +1,19 @@
+<?php
+// $Id: nabuur_path.module,v 1.1.2.1 2008/06/13 08:11:51 kester Exp $
+
+/**
+ * @file
+ * base nabuur module - now only doing i18n url rewrite correction
+ */
+
+/********************************************************************
+ * Standard hooks
+ */
+
+/**
+ * Implementation of hook_init().
+ */
+function nabuur_path_init() {
+  // i18n clobbers rewritten $_GET in i18n_init make sure it's redone after that
+  $_GET['q'] = custom_url_rewrite('source', $_GET['q'], $_GET['q']);
+}

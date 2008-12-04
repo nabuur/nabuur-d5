@@ -1,0 +1,131 @@
+<?php
+// $Id: nabuur_xoops.module,v 1.1.2.3 2008/09/19 12:45:50 kester Exp $
+
+/**
+ * @file
+ * Catches old xoops urls redirects and logs.
+ */
+
+/**
+ * Implementation of hook_menu.
+ */
+function nabuur_xoops_menu($may_cache) {
+  $items = array();
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'uploads',
+      'callback' => 'nabuur_xoops_file',
+      'access' => true,
+      'type' => MENU_CALLBACK,
+    );
+
+    $items[] = array(
+      'path' => 'modules',
+      'callback' => 'nabuur_xoops_page',
+      'access' => true,
+      'type' => MENU_CALLBACK,
+    );
+  }
+  return $items;
+}
+
+function nabuur_xoops_file() {
+  global $base_url;
+  $xf_path = $_GET['q'];
+  if(preg_match('@[^ a-zA-Z0-9_\-\.\(\)/]@', $xf_path)) {
+    // character not in known filenames
+    drupal_not_found();
+  } 
+  else {
+    if ($df_path = db_result(db_query("SELECT {filepath} FROM {xoops_files} x LEFT JOIN files f ON x.fid = f.fid WHERE file = '%s'", $xf_path))) {
+      // log
+      nabuur_xoops_goto($base_url .'/'. $df_path); // @todo
+    }
+    elseif ($df_path = file_create_path($xf_filepath)) {
+       nabuur_xoops_goto($base_url .'/'. $df_path);
+    }
+    else {
+      return drupal_not_found();
+    }
+  }
+}
+
+function nabuur_xoops_page() {
+  if (arg(2) == 'login.php') {
+    nabuur_xoops_goto('user/login');
+  }
+  if (isset($_GET['topic_id'])) {
+    // task (including links direct to posts in tasks)
+    if ($nid = db_result(db_query("SELECT nid FROM {xoops_content} WHERE xtable = 'xoops_bb_topics' AND xid = %d", $_GET['topic_id']))) {
+      nabuur_xoops_goto('node/'. $nid);
+    }
+  }
+  if (isset($_GET['post_id']) && arg(1) == 'dl_attachment.php') {
+    // attachment download from a post on a task. redirecting to OP.
+    if ($nid = db_result(db_query("SELECT nid FROM {xoops_content} WHERE xtable = 'xoops_bb_forum_posts' AND xid = %d", $_GET['post_id']))) {
+      nabuur_xoops_goto('node/'. $nid);
+    }
+  }
+  if (isset($_GET['forum'])) {
+    // project
+    if ($nid = db_result(db_query("SELECT nid FROM {xoops_content} WHERE xtable = 'xoops_villages' AND xid = %d", $_GET['forum']))) {
+      nabuur_xoops_goto('node/'. $nid .'/project');
+    }
+  }
+  if (isset($_GET['action_id'])) {
+    // wikipage
+    if ($nid = db_result(db_query("SELECT nid FROM {xoops_content} WHERE xtable = 'xoops_***' AND xid = %d", $_GET['action_id']))) {
+      nabuur_xoops_goto('node/'. $nid);
+    }
+  }
+  if (isset($_GET['villageid'])) {
+    // other village pages
+    if ($nid = db_result(db_query("SELECT nid FROM {xoops_content} WHERE xtable = 'xoops_villages' AND xid = %d", $_GET['villageid']))) {
+      switch (arg(2)) {
+        case 'mystory.php':
+        case 'villages_village.php':
+          nabuur_xoops_goto('node/'. $nid);
+        case 'myvillage.php':
+          nabuur_xoops_goto('node/'. $nid .'/background');
+        case 'viewforum.php':
+          nabuur_xoops_goto('node/'. $nid .'/project');
+        case 'projectresources.php':
+          nabuur_xoops_goto('node/'. $nid .'/resources');
+        case 'village_neighbours.php':
+          nabuur_xoops_goto('node/'. $nid .'/neighbours');
+      }
+    }
+  }
+  if (isset($_GET['uid'])) {
+    // user page - all redirect to profile
+    if ($nid = db_result(db_query("SELECT nid FROM {node} WHERE type = '%s' AND uid = %d", NABUUR_PROFILE_NODE_TYPE, $_GET['uid']))) {
+      nabuur_xoops_goto('node/'. $nid);
+    }
+  }
+  if (isset($_GET['newsid'])) {
+    // site news - now in staff group
+    if ($nid = db_result(db_query("SELECT nid FROM {xoops_content} WHERE xtable='xoops_stories' AND xid = %d", $_GET['newsid']))) {
+      nabuur_xoops_goto('node/'. $nid);
+    }
+  }
+  switch (arg(1)) {
+    case 'resource':
+      // resource index page
+      nabuur_xoops_goto('search/resource');
+    case 'neighbours':
+      nabuur_xoops_goto('search/users');
+    case 'villages':
+      // villages index pages
+      nabuur_xoops_goto('village');
+    case 'news':
+      nabuur_xoops_goto('news');
+    case 'homepage':
+      nabuur_xoops_goto('');
+  }
+  drupal_not_found();
+}
+
+function nabuur_xoops_goto($path) {
+  drupal_goto($path); // @TODO TESTING
+//  drupal_goto($path, NULL, NULL, 301);
+}

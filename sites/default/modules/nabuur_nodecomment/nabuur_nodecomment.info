@@ -1,0 +1,5 @@
+; $Id: nabuur_nodecomment.info,v 1.1.2.1 2008/08/11 12:52:18 kester Exp $
+name = nabuur node comments
+description = "node comment redirect to thread and mark as viewed"
+dependencies = nodecomment
+package = nabuur

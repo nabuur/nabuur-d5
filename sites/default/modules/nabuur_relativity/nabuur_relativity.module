@@ -1,0 +1,90 @@
+<?php
+// $Id: nabuur_relativity.module,v 1.1.2.3 2008/09/19 17:46:02 admin Exp $
+
+/**
+ * @file
+ * module adding to edit form for tasks to allow change of project
+ */
+
+function nabuur_relativity_nodeapi(&$node, $op, $teaser, $page) {
+  switch ($op) {
+    case 'validate':
+      // check is a possible parent
+      // even check that there is a parent
+      // see relativity_nodeapi(,'validate',,)
+      break;
+    case 'insert':
+      // relativity is presently doing this
+      // but we could ;-)
+      break;
+    case 'update':
+      nabuur_relativity_reset_parent($node, $node->parent_node, $node->parent);
+      break;
+  }
+}
+
+function nabuur_relativity_form_alter($form_id, &$form) {
+  // @todo change this to query relativity module for children/parents
+  // get and check content types for the _node_forms to alter
+  list(,$content_types) = _nabuur_path_settings();
+  $tasks = $content_types['project']['content-type'];
+  array_shift($tasks); // remove the project type itself
+//  if (substr($form_id, -10) == '_node_form' && in_array(substr($form_id, 0, strlen($form_id) - 10), $tasks)) {
+  if (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && in_array($form['type']['#value'], $tasks)) {
+    $form['relativity']['parent'] = _nabuur_relativity_projects_select($from['type']['#value'], $form['#node']->parent_node);
+  }
+}
+
+function nabuur_relativity_reset_parent($node, $original_parent, $new_parent) {
+  if (! is_array($original_parent)) {
+    $original_parent = array($original_parent);
+  }
+  if (! is_array($new_parent)) {
+    $new_parent = array($new_parent);
+  }
+  if ($original_parent != $new_parent) {
+    // this may be a bit extreme if it could have children itself
+    relativity_delete_relationships($node);
+    foreach ($new_parent as $parent_nid) {
+      // relativity_addparent and relativity_addparent_multiple include $_POST and goto's
+      db_query('INSERT INTO {relativity} (nid, parent_nid) VALUES (%d, %d)', $node->nid, $parent_nid);
+    }
+  }
+}
+
+function _nabuur_relativity_projects_select($content_type, $parent_nid = NULL) {
+  $parents = array();
+  // for now this is just here for consistent UI
+  if (arg(1) == 'add' && arg(3) == 'parent' && is_numeric(arg(4))) {
+    if (is_object($parent = node_load(arg(4)))) {
+      $parents[$parent->nid] = $parent->title;
+    }
+  }
+  elseif (is_object($group = og_get_group_context())) {
+    // this only works in the single group nabuur context
+    $parents = nabuur_relativity_group_parents($group->nid);
+  }
+  if (count($parents)) {
+    return array(
+      '#type' => 'select',
+      '#title' => t('Project'),
+      '#options' => $parents,
+      '#default_value' => $parent_nid,
+      '#description' => t('The parent project for this task'),
+    );
+  }
+  else {
+    return;
+  }
+}
+
+function nabuur_relativity_group_parents($group_nid) {
+  $parents = array();
+  $sql = "SELECT n.nid, n.title FROM {node} n INNER JOIN {og_ancestry} o ON n.nid = o.nid WHERE n.type='%s' AND o.group_nid=%d";
+  $result = db_query($sql, 'project_outline', $group_nid);  // @todo replace 'project_outline'
+  while ($row = db_fetch_array($result)) {
+    $parents[$row['nid']] = $row['title'];
+  }
+  return $parents;
+}
+

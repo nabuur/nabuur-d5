@@ -1,0 +1,368 @@
+<?php 
+// $Id: nabuur_project.module,v 1.1.2.9 2008/11/26 12:40:59 kester Exp $ 
+
+/**      
+ * @file  
+ * nabuur.com site group/project pages.
+ */
+
+/**
+ * Implementation of hook_block().
+ */
+function nabuur_project_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    $blocks = array();
+
+    $blocks[0]['info'] = t('Nabuur project similar users');
+    // Auto-enable the group blocks for fresh installations.
+    $blocks[0]['status'] = 1;
+    $blocks[0]['weight'] = 0;
+
+    $blocks[1]['info'] = t('Nabuur project similar groups and villages');
+    // Auto-enable the group blocks for fresh installations.
+    $blocks[1]['status'] = 1;
+    $blocks[1]['weight'] = 0;
+
+    $blocks[2]['info'] = t('Nabuur project similar organisations');
+    // Auto-enable the group blocks for fresh installations.
+    $blocks[2]['status'] = 1;
+    $blocks[2]['weight'] = 0;
+    return $blocks;
+  }
+  elseif ($op == 'view') {
+    switch ($delta) {
+      case 0:
+        return nabuur_project_block_similarusers();
+      case 1:
+        return nabuur_project_block_similarog();
+      case 2:
+        return nabuur_project_block_similarorg();
+    }
+  }
+}
+
+/**
+ * Similarnode individual_profile display block.
+ */
+function nabuur_project_block_similarusers() {
+  if (! is_object($node = _nabuur_project_block_similar_node_context())) {
+    // not a og page or a node page
+    return '';
+  }
+
+  if ($nid_serial = cache_get('nabuur_project_block_'. $node->nid, 'cache_nabuur_project')) {
+    $nodes = unserialize($nid_serial->data);
+  }
+  else { 
+     $tids = nabuur_project_related_taxonomy($node);
+     $nodes = nabuur_project_similarnodes($node->nid, $tids);
+     cache_set('nabuur_project_block_'. $node->nid, 'cache_nabuur_project', serialize($nodes), time() + 360*24);
+  }
+
+   return count($nodes) ? array('title' => t('Neighbours who could help'), 'content' => theme('nabuur_project_block_similar', $nodes)) : '';
+}
+
+/**
+ * Similarnode groups and villages display block.
+ */
+function nabuur_project_block_similarog() {
+  if (! is_object($node = _nabuur_project_block_similar_node_context())) {
+    // not a og page or a node page
+    return '';
+  }
+  
+  if ($nid_serial = cache_get('nabuur_project_block_og_'. $node->nid, 'cache_nabuur_project')) {
+    $nodes = unserialize($nid_serial->data);
+  }
+  else {
+     $tids = nabuur_project_related_taxonomy($node);
+     $nodes = nabuur_project_similarnodes($node->nid, $tids, array('village', 'group'));
+     // only include public nodes
+     global $user;
+     $cuser = $user;
+     $user = user_load(array('uid' => 0));
+     foreach($nodes as $lnode) {
+       if(node_access('view', node_load($lnode->nid))) {
+         $pnodes[] = $lnode;
+       }
+     }
+     $user = $cuser;
+     cache_set('nabuur_project_block_og_'. $node->nid, 'cache_nabuur_project', serialize($pnodes), time() + 360*24);
+   }
+
+   return count($pnodes) ? array('title' => t('Similar villages and groups'), 'content' => theme('nabuur_project_block_similar', $pnodes)) : '';
+}
+
+/**
+ * Similarnode nodes in resources-organisations display block.
+ */
+function nabuur_project_block_similarorg() {
+  if (! is_object($node = _nabuur_project_block_similar_node_context())) {
+    // not a og page or a node page
+    return '';
+  }
+
+  if ($nid_serial = cache_get('nabuur_project_block_org_'. $node->nid, 'cache_nabuur_project')) {
+    $nodes = unserialize($nid_serial->data);
+  }
+  else {
+    $nodes = array();
+    $tids = nabuur_project_related_taxonomy($node);
+    if (count($tids)) {
+      $tids_comma = implode(', ', $tids);
+      // @todo think generalize sql query construction... type, term
+      //       integrate with views once the tids have been collected?
+      // tid 1206 = resource - organisation
+      $result = db_query_range("SELECT DISTINCT(node.nid), SUM(similarnodes.weight) as weight, node.title as title FROM node node INNER JOIN similarnodes similarnodes ON node.nid = similarnodes.nid INNER JOIN term_node ON term_node.nid = node.nid AND term_node.tid = 1206 WHERE (node.status = '1') AND (similarnodes.tid IN($tids_comma)) AND (node.nid != %d) GROUP BY similarnodes.nid ORDER BY SUM(similarnodes.weight) DESC", $node->nid, 0, 5);
+      while ($row = db_fetch_object($result)) {
+        $nodes[] = $row;
+      }
+      cache_set('nabuur_project_block_org_'. $node->nid, 'cache_nabuur_project', serialize($nodes), time() + 360*24);
+    }
+  }
+
+  return count($nodes) ? array('title' => t('Organisations of interest'), 'content' => theme('nabuur_project_block_similar', $nodes)) : '';
+}
+
+/**
+ * Internal helper function to get a context for similar* query.
+ *
+ * @return node object or NULL
+ */
+function _nabuur_project_block_similar_node_context() {
+  if (arg(0) == 'node') {
+    // node page get nid
+    $nid = arg(1);
+  }
+  else {
+    $nid = FALSE;
+  }
+
+  if (! is_numeric($nid)) {
+    // not a node page - fallback to group node
+    $node = og_get_group_context();
+  }
+  else {
+    // node page - get node
+    $node = node_load($nid);
+  }
+
+  return $node;
+}
+
+
+function nabuur_project_related_taxonomy($node) {
+  $tids = array();
+  // handle empty item calls
+  if (! is_object($node)) {
+    return $tids;
+  }
+
+  switch ($node->type) {
+    case 'group':
+    case 'village':
+      $tids = array_merge(_nabuur_project_village_tids($node->nid), array_map('_taxonomy_get_tid_from_term', $node->taxonomy));
+      break;
+    case 'project_outline':
+      $tids = array_merge(_nabuur_project_project_tids($node->nid), array_map('_taxonomy_get_tid_from_term', $node->taxonomy));
+      break;
+    case 'task':
+      $tids = array_merge(_nabuur_project_task_tids($node->nid), array_map('_taxonomy_get_tid_from_term', $node->taxonomy));
+      break;
+    default:
+      $tids = array_map('_taxonomy_get_tid_from_term', $node->taxonomy);
+  }
+
+  return $tids;
+}
+
+/**
+ * @param $nodes array of node objects, only require nid and title
+ * @return string html
+ * @group themeable
+ */
+function theme_nabuur_project_block_similar($nodes) {
+  if(count($nodes)) {
+    $items = array();
+    foreach ($nodes as $node) {
+      $items[] = l($node->title, 'node/'. $node->nid);
+    }
+    return theme('item_list', $items);
+  }
+}
+
+
+function _nabuur_project_project_tids($nid) {
+  $tids = array();
+  // only querying down to task level - not task discussion
+  $result = db_query("SELECT distinct(t.tid) FROM {relativity} r INNER JOIN {node} n on r.nid = n.nid INNER JOIN {term_node} t on n.nid = t.nid WHERE r.parent_nid = %d", $nid);
+  while ($tid = db_fetch_array($result)) {
+    $tids[$tid['tid']] = $tid['tid'];
+  }
+  return $tids;
+}
+
+function _nabuur_project_task_tids($nid) {
+  $tids = array();
+  $result = db_query("SELECT distinct(t.tid) FROM {node_comments} c INNER JOIN {node} n on c.cid = n.nid INNER JOIN {term_node} t on n.nid = t.nid WHERE c.nid = %d", $nid);
+  while ($tid = db_fetch_array($result)) {
+    $tids[$tid['tid']] = $tid['tid'];
+  }
+  return $tids;
+}
+
+function _nabuur_project_village_tids($nid) {
+  $tids = array();
+  // only going to pick up tasks and task_discussion actually placed into the group
+  $result = db_query("SELECT distinct(t.tid) FROM {og_ancestry} o INNER JOIN {node} n ON o.nid = n.nid AND n.type IN ('project_outline', 'task', 'task_discussion') INNER JOIN {term_node} t ON n.nid = t.nid WHERE o.group_nid = %d", $nid);
+  while ($tid = db_fetch_array($result)) {
+    $tids[$tid['tid']] = $tid['tid'];
+  }
+  return $tids;
+}
+
+/**
+ * Wrapper for similarnodes query.
+ *
+ * @param int $nid node id to exclude
+ * @param array $tids taxonomy tid as elements of array
+ * @param array $type node content_types (opt)
+ * @param int $from row offset for query
+ * @param int $count number of rows to return
+ * @return sorted array by weight of similar nodes object(nid, title)
+ */
+function nabuur_project_similarnodes($nid, $tids, $type = array('individual_profile'), $from = 0, $count = 6) {
+  if (! count($tids)) {
+    // don't run unless there are some term id's
+    return array();
+  }
+
+  $nids = array();
+  $tids = array_map('intval', $tids);
+  $tids_comma = implode(', ', $tids);
+  $type = array_map('db_escape_string', $type);
+  $type_comma = "'";
+  $type_comma .= implode("' , '", $type);
+  $type_comma .= "'";
+  $result = db_query_range("SELECT DISTINCT(node.nid), SUM(similarnodes.weight) as weight, node.title as title FROM node node INNER JOIN similarnodes similarnodes ON node.nid = similarnodes.nid WHERE (node.type IN ($type_comma)) AND (node.status = '1') AND (similarnodes.tid IN($tids_comma)) AND (node.nid != %d) GROUP BY similarnodes.nid ORDER BY SUM(similarnodes.weight) DESC", $nid, $from, $count);
+  while ($row = db_fetch_object($result)) {
+    $nids[] = $row;
+  }
+  ksort($nids);
+  return $nids;
+}
+
+/*******************************************************************
+ * @todo place views in here
+ */
+
+/********************************************************************
+ * Template level overrides
+ */
+
+/**
+ * Alternative theme of theme_relativity_show_link_operations().
+ *
+ * Removes db calls, and unlink lists for children
+ */
+function phptemplate_relativity_show_link_operations($parent, $fieldset=1) {
+  $parent_nid = $parent->nid;
+  $output = relativity_get_operation_links($parent);
+  $output = '<div class="relativity-child-create">'. $output .'</div>';
+  return $output;
+}
+
+/**
+ * Removes fieldset from theme_relativity_show_children().
+ *
+ * Also adds <div> and <h2> title.
+ */
+function phptemplate_relativity_show_children($parent, $fieldset=0) {
+  $output = theme_relativity_show_children($parent, $fieldset);
+  if ($output != '') {
+    $output = '<div class="relativity-children">'
+            . '<h2>'. variable_get('relativity_children_label', t('Children nodes')) .'</h2>'
+            . $output
+            . '</div>';
+  }
+  return $output;
+}
+
+/**
+ * Removes fieldset from theme_relativity_show_parents().
+ */
+function phptemplate_relativity_show_parents($node, $fieldset=0) {
+  return theme_relativity_show_parents($node, $fieldset);
+}
+
+/**
+ * Seperates tasks into steps and themes them into a standard table.
+ */
+function phptemplate_views_view_list_project_forum($view, $nodes, $type) {
+  if ($_GET['q'] == substr($view->real_url, 0, strlen($_GET['q']))) {
+    $node_page = TRUE;
+  }
+  else {
+    $node_page = FALSE;
+  }
+
+  $fields = _views_get_fields();
+
+  $taken = array();
+
+  // Group our nodes
+  $set = array();
+  foreach ($nodes as $node) {
+    $set[$node->node_data_field_step_field_step_value ? $node->node_data_field_step_field_step_value : 100][] = $node;
+  }
+
+  ksort($set);
+
+  // Set up the fields in nicely named chunks.
+  foreach ($view->field as $id => $field) {
+    $field_name = $field['field'];
+    if (isset($taken[$field_name])) {
+      $field_name = $field['queryname'];
+    }
+    $taken[$field_name] = true;
+    $field_names[$id] = $field_name;
+  }
+
+  // Set up some variables that won't change.
+  $base_vars = array(
+    'view' => $view,
+    'view_type' => $type,
+  );
+
+  $output = '';
+  foreach ($set as $label => $nodes) {
+    $items = array();
+    foreach ($nodes as $i => $node) {
+      $vars = $base_vars;
+      $vars['node'] = $node;
+      $vars['count'] = $i;
+      $vars['stripe'] = $i % 2 ? 'even' : 'odd';
+      foreach ($view->field as $id => $field) {
+        $name = $field_names[$id];
+        $vars[$name] = views_theme_field('views_handle_field', $field['queryname'], $fields, $field, $node, $view);
+        if (isset($field['label'])) {
+          $vars[$name . '_label'] = $field['label'];
+        }
+      }
+      if (! ($vars['name'] == t('Finished') && ! $node_page)) {
+        // exclude finish tasks on the overview page - show on node page
+        $items[] = array($vars['name'], $vars['title'], $vars['comment_count'], $vars['last_comment_timestamp']);
+      }
+    }
+    if (count($items)) {
+      if ($label != '' && $label != 100) {
+        $output .= '<h3>'. t('Step') .' '. $label .'</h3>';
+      }
+      else {
+        $output .= '<h3>'. t('General tasks') .'</h3>';
+      }
+      $output .= theme('table', array(t('Status'), t('Task'), t('Replies'), t('Last reply')), $items);
+    }
+  }
+  return $output;
+}

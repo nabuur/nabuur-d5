@@ -1,0 +1,73 @@
+<?php
+// $Id: nabuur_nodecomment.module,v 1.1.2.7 2008/08/24 16:25:38 admin Exp $
+
+/**
+ * @file
+ * module adding to edit form for tasks to allow change of project
+ */
+
+function nabuur_nodecomment_nodeapi(&$node, $op, $teaser, $page) {
+  switch ($op) {
+    case 'view':
+      if ($page === TRUE && $teaser === FALSE && $node->comment_target_nid > 0) {
+        if (strpos($_SERVER['HTTP_USER_AGENT'], 'Googlebot') !== FALSE ||
+            strpos($_SERVER['HTTP_USER_AGENT'], 'Yahoo! Slurp') !== FALSE ||
+            strpos($_SERVER['HTTP_USER_AGENT'], 'searchme.com') !== FALSE ||
+            stripos($_SERVER['HTTP_USER_AGENT'], 'MSNBOT') !== FALSE ||
+            strpos($_SERVER['HTTP_USER_AGENT'], 'ArchitextSpider') !== FALSE) {
+          // index bot, let them get each comment individually
+          return;
+        }
+        global $user;
+        $preference = nabuur_nodecomment_user_default($user);
+        if ($preference == 2) {
+          // desc
+          $older_comments = db_result(db_query('SELECT COUNT(c.cid) FROM {node_comments} c INNER JOIN {node} n ON c.cid = n.nid WHERE c.nid = %d AND n.created > %d', $node->comment_target_nid, $node->created));
+          $order = 'desc';
+        }
+        else {
+          // asc or threaded @todo can we work out paging for threaded!?
+          $older_comments = db_result(db_query('SELECT COUNT(c.cid) FROM {node_comments} c INNER JOIN {node} n ON c.cid = n.nid WHERE c.nid = %d AND n.created < %d', $node->comment_target_nid, $node->created));
+          $order = 'asc';
+        }
+        // the number of comments per page is only in the view?
+        $per_page = 15;
+        $page = floor($older_comments/$per_page);
+        // page view of a node comment - redirect to parent
+        drupal_goto('node/'. $node->comment_target_nid, 'sort='. $order .'&page='. $page , 'comment-'. $node->nid);
+      }
+      elseif ($node->comment_target_nid > 0) {
+        // comment being displayed - mark as seen
+        node_tag_new($node->nid);
+      }
+      break;
+  }
+}
+
+function nabuur_nodecomment_user($type, $edit, &$user, $category = NULL) {
+  if ($type == 'form' && $category == 'account') {
+    $form['nodecomment'] = array(
+      '#type'        => 'fieldset',
+      '#title'       => t('Comment preferences'),
+      '#weight'      => 5,
+      '#collapsible' => TRUE,
+    );
+    $form['nodecomment']['nodecomment_sort'] = array(
+      '#type'          => 'select',
+      '#title'         => t('Default display of comments and discussion'),
+      '#default_value' => nabuur_nodecomment_user_default($user),
+      '#options' => array( 1 => 'In comment order', 2 => 'Latest post first', 3 => 'In date order' ),
+      '#description'   => t('How you would prefer to normally see comments and discussions about tasks ordered.'),
+    );
+    return $form;
+  }
+}
+
+function nabuur_nodecomment_user_default($user = NULL) {
+  if (is_object($user) && $user->nodecomment_sort > 0) {
+    return $user->nodecomment_sort;
+  }
+  else {
+    return variable_get('nodecomment_sort_default', 1);
+  }
+}

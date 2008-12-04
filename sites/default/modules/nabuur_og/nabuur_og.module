@@ -1,0 +1,375 @@
+<?php
+// $Id: nabuur_og.module,v 1.1.2.21 2008/09/29 12:48:29 kester Exp $
+
+/**
+ * @file
+ * module to for Nabuur groups specific alterations
+ */
+
+/**
+ * Implementation of hook_form_alter.
+ *
+ * Sets Organic Group audience on tasks, and nodecomments.
+ */
+function nabuur_og_form_alter($form_id, &$form) {
+  $reply = false;
+  // comment_node_form  // task_discussion_node_form 
+  // this is the assumption used by the nodecomment module...
+  if (isset($form['type'])) {
+    if ($form['type']['#value'] .'_node_form' == $form_id) {
+      $node = $form['#node'];
+
+      if (arg(0) == 'node' && arg(1) == 'add' && is_numeric(arg(3))) {
+        $reply = arg(3);
+      }
+      elseif ($node->comment_target_nid) {
+        $reply = $node->comment_target_nid;
+      }
+    }
+  }
+  // repeating query from nabuur_relativity -- but it seems to make sense here!
+  // if no og_context otherwise I'm guessing it's all set already!
+  list(,$content_types) = _nabuur_path_settings();
+  $tasks = $content_types['project']['content-type'];
+  array_shift($tasks); // remove the project type itself
+  if (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id && in_array($form['type']['#value'], $tasks)) {
+    if (arg(3) == 'parent' && is_numeric(arg(4))) {
+      $reply = (int) arg(4);
+    }
+  }
+
+  if ($reply) {
+    $parent_node = node_load($reply);
+    // @todo combine more with edits to the form made in template.php for consistency
+    // og_set_group_context?
+    $form['og_initial_groups'] = array('#type' => 'value', '#value' => $parent_node->og_groups);
+    // as shown to user
+    $form['og_nodeapi']['visible']['og_groups']['#default_value'] = $parent_node->og_groups;
+    // force same public/private as parent (even if not a group member)
+    $form['og_nodeapi']['og_public'] = array('#type' => 'value', '#value' => $parent_node->og_public);
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ *
+ * Creates a chatroom node for each og.
+ */
+function nabuur_og_nodeapi($node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($op == 'insert' && og_is_group_type($node->type)) {
+    $chat = new stdClass;
+    $chat->uid = $node->uid;
+    $chat->type = 'chatroom';
+    $chat->title = t('@group chat', array('@group' => $node->title));
+    $chat->body = t('Chatroom for @group', array('@group' => $node->title));
+    $chat->format = FILTER_FORMAT_DEFAULT;
+    $chat->kicked_out_message = '';
+    $chat->banned_mesage = '';
+    $chat->poll_freq = '1';
+    $chat->idle_freq = '60';
+    $chat->old_msg_count = '20';
+    $chat->status = $node->status;
+    $chat->promote = 0;
+    $chat->sticky = 0;
+    $chat->og_initial_groups = array();
+    $chat->og_groups = array($node->nid);
+    $chat->og_public = ! $node->og_private;
+
+
+    node_save($chat);
+  }
+}
+
+/**
+ * Implementation of hook_block().
+ */
+function nabuur_og_block($op = 'list', $delta = 0, $edit = array()) {
+  if ($op == 'list') {
+    $blocks = array();
+
+    $blocks[0]['info'] = t('Nabuur group details');
+    // Auto-enable the group blocks for fresh installations.
+    $blocks[0]['status'] = 1;
+    $blocks[0]['weight'] = -2;
+
+    $blocks[1]['info'] = t('Group subscribers - nabuur sort');
+    $blocks[1]['status'] = 1;
+    $blocks[1]['weight'] = -2;
+    
+    $blocks[2]['info'] = t('Group owner picture - local rep');
+
+    return $blocks;
+  }
+  elseif ($op == 'view') {
+    switch ($delta) {
+      case 0:
+        return nabuur_og_block_details();
+      case 1:
+        return nabuur_og_block_subscribers();
+      case 2:
+        return nabuur_og_group_owner_image();
+    }
+  }
+}
+
+function nabuur_og_group_owner_image() {
+  $group = og_get_group_context();
+  if (is_object($group)) {
+    $owner = nabuur_users_nodeprofile_load($group->uid);
+    if (is_object($owner)  && is_array($owner->field_user_image[0])) {
+      $block = array('content' => theme('nabuur_og_group_owner_image', $owner->nid, $owner->field_user_image));
+      return $block;
+    }
+  }
+}
+
+function theme_nabuur_og_group_owner_image($nid, $image) {
+  $img = theme('imagecache', 'Village', $image[0]['filepath'], $image[0]['alt'], $image[0]['title'], $attributes);
+  return l($img, 'node/'. $nid, array(), null, null, false, true);
+}
+
+/********************************************************************
+ * Replacement og_block_details().
+ *
+ * would like to use og_block_details() hooks - but would need seperate modules
+ */
+function nabuur_og_block_details() {
+  if (($node = og_get_group_context()) && node_access('view', $node)) {
+    global $user;
+
+    list($txt, $subscription) = og_subscriber_count_link($node);
+    if ($node->type=='village') {
+      $txt = str_replace('members', 'Neighbours', $txt);
+    }
+
+    if ($subscription == 'active' || user_access('administer nodes')) {
+      //$links = module_invoke_all('og_create_links', $node);
+      // We want to open this up for OG_INVITE_ONLY but we need to handle invitation workflow much better. See http://drupal.org/node/170332
+//      $links['subscribers'] = $txt;
+      $links['manager'] = ($node->type=='village'?t('Local Rep.: '):t('Manager: ')). theme('username', $node);
+      $admins = _nabuur_og_list_admins($node);
+      foreach ($admins as $admin) {
+        if ($node->uid != $admin->uid) {
+          $facilitators[] = theme('username', $admin);
+        }
+      }
+      if ( $node->type == 'village' ) {
+        $links['facilitators'] = t('Facilitators') .'<br />'. theme('item_list', $facilitators);
+      }
+      $subscribe = isset($subscription) ? l(t('My membership'), "og/manage/$node->nid") : og_subscribe_link($node);
+      if(isset($subscribe)) {
+        $links['my_membership'] = $subscribe;
+      }
+      if (og_is_node_admin($node)) {
+        $links['add'] = l(t('Add members'), "og/users/$node->nid/add_user");
+      }
+      if ($node->og_selective < OG_INVITE_ONLY) {
+        $links['invite'] = l(t('Invite a friend'), "og/invite/$node->nid");
+      }
+    }
+    elseif ($subscription == 'requested') {
+      $links['approval'] = t('Your membership request awaits approval.');
+      $links['delete'] = l(t('delete request'), "og/unsubscribe/$node->nid", array(), 'destination=og');
+    }
+    elseif (!$user->uid) {
+      $dest = drupal_get_destination();
+      $links['must_login'] = t('You must <a href="!register">register</a>/<a href="!login">login</a> in order to post into this group.', array('!register' => url("user/register", $dest), '!login' => url("user/login", $dest)));
+    }
+    elseif ($node->og_selective < OG_INVITE_ONLY) {
+      $links['subscribe'] = og_subscribe_link($node);
+    }
+    elseif ($node->og_selective == OG_INVITE_ONLY) {
+      $links['subscribe'] = og_subscribe_link($node);
+    }
+    elseif ($node->og_selective == OG_INVITE_ONLY) {
+      $links['closed'] = t('This is an @invite group. The group administrators add/remove members as needed.', array('@invite' => t('invite only')));
+    }
+    elseif ($node->og_selective == OG_CLOSED) {
+      $links['closed'] = t('This is a @closed group. The group administrators add/remove members as needed.', array('@closed' => t('closed')));
+    }
+
+    $block['content'] = theme('item_list', $links). $post;
+    $block['subject'] = l($node->title, "node/$node->nid");
+    return $block;
+  }
+} 
+
+/**
+ * Custom subscribers block.
+ *
+ * Changes are ordering by online status, and making it available to all users 
+ */
+function nabuur_og_block_subscribers() {
+//  global $user;
+  if ($group_node = og_get_group_context()) {
+    $gid = $group_node->nid;
+    // only members can see subscriber list
+    //if (in_array($gid, array_keys($user->og_groups))) {
+      $max = variable_get('og_block_cnt_2', 10);
+      $sql = "SELECT DISTINCT(ou.uid) FROM og_uid ou INNER JOIN users u ON u.uid = ou.uid LEFT JOIN sessions s ON (u.uid = s.uid AND s.timestamp >= %d) LEFT JOIN og_ancestry o ON ou.nid = o.group_nid LEFT JOIN node n ON (o.nid = n.nid AND ou.uid = n.uid) WHERE ou.nid = %d AND u.status = 1 GROUP BY ou.uid ORDER BY s.timestamp DESC, count(n.nid) DESC";
+      $result = db_query_range($sql, time() - variable_get('user_block_seconds_online', 900), $gid, 0, $max);
+      $subscribers = array();
+      while ($subscriber = db_fetch_object($result)) {
+        $subscribers[] = theme('username', $subscriber);
+      }
+      $block['content'] = theme('item_list', $subscribers);
+      $block['content'] .= '<div class="more-link">'. l(t('more'), 'node/'. $gid .'/neighbours') .'</div>';
+      $block['subject'] = t('Members');
+      return $block;
+    //}
+  }
+}
+
+/******************************************************************************
+ * only neighbours page in use -- and this needs rewriting
+ */
+function nabuur_og_block_new($type) {
+  list($types, $in) = og_get_sql_args();
+//  drupal_set_message(var_export($types, true));
+  $types = array($type);
+  $sql = "SELECT COUNT(*) FROM {node} n INNER JOIN {og} og ON n.nid = og.nid WHERE og.directory=1 AND n.type IN ($in) AND n.status = 1";
+  $cnt = db_result(db_query(db_rewrite_sql($sql), $types));
+  if ($cnt > 0) {
+    $max = variable_get('og_block_cnt_3', 10);
+    $sql = "SELECT n.nid, n.title FROM {node} n INNER JOIN {og} og ON n.nid = og.nid WHERE n.status = 1 AND n.type IN ($in) AND og.directory=1 ORDER BY nid DESC";
+    $result = db_query_range(db_rewrite_sql($sql), $types, 0, $max);
+    $output = node_title_list($result);
+    if ($cnt > $max) {
+      $output .= '<div class="more-link">'. l(t('more'), 'og', array('title' => t('Browse the newest groups.'))) .'</div>';
+    }
+    $block['subject'] = t('New groups');
+    $block['content'] = $output;
+    return $block;
+  }
+}
+
+
+function nabuur_og_list_users_page($gid) {
+  $node = node_load($gid);
+  $terms = $node->taxonomy;
+  foreach($terms as $location => $term) {
+    if ($term->vid == 3) { break; }
+  }
+  $access = og_is_node_admin($node);
+  if ($access) {
+    $online_header[] = array('data' => t('Operations'), 'colspan' => 2);
+  }
+  // prepend the group manager & row 0 is used for title
+  $t=2; $l=1; $i=1;
+  $team_rows = array(); $local_rows = array(); $rows = array(); $table_rows = array();
+  $team_rows[0][] = array('data' => t('Local Representative and Facilitators'), 'colspan' => 6, 'class' => 'nabuur-table-title' );
+  $local_rows[0][] = array('data' => t('Neighbours in @location', array('@location' => $term->name)), 'colspan' => 6, 'class' => 'nabuur-table-title' );
+  $rows[0][] = array('data' => t('Neighbours around the world'), 'colspan' => 6, 'class' => 'nabuur-table-title' );
+
+  $sql = "SELECT DISTINCT(ou.uid), s.timestamp, ou.is_admin, ou.is_active, u.access, count(n.nid) as posts FROM og_uid ou INNER JOIN users u ON u.uid = ou.uid LEFT JOIN sessions s ON (u.uid = s.uid AND s.timestamp >= %d) LEFT JOIN og_ancestry o ON ou.nid = o.group_nid LEFT JOIN node n ON (o.nid = n.nid AND ou.uid = n.uid) WHERE ou.nid = %d AND u.status = 1 GROUP BY ou.uid ORDER BY s.timestamp DESC, count(n.nid) DESC, u.access DESC";
+  // @todo pager
+  $result = pager_query($sql, 500, 0, NULL, time() - variable_get('user_block_seconds_online', 900), $gid);
+  while ($account = db_fetch_object($result)) {
+    $account->profile = nabuur_users_nodeprofile_load($account->uid);
+    if ($account->is_admin == 1) {
+      if ($account->uid == $node->uid) {
+        // local rep
+        $team_rows[1][] = theme('username', $account);
+        $team_rows[1][] = _nabuur_og_user_image($account->profile->field_user_image[0]);
+        $team_rows[1][] = array('data' => t('Local Representative'), 'colspan' => 4);
+      }
+      else {
+        // facilitator
+        $username = theme('username', $account);
+        if ($account->timestamp === NULL && $account->access != 0) {
+          $username .= ' '. t('last online @time ago', array('@time' => format_interval(time() - $account->access)));
+        }
+        $team_rows[$t][] = $username;
+        $team_rows[$t][] = _nabuur_og_user_image($account->profile->field_user_image[0]);
+        $team_rows[$t][] = array('data' => theme('geonames_cck_location_item', $account->profile->field_location[0], stdClass), 'colspan' => 2);
+        if ($access) { $team_rows[$t] = array_merge($team_rows[$t], _nabuur_og_list_users_page_admin($account, $gid)); }
+          $t++;
+      }
+    }
+    elseif ($account->profile->field_location[0]['country'] == $node->field_location[0]['country']) {
+      // local
+      $username = theme('username', $account);
+      if ($account->timestamp === NULL && $account->access != 0) {
+        $username .= ' '. t('last online @time ago', array('@time' => format_interval(time() - $account->access)));
+      }
+      $local_rows[$l][] = $username;
+      $local_rows[$l][] = _nabuur_og_user_image($account->profile->field_user_image[0]);
+      $local_rows[$l][] = theme('geonames_cck_location_name', $account->profile->field_location[0]);
+      $local_rows[$l][] = $account->posts ? format_plural($account->posts, '1 post', '@count posts') : ' ';
+      if ($access) { $local_rows[$l] = array_merge($local_rows[$l], _nabuur_og_list_users_page_admin($account, $gid)); }
+      $l++;
+    }
+    else {
+      // all other
+      $username = theme('username', $account);
+      if ($account->timestamp === NULL && $account->access != 0) {
+        $username .= ' '. t('last online @time ago', array('@time' => format_interval(time() - $account->access)));
+      }
+      if  (!$account->is_active)  { $username .= '&nbsp;<em>'.t('(approval needed)'). '</em>'; }
+      $rows[$i][] = $username;
+      $rows[$i][] = _nabuur_og_user_image($account->profile->field_user_image[0]);
+      $rows[$i][] = theme('geonames_cck_location_item', $account->profile->field_location[0], stdClass);
+      $rows[$i][] = $account->posts ? format_plural($account->posts, '1 post', '@count posts') : ' ';
+      if ($access) { $rows[$i] = array_merge($rows[$i], _nabuur_og_list_users_page_admin($account, $gid)); }
+      $i++;
+    }
+    ksort($team_rows);
+  }
+  // fill the title rows
+  $table_rows = $team_rows;
+  if (count($local_rows) > 1) {
+    $table_rows = array_merge($table_rows, $local_rows);
+  }
+  if (count($rows) > 1) {
+    $table_rows = array_merge($table_rows, $rows);
+  }
+  $output = theme('table', NULL, $table_rows);
+  $bc[] = array('path' => "og", 'title' => t('Groups'));
+  $bc[] = array('path' => "node/$gid", 'title' => $node->title);
+  menu_set_location($bc);
+  drupal_set_title(t('Neighbours'). ': '. l($node->title, "node/$node->nid"));
+  return $output;
+}
+
+// next add admin links -- and headings
+
+function _nabuur_og_list_users_page_admin($account, $gid) {
+  if ($account->is_active) {
+    $rows[] = l(t('remove'), "og/unsubscribe/$gid/$account->uid", array(), "destination=node/$gid/neighbours");
+    if ($account->is_admin) {
+      $rows[] = l(t('admin: remove'), "og/delete_admin/$gid/$account->uid", array(), 'destination='. $_GET['q']);
+    }
+    else {
+      $rows[] = l(t('admin: create'), "og/create_admin/$gid/$account->uid", array(), 'destination='. $_GET['q']);
+    }
+  }
+  else {
+    $rows[] = l(t('approve'), "og/approve/$gid/$account->uid", array(), "destination=node/$gid/neighbours");
+    $rows[] = l(t('deny'), "og/deny/$gid/$account->uid", array(), "destination=node/$gid/neighbours");
+  }
+
+  return $rows;
+}
+
+function _nabuur_og_user_image($item) {
+  static $field = '';
+  if ($field == '') {
+    $field = content_fields('field_user_image');
+  }
+  if ($item['filepath'] == '') {
+    $item = $field['default_image'];
+  }
+
+  return theme('imagecache', 'profile', $item['filepath'], $item['alt'], $item['image_title']);
+}
+
+function _nabuur_og_list_admins($group) {
+  $admins = array();
+
+  $result = db_query('SELECT uid FROM og_uid WHERE is_admin = 1 and nid = %d', $group->nid);
+  while ($user = db_fetch_object($result)) {
+    $admins[] = $user;
+  }
+
+  return $admins;
+}

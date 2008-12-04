@@ -1,0 +1,43 @@
+<?php
+
+/* $Id: nabuur_project.install,v 1.1.2.1 2008/07/24 18:24:42 kester Exp $ */
+
+function nabuur_project_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {cache_nabuur_project} (
+        cid varchar(255) NOT NULL default '',
+        data longblob,
+        expire int NOT NULL default '0',
+        created int NOT NULL default '0',
+        headers text,
+        PRIMARY KEY (cid),
+        INDEX expire (expire)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+  }
+}
+
+function nabuur_project_uninstall() {
+  if (db_table_exists('cache_nabuur_project')) {
+    db_query("DROP TABLE {cache_nabuur_project}");
+  }
+}
+
+function nabuur_project_update_5001() {
+  $ret = array();
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("CREATE TABLE {cache_nabuur_project} (
+        cid varchar(255) NOT NULL default '',
+        data longblob,
+        expire int NOT NULL default '0',
+        created int NOT NULL default '0',
+        headers text,
+        PRIMARY KEY (cid),
+        INDEX expire (expire)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+  }
+  return $ret;
+}

@@ -1,0 +1,58 @@
+<?php 
+// $Id: nabuur_breadcrumb.module,v 1.1.1.2 2008/08/22 16:29:59 admin Exp $ 
+
+/**      
+ * @file  
+ * nabuur.com site specific path -> breadcrumb.
+ */
+
+/********************************************************************
+ * Template level overrides
+ */
+
+/**
+ * Place a call in template_breadcrumb().
+ */
+function nabuur_breadcrumb($breadcrumb) {
+  list($groups, $pages) = _nabuur_path_settings();
+
+  $requested = drupal_get_path_alias($_GET['q']);
+  $path = explode('/', $requested);
+
+  // testing for lang/group/name/page/detail
+  if (array_key_exists($path[1],$groups)) {
+    // village or group
+    $breadcrumb = array(l(t('Home'), '<front>'));
+    $group_index = l($groups[$path[1]], $path[1]);
+    $group_page = og_get_group_context();
+    if (is_object($group_page)) {
+      // in group context - this has cached the name and path so using from there
+      $breadcrumb[] = $group_index;
+      $group_path = l($group_page->title, 'node/'. $group_page->nid);
+      if (array_key_exists($path[3], $pages)) {
+        // subpage of a group or village
+        $breadcrumb[] = $group_path;
+        if (isset($path[4])) {
+          // a final detail page from subpage
+          $breadcrumb[] = l($pages[$path[3]]['title'], 'node/'. $group_page->nid .'/'. $path[3]);
+        }
+      }
+    }
+  }
+
+  // testing for user pages
+  if (arg(0) == 'user') {
+    $breadcrumb = array(l(t('Home'), '<front>'), l(t('My Nabuur'), 'user'));
+  }
+
+  // node-panels, pages etc showing 'No title' -- symtom solution
+  foreach ($breadcrumb as $key => $crumb) {
+    if (strpos($crumb, t('No title')) !== FALSE) {
+      unset($breadcrumb[$key]);
+    }
+  }
+
+  if ( is)
+  $printable = '<div class="breadcrumb">'. implode(' › ', $breadcrumb) .'</div>';
+  return $printable;
+}

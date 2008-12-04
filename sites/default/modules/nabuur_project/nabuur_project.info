@@ -1,0 +1,5 @@
+; $Id: nabuur_project.info,v 1.1.2.1 2008/06/11 09:45:41 kester Exp $
+name = Nabuur project
+description = "Project pages views and theming"
+dependencies = views relativity
+package = nabuur

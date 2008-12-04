@@ -1,0 +1,15 @@
+<?php
+// $Id: nabuur_menu.install,v 1.1.2.1 2008/06/04 14:22:47 kester Exp $
+/**
+ * Implementation of hook_install()
+ */
+function nabuur_menu_install() {
+  // wants to run last to update menus
+  db_query("UPDATE {system} SET weight = 100 WHERE name = 'nabuur_menu'");
+}
+
+/**
+ * Implementation of hook_disable().
+ */
+function nabuur_menu_disable() {
+}
