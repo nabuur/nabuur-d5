@@ -504,6 +504,7 @@ function active_translation_db_rewrite_sql($query, $primary_table, $primary_key)
   $mode = active_translation_selection_mode();
   // watchdog('test','I ran the active translation rewrite' . ' using ' . $mode);
   // drupal_set_message("i18n_db_rewrite mode=$mode query=$query");
+  if ($mode == 'off') { return; }
   // Special case. Selection mode is 'strict' but this should be only for node queries
   if ($mode == 'strict' && $primary_table != 'n' && $primary_table != 'node') {
     $mode = 'simple';
