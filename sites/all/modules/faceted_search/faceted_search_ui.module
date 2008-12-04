@@ -261,6 +261,12 @@ function faceted_search_ui_form_alter($form_id, &$form) {
       '#default_value' => faceted_search_variable_get($env_id, 'guided_block', TRUE),
       '#description' => t('When enabled, this block shows categories that may be selected to start or refine a search. Block visibility settings may define additional conditions for this block to appear.'),
     );
+    $form['guided']['guided_block_full_page'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Display Guided search block on full search page'),
+      '#default_value' => faceted_search_variable_get($env_id, 'guided_block_full_page', TRUE),
+      '#description' => t('When enabled the guided search block will be displayed on the full search page with the keyword search.'),
+    );
     $form['guided']['sort_block'] = array(
       '#type' => 'checkbox',
       '#title' => t('Provide Sort options block'),
@@ -395,7 +401,12 @@ function faceted_search_ui_stage_select($env_id, $text = '') {
   faceted_search_ui_set_title($_faceted_search[$env_id]);
 
   $keyword_block_content = faceted_search_ui_keyword_block($_faceted_search[$env_id]);
-  $guided_block_content = faceted_search_ui_guided_block($_faceted_search[$env_id]);
+  if (faceted_search_variable_get($env_id, 'guided_block_full_page', TRUE)) {
+    $guided_block_content = faceted_search_ui_guided_block($_faceted_search[$env_id]);
+  }
+  else { 
+    $guided_block_content = FALSE;
+  }
   if ($output = theme('faceted_search_ui_stage_select', $_faceted_search[$env_id], $keyword_block_content, $guided_block_content, faceted_search_variable_get($env_id, 'help_description', ''))) {
     return theme('faceted_search_ui_page', $_faceted_search[$env_id], $output);
   }
