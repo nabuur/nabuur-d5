@@ -1,0 +1,152 @@
+<?php
+// $Id: fivestar.install,v 1.5.2.5 2008/04/19 05:59:17 quicksketch Exp $
+
+// Get the current schema so that updates that have already run for 5 don't get
+// run a second time when upgrading to 6.
+define('FIVESTAR_VERSION', db_result(db_query("SELECT schema_version FROM {system} WHERE type = 'module' AND name = 'fivestar'")));
+
+function fivestar_schema() {
+  $schema['fivestar_comment'] = array(
+    'fields' => array(
+      'cid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'vote_id' => array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+      'value' => array('type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('cid'),
+    'indexes' => array(
+      'vote_id' => array('vote_id'),
+    ),
+  );
+  return $schema;
+}
+
+function fivestar_install() {
+  drupal_install_schema('fivestar');
+  if (module_exists('content')) {
+    content_notify('install', 'fivestar');
+  }
+}
+
+function fivestar_uninstall() {
+  drupal_uninstall_schema('fivestar');
+  db_query("DELETE FROM {variable} WHERE name LIKE 'fivestar_%'");
+  if (module_exists('content')) {
+    content_notify('uninstall', 'fivestar');
+  }
+}
+
+/**
+* Implementation of hook_enable().
+*/
+function fivestar_enable() {
+  if (module_exists('content')) {
+    content_notify('enable', 'fivestar');
+  }
+}
+
+/**
+* Implementation of hook_disable().
+*/
+function fivestar_disable() {
+  if (module_exists('content')) {
+    content_notify('disable', 'fivestar');
+  }
+}
+
+/**
+ * Add the fivestar comment tables.
+ */
+function fivestar_update_1() {
+  $ret = array();
+
+  $schema['fivestar_comment'] = array(
+    'fields' => array(
+      'cid' => array('type' => 'serial', 'unsigned' => TRUE, 'not null' => TRUE),
+      'value' => array('type' => 'int', 'size' => 'tiny', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0),
+    ),
+    'primary key' => array('cid'),
+  );
+  db_create_table($ret, 'fivestar_comment', $schema['fivestar_comment']);
+
+  return $ret;
+}
+
+/**
+ * Convert previous fivestar widget settings to new format.
+ */
+function fivestar_update_2() {
+  $types = node_get_types('names');
+  foreach ($types as $key => $name) {
+    $style = variable_get('fivestar_style_'. $key, 'default');
+    $enabled = variable_get('fivestar_'. $key, FALSE);
+    // Split the display style into two variables for stars and text.
+    if ($enabled) {
+      switch ($style) {
+        case 'default':
+          variable_set('fivestar_style_'. $key, 'user');
+          variable_set('fivestar_text_'. $key, 'average');
+          break;
+        case 'compact':
+          variable_set('fivestar_style_'. $key, 'user');
+          variable_set('fivestar_text_'. $key, 'none');
+          break;
+        case 'dual':
+          variable_set('fivestar_text_'. $key, 'none');
+          break;
+      }
+    }
+    // We no longer save any settings if Fivestar is disabled.
+    else {
+      variable_del('fivestar_unvote_'. $key);
+      variable_del('fivestar_style_'. $key);
+      variable_del('fivestar_position_'. $key);
+      variable_del('fivestar_position_teaser_'. $key);
+    }
+  }
+  return array();
+}
+
+/**
+ * Upgrade to Drupal 6 and VotingAPI 2.
+ * 
+ * Remove anonymous vote interval from Fivestar, now handled by VotingAPI.
+ */
+function fivestar_update_6100() {
+  $ret = array();
+  variable_del('fivestar_anonymous_vote_interval');
+  $ret[] = array('success' => TRUE, 'query' => "variable_del('fivestar_anonymous_vote_interval')");
+  return $ret;
+}
+
+/**
+ * Add vote_id column to the fivestar_comment table.
+ */
+function fivestar_update_6101() {
+  $ret = array();
+
+  // This update will already be run as fivestar_update_5701 on Drupal 5.
+  if (FIVESTAR_VERSION >= 6100) {
+    db_add_field($ret, 'fivestar_comment', 'vote_id', array('type' => 'int', 'unsigned' => TRUE, 'not null' => TRUE, 'default' => 0));
+    db_add_index($ret, 'fivestar_comment', 'vote_id', array('vote_id'));
+
+    $comments = db_query('SELECT fc.cid, fc.value, v.vote_id FROM {fivestar_comment} fc INNER JOIN {comments} c ON fc.cid = c.cid INNER JOIN {votingapi_vote} v ON fc.value = v.value AND c.nid = v.content_id AND c.uid = v.uid WHERE v.tag = "vote" AND v.value_type = "percent" AND v.content_type = "node"');
+    while ($comment = db_fetch_object($comments)) {
+      db_query('UPDATE {fivestar_comment} SET vote_id = %d WHERE cid = %d', $comment->vote_id, $comment->cid);
+    }
+  }
+
+  return $ret;
+}
+
+/**
+ * Set Fivestar weight to -1 so that it can load before content.module.
+ */
+function fivestar_update_6102() {
+  $ret = array();
+
+  // This update will already be run as fivestar_update_5701 on Drupal 5.
+  if (FIVESTAR_VERSION >= 6100) {
+    $ret[] = update_sql("UPDATE {system} SET weight = -1 WHERE type = 'module' AND name = 'fivestar'");
+  }
+  return $ret;
+}

@@ -1,0 +1,226 @@
+<?php
+// $Id: nodewords.install,v 1.9.4.5 2008/01/08 18:33:37 robrechtj Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function nodewords_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret = db_query("CREATE TABLE {nodewords} (
+        type varchar(16) NOT NULL,
+        id varchar(255) NOT NULL,
+        name varchar(32) NOT NULL,
+        content text NULL,
+        PRIMARY KEY(type, id, name)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */");
+      break;
+
+    case 'pgsql':
+      $ret = db_query("CREATE TABLE {nodewords} (
+        type varchar(16) NOT NULL,
+        id varchar(255) NOT NULL,
+        name varchar(32) NOT NULL,
+        content text NULL,
+        PRIMARY KEY(type, id, name)
+        )");
+      break;
+  }
+
+  if ($ret) {
+    drupal_set_message(t('Meta tags module installed succesfully.'));
+  }
+  else {
+    drupal_set_message(t('Meta tags module installation was unsuccesfull. The necessary database table may be created by hand. See the "README.txt" file in the "nodewords/" modules directory for instructions.', 'error'));
+  }
+
+  // Set the weight of the module
+  db_query("UPDATE {system} SET weight = 10 WHERE name = 'nodewords'");
+
+  return $ret;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function nodewords_uninstall() {
+  db_query("DROP TABLE {nodewords}");
+  variable_del('nodewords');
+  variable_del('nodewords-repeat');
+  variable_del('nodewords-use_front');
+}
+
+/**
+ * Create the table
+ */
+function _nodewords_update_create_table() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret = update_sql("CREATE TABLE {nodewords} (
+        type varchar(16) NOT NULL,
+        id varchar(255) NOT NULL,
+        name varchar(32) NOT NULL,
+        content varchar(255) NULL,
+        PRIMARY KEY(type, id, name)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */");
+      break;
+
+    case 'pgsql':
+      $ret = update_sql("CREATE TABLE {nodewords} (
+        type varchar(16) NOT NULL,
+        id varchar(255) NOT NULL,
+        name varchar(32) NOT NULL,
+        content varchar(255) NULL,
+        PRIMARY KEY(type, id, name)
+        )");
+      break;
+  }
+
+  return $ret;
+}
+
+/**
+ * Update: nodewords.module < version 1.9 to nodewords.module version >= 1.9
+ */
+function nodewords_update_1() {
+  $items = array();
+
+  // variable: nodewords_global_keywords => nodewords['global']['keywords']
+  $keywords = variable_get('nodewords_global_keywords', '');
+  variable_del('nodewords_global_keywords');
+
+  $settings = variable_get('nodewords', array());
+  if ($keywords != '') {
+    $settings['global']['keywords'] = $keywords;
+    variable_set('nodewords', $settings);
+  }
+
+  // table: nid, nodewords => nid, abstract, copyright, description, keywords
+  $result = db_query('SELECT * FROM {nodewords} LIMIT 1');
+  if (db_num_rows($result) == 0) {
+    $items[] = update_sql('DROP TABLE {nodewords}');
+    $items[] = _nodewords_update_create_table();
+  }
+  else {
+    $row = db_fetch_array($result);
+    if (isset($row['nodewords'])) {
+      // assume that the table update only needs to be run if it contains a "nodewords" column
+      switch ($GLOBALS['db_type']) {
+        case 'mysql':
+        case 'mysqli':
+          $items[] = update_sql('ALTER TABLE {nodewords} ADD abstract varchar(250)');
+          $items[] = update_sql('ALTER TABLE {nodewords} ADD copyright varchar(250)');
+          $items[] = update_sql('ALTER TABLE {nodewords} ADD description varchar(250)');
+          $items[] = update_sql('ALTER TABLE {nodewords} CHANGE nodewords keywords varchar(250)');
+          break;
+
+        case 'pgsql':
+          $items[] = update_sql('ALTER TABLE {nodewords} ADD abstract varchar(250)');
+          $items[] = update_sql('ALTER TABLE {nodewords} ADD copyright varchar(250)');
+          $items[] = update_sql('ALTER TABLE {nodewords} ADD description varchar(250)');
+          $items[] = update_sql('ALTER TABLE {nodewords} RENAME nodewords TO keywords');
+          break;     
+      }
+    }
+  }
+  
+  // permission: 'administer node keywords' => 'administer meta tags'
+  /* TODO: does this work? maybe not so important... let users reset the permissions themselves
+  $old = 'administer node keywords';
+  $new = 'administer meta tags';
+  $result = db_query("SELECT p.rid, p.perm, r.name FROM {permission} p INNER JOIN {role} r ON p.rid = r.rid WHERE p.perm LIKE '%$old%'");
+  while ($role = db_fetch_object($result)) {
+    $rid = $role->rid;
+    $name = $role->name;
+    $perm = str_replace($old, $new, $role->perm);
+    $items[] = update_sql("UPDATE {permission} SET perm = '%s' WHERE rid = %d", $perm, $rid);
+  }
+  */
+
+  return $items;
+}
+
+/**
+ * Update: nodewords.module <= version v.14 to nodewords.module version >= 1.15
+ */
+function nodewords_update_2() {
+  $items = array();
+
+  // variable: nodewords['output'] => nodewords['head']
+  $settings = variable_get('nodewords', array());
+  if (isset($settings['output']) && !isset($settings['head'])) {
+    $settings['head'] = $settings['output'];
+    unset($settings['output']);
+    variable_set('nodewords', $settings);
+  }
+
+  // table: nid, abstract, copyright, description, keywords => type, id, name, content
+  $result = db_query('SELECT * FROM {nodewords} LIMIT 1');
+  if (db_num_rows($result) == 0) {
+    $items = update_sql('DROP TABLE {nodewords}');
+    $items = _nodewords_update_create_table();
+  }
+  else {
+    $row = db_fetch_array($result);
+    if (isset($row['keywords'])) {
+      // assume that the table update only needs to be run if the table contains
+      // the 'keywords' column
+      $items[] = update_sql('CREATE TEMPORARY TABLE {nodewords_tmp} AS SELECT * FROM {nodewords}');
+      $items[] = update_sql('DROP TABLE {nodewords}');
+      $items[] = _nodewords_update_create_table();
+      foreach (array('abstract', 'copyright', 'description', 'keywords') as $name) {
+        if (isset($row[$name])) {
+          $items[] = update_sql("INSERT INTO {nodewords} (type, id, name, content) SELECT 'node', nid, '". $name ."', ". $name ." FROM {nodewords_tmp} WHERE ". $name ." IS NOT NULL AND ". $name ." != ''");
+        }
+      }
+      $items[] = update_sql('DROP TABLE {nodewords_tmp}');
+    }
+  }
+
+  return $items;
+}
+
+/**
+ * Update from 46 to 47 (UTF8 table encoding)
+ */
+function nodewords_update_3() {
+  return _system_update_utf8(array('nodewords'));
+}
+
+/**
+ * Setting nodewords.module weight - fixes http://drupal.org/node/31383
+ */
+function nodewords_update_4() {
+  $items = array();
+  $items[] = update_sql("UPDATE {system} SET weight = 10 WHERE name = 'nodewords'");
+  return $items;
+}
+
+/**
+ * Calling cache_clear_all() - fix for http://drupal.org/node/79390
+ */
+function nodewords_update_5() {
+  cache_clear_all();
+}
+
+/**
+ * Remove 255-char maximum limitation for meta tags.
+ */
+function nodewords_update_6() {
+  global $db_type;
+
+  $items = array();
+  switch ($db_type) {
+    case 'mysql':
+    case 'mysqli':
+      $items[] = update_sql("ALTER TABLE {nodewords} CHANGE content content text;");
+      break;
+    case 'pgsql':
+      $items[] = update_sql("ALTER TABLE {nodewords} ALTER content TYPE text;");
+      break;
+  }
+  return $items;
+}
+

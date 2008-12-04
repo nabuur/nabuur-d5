@@ -1,0 +1,55 @@
+<?php
+// $Id: geonames_postalcodesearch.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames postalcodesearch / by Erlend Eide, erlend(|)edesign.no
+ *
+ * 
+ */
+ 	
+/**
+ * Service configuration
+ */  
+function geonames_postalcodesearch_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'postalcodesearch',
+    'service_full_name'   => 'Postal Code Search',
+		'description' 				=> t('Postalcode search provides placenames/postalcodes for locations.'),
+    'service_path'        => 'postalCodeSearch',
+    'credit_cost'         => 1,
+    'result_cache_prefix' => 'pcsres:',
+    'data_cache_prefix'   => 'pcsdat:',
+	  'allowed_parameters' => array(
+      // our style     // geonames style
+      'postalcode'  => 'postalcode',
+      'placename'   => 'placename',
+      'maxrows'     => 'maxRows',
+      'style'       => 'style',
+      'country'     => 'country',   // if not set -- all countries
+    ),
+    'required_parameters' => array( // If you have set query_defaults you should not include the parameter here
+      'postalcode', 
+      'placename', 
+	  ),
+		'required_parameters_type' => 'single',
+		'query_defaults' => array(
+			'maxrows'      => 10, 
+			'style'        => 'medium',
+		),
+		'columns'        => array(
+		  'postalcode', 
+			'name', 
+			'countrycode', 
+			'lat', 
+			'lng', 
+			'admincode1', 
+			'adminname1', 
+			'admincode2', 
+			'adminname2', 
+			'admincode3', 
+			'adminname3'
+		),
+  );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

@@ -1,0 +1,28 @@
+/* $Id: taxonomy_image.css,v 1.1.2.5 2008/04/12 16:23:57 nancyw Exp $ */
+
+.taxonomy_image_checkboxes .form-item label.option {
+  float: left;
+  margin-right: 1.5em;
+}
+
+.taxonomy_image_checkboxes .form-item .description {
+  clear: both;
+}
+
+.taxonomy_image_radios .form-item label.option {
+  float: left;
+  margin-right: 1em;
+}
+
+.taxonomy_image_radios .form-item .description {
+  clear: both;
+}
+
+#taxonomy-image-admin-settings .form-item {
+  margin-bottom: 0;
+}
+
+#taxonomy_image_terms a.links {
+  font-size: 80%;
+  float: right;
+}

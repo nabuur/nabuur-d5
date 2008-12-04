@@ -1,0 +1,10 @@
+; $Id: quicktags.info,v 1.1.6.1 2008/02/12 21:35:06 tcblack Exp $
+
+name = "Quicktags"
+description = "Quicktags adds buttons to your forms, for easy insertation of code (like basic HTML) into a textarea."
+package = "Quicktags"
+; Information added by drupal.org packaging script on 2008-02-24
+version = "5.x-3.1-dev"
+project = "quicktags"
+datestamp = "1203816613"
+

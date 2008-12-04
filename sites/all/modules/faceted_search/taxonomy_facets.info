@@ -1,0 +1,12 @@
+; $Id: taxonomy_facets.info,v 1.6 2008/01/10 19:32:59 davidlesieur Exp $
+name = Taxonomy Facets
+description = "Provides facets based on taxonomy."
+dependencies = taxonomy search faceted_search
+package = Faceted Search
+
+
+; Information added by drupal.org packaging script on 2008-06-23
+version = "5.x-1.0-beta4"
+project = "faceted_search"
+datestamp = "1214182208"
+

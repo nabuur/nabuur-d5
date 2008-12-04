@@ -1,0 +1,57 @@
+<?php
+// $Id: geonames_wikipediabbox.module,v 1.1.2.3 2007/09/28 23:40:45 serosero Exp $
+
+/**
+ * @file
+ * Geonames wikipediabbox / by Erlend Eide, erlend(|)edesign.no
+ *
+ * http://www.geonames.org/export/wikipedia-webservice.html
+ *
+ */
+ 
+/**
+ * Service configuration
+ */ 
+function geonames_wikipediabbox_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'wikipediabbox',
+    'service_full_name'   => 'Wikipedia Articles from Bounding Box',
+    'description'         => 'Search Wikipedia entries within the Bounding Box',
+    'service_path'        => 'wikipediaBoundingBox',
+    'credit_cost'         => 1,
+    'result_cache_prefix' => 'wikbres:',
+    'data_cache_prefix'   => 'wikbdat:',
+    'allowed_parameters' => array(
+      //our style  geonames style
+      'north'      => 'north',
+      'south'      => 'south',
+      'east'       => 'east',
+      'west'       => 'west',
+      'lang'       => 'lang',
+      'maxrows'    => 'maxRows', 
+    ),
+    'required_parameters' => array( // If you have set query_defaults you should not include the parameter here
+      'north',
+      'south',
+      'east',
+      'west',
+    ),
+    'required_parameters_type' => 'all',
+    'query_defaults' => array(
+      'maxrows' => 15, 
+    ),
+    'columns' => array(
+      'lang',
+      'title',
+      'summary',
+      'feature',
+      'population',
+      'elevation',
+      'lat',
+      'lng',
+      'wikipediaurl',
+      'thumbnailimg',
+    ),
+  );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

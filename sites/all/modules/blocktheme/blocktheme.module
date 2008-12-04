@@ -1,0 +1,105 @@
+<?php
+
+function blocktheme_menu($may_cache = false) {
+  if (!$may_cache) {
+    $items[] = array (
+      'path' => 'admin/settings/blocktheme',
+      'title' => t('Block Theme'),
+      'description' => t('Allows the admin to define re-usable block templates that can be configured from block config screen'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('blocktheme_admin_settings'),
+    );
+  }
+  return $items;
+}
+
+function blocktheme_admin_settings() {
+  $form = array();
+  $form['blocktheme_themes'] = array (
+    '#type' => 'textarea',
+    '#default_value' => variable_get('blocktheme_themes',''),
+    '#title' => t('Custom Block Templates'),
+    '#description' => t('Enter in the form: <em>customtemplate|Friendly Name</em> Where customtemplate corresponds to a tpl file called customtemplate.tpl.php'),
+  );
+  return system_settings_form($form);
+}
+
+function blocktheme_help($section) {
+  global $base_url;
+
+  switch ($section) {
+    case 'admin/help#blocktheme':
+      return t('Allows the admin to define re-usable block templates that can be configured from block config screen');
+      break;
+    case 'admin/settings/blocktheme':
+      return t('BlockTheme allows an admin to define tpl files for standard block templates and provides a select box on the block configure form so the user can select a tpl file to use as opposed to having to override the templates by block ID.');
+      break;
+  }
+}
+
+function blocktheme_form_alter($form_id,&$form) {
+  if ($form_id == 'block_admin_configure'){
+    $module = $form['module']['#value'];
+    $delta = $form['delta']['#value'];
+    $var_name = $module . '-' .$delta;
+    $blockthemes = variable_get('blocktheme_themes','');
+    $_sets = explode("\n",$blockthemes);
+    $options[] = t('<-- None -->');
+    
+    foreach ($_sets as $key => $value) {
+      $set = explode('|',$value);
+      $options[$set[0]] = $set[1];
+    }
+    
+    $blocktheme = blocktheme_get();
+    
+    $form['block_settings']['blocktheme'] = array (
+     '#type' => 'select',
+     '#weight' => -1,
+     '#title' => t('Custom Theme'),
+     '#default_value' => $blocktheme[$var_name],
+     '#options' => $options,
+    );
+    
+    $form['#submit']['blocktheme_save'] = array();
+  }
+}
+
+function blocktheme_set($new_val) {  
+    variable_set('blocktheme',$new_val);
+}
+
+
+function blocktheme_get() {
+  static $blocktheme;
+  if (empty($blocktheme)) {
+    $blocktheme = variable_get('blocktheme',array());
+  }
+  return $blocktheme;
+}
+
+function blocktheme_save($form_id,$form_values) {
+  
+  $var_name = $form_values['module'] . '-' . $form_values['delta'];
+  $blocktheme = blocktheme_get();
+ 
+  if (!$form_values['blocktheme']) {
+    unset($blocktheme[$var_name]);
+  } else {    
+    $blocktheme[$var_name] = $form_values['blocktheme'];
+  }
+  blocktheme_set($blocktheme);
+}
+
+function blocktheme_get_theme(&$block) {  
+  $blocktheme = blocktheme_get();  
+  //dpr($blocktheme);
+  $var_name = $block->module . '-' . $block->delta;
+  if (isset($blocktheme[$var_name])) {
+    return $blocktheme[$var_name];
+  }
+}
+
+//Is it better to unserialize a huge array, or to use a hacky string based namespace?
+
+?>

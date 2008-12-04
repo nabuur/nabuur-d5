@@ -1,0 +1,30 @@
+<?php
+// $Id: nodeprofile.install,v 1.1.2.4 2007/04/05 10:27:50 fago Exp $
+
+function nodeprofile_install() {
+  // Set the module weight to -1, so nodeprofile_user() gets called before
+  // node_user(), so that one can't set a node's uid to 0 on user deletion
+  // before the profile nodes are deleted.
+  db_query("UPDATE {system} SET weight = -1 WHERE name = 'nodeprofile'");
+}
+
+function nodeprofile_uninstall() {
+  foreach (node_get_types('names') as $typename => $visiblename) {
+    if (variable_get('nodeprofile_'. $typename, 0)) {
+      if (module_exists('usernode')) {
+        nodefamily_ct_relation_remove(USERNODE_CONTENT_TYPE, $typename);
+      }
+      variable_del('nodeprofile_'. $typename);
+    }
+  }
+  variable_del('nodeprofile_settings');
+}
+
+/**
+ * Set module weight to -1, as explained in nodeprofile_install().
+ */
+function nodeprofile_update_1() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {system} SET weight = -1 WHERE name = 'nodeprofile'");
+  return $ret;
+}

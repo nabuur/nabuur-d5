@@ -1,0 +1,11 @@
+; $Id: geoapi.info,v 1.1 2008/03/25 10:14:42 thegreenman Exp $
+name = geoapi 
+description = "Geo data api"
+dependencies = geonames countries_api
+package = Geonames
+
+; Information added by drupal.org packaging script on 2008-03-25
+version = "5.x-1.0"
+project = "geonames_cck"
+datestamp = "1206444906"
+

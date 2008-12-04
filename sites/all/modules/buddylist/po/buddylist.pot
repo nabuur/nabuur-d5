@@ -1,0 +1,488 @@
+# LANGUAGE translation of Drupal (modules/buddylist/buddylist.module)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from files: buddylist.module v 1.48.2.13 and buddylist_views.inc, 2006/10/01 08:16:01 levavie
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2006-10-17 12:14+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: buddylist.module:14
+msgid "Buddy"
+msgstr ""
+
+#: buddylist.module:17
+msgid "Buddies"
+msgstr ""
+
+#: buddylist.module:18
+msgid "buddy of"
+msgstr ""
+
+#: buddylist.module:19
+msgid "Buddylist"
+msgstr ""
+
+#: buddylist.module:29
+msgid "Enable %buddy list functionality."
+msgstr ""
+
+#: buddylist.module:31
+msgid "\n<p>%Buddy list enables users to keep a list of %buddies from their social network in their user account.  Users can also track what their %buddies are posting to the site.  Furthermore, they can track their <i>%buddies'</i> %buddies and thereby explore their social network.</p>\n<p>If the administrator has enabled the profile module, users can add %buddies via their %buddies' user profiles.   On the \"View\" tab of each user's profile, there is a \"%Buddy list\" section.  Select the 'add %buddy' action to add the user to your %buddy list.  If a user is already in your %buddy list, the 'delete' action will remove the %buddy. Administrators can also enable the %buddylist block.  This block allows you to see a list of your %buddies. If the Friends Of A Friend (FOAF) module is enabled, it will be possible to share %buddy lists with other FOAF-aware social networking applications.</p>\n<p>You can</p>\n<ul>\n<li>add a %buddy by looking at their profile: <a href = \"%Userprofiles\" title = \"View user profiles\">view user profiles</a></li>\n<li>allow users to view profiles in <a href = \"%setaccesspermissions\" title = \"set access permissions\"> administer &raquo; access control</a></li>\n<li>enable the %buddy list block at <a href = \"%blockadministration\" title = \"block administration\">administer &raquo; block</a></li>\n<li>administer the %buddy list block at <a href = \"%buddylistsettings\" title = \"%buddylist settings\">administer &raquo; settings &raquo; %buddylist</a></li>\n</ul>\n\n<p>For more information, read the configuration and customization handbook <a href=\"http://drupal.org/handbook/modules/Buddylist\" title=\"Buddylist page\">Buddylist page</a></p>"
+msgstr ""
+
+#: buddylist.module:71
+msgid "my %buddylist"
+msgstr ""
+
+#: buddylist.module:76;543
+msgid "edit groups"
+msgstr ""
+
+#: buddylist.module:77
+msgid "add to %buddylist"
+msgstr ""
+
+#: buddylist.module:78
+msgid "delete from %buddylist"
+msgstr ""
+
+#: buddylist.module:82
+msgid "%buddies"
+msgstr ""
+
+#: buddylist.module:83
+msgid "%buddyof"
+msgstr ""
+
+#: buddylist.module:85
+msgid "list"
+msgstr ""
+
+#: buddylist.module:86
+msgid "recent posts"
+msgstr ""
+
+#: buddylist.module:87
+msgid "view groups"
+msgstr ""
+
+#: buddylist.module:91
+msgid "%buddylist"
+msgstr ""
+
+#: buddylist.module:93
+msgid "xml feed"
+msgstr ""
+
+#: buddylist.module:107
+msgid "%Buddylist block options"
+msgstr ""
+
+#: buddylist.module:111
+msgid "Number of %buddies to list in the user's %buddy block"
+msgstr ""
+
+#: buddylist.module:114
+msgid "This setting controls the maximum number of %buddies displayed in a user's \"%buddylist block\" given that the \"%buddylist block\" is enabled in the %link."
+msgstr ""
+
+#: buddylist.module:114;121
+msgid "block settings"
+msgstr ""
+
+#: buddylist.module:118
+msgid "Number of posts to list in the %buddies' recent posts block"
+msgstr ""
+
+#: buddylist.module:121
+msgid "This setting controls the maximum number of posts to display in a user's \"%buddy recent posts\" block given that the \"%buddies' recent posts\" block is enabled in the %link."
+msgstr ""
+
+#: buddylist.module:125
+msgid "\"My %buddies list\" block title"
+msgstr ""
+
+#: buddylist.module:126
+msgid "My buddy list"
+msgstr ""
+
+#: buddylist.module:129
+msgid "This will be the title for the \"My %buddy list\" block. If none is specified, \"My %buddy list\" will be used."
+msgstr ""
+
+#: buddylist.module:133
+msgid "\"My %buddies' recent posts\" block title"
+msgstr ""
+
+#: buddylist.module:134;278;314
+msgid "My %buddies' recent posts"
+msgstr ""
+
+#: buddylist.module:137
+msgid "This will be the title for the recent %buddies post block. If none is specified, \"My %buddies' recent posts\" will be used."
+msgstr ""
+
+#: buddylist.module:143
+msgid "Profile page options"
+msgstr ""
+
+#: buddylist.module:147
+msgid "Number of %buddies and users who've added me"
+msgstr ""
+
+#: buddylist.module:150
+msgid "The default maximum number of %buddies and users who've added me as a %buddy to display on a user's profile page."
+msgstr ""
+
+#: buddylist.module:155
+msgid "email"
+msgstr ""
+
+#: buddylist.module:162
+msgid "Send add messages"
+msgstr ""
+
+#: buddylist.module:168
+msgid "Added Buddy Email Subject"
+msgstr ""
+
+#: buddylist.module:176
+msgid "Added Buddy Email Message"
+msgstr ""
+
+#: buddylist.module:178;199
+msgid "Replacement strings are: %macros"
+msgstr ""
+
+#: buddylist.module:183
+msgid "Send remove messages"
+msgstr ""
+
+#: buddylist.module:189
+msgid "Removed Buddy Email Subject"
+msgstr ""
+
+#: buddylist.module:197
+msgid "Removed Buddy Email Message"
+msgstr ""
+
+#: buddylist.module:231
+msgid "%Buddies"
+msgstr ""
+
+#: buddylist.module:243
+msgid "%Buddy of"
+msgstr ""
+
+#: buddylist.module:261
+msgid "%Buddy actions"
+msgstr ""
+
+#: buddylist.module:264
+msgid "%Buddy List"
+msgstr ""
+
+#: buddylist.module:277;296
+msgid "My %buddy list"
+msgstr ""
+
+#: buddylist.module:300;322
+msgid "more"
+msgstr ""
+
+#: buddylist.module:300;322
+msgid "View more."
+msgstr ""
+
+#: buddylist.module:366
+msgid "%Buddy groups"
+msgstr ""
+
+#: buddylist.module:434
+msgid "%linktouser has added you to his/her %buddylist."
+msgstr ""
+
+#: buddylist.module:444
+msgid "Remove %name from my %buddy list"
+msgstr ""
+
+#: buddylist.module:448
+msgid "Add %name to my %buddy list"
+msgstr ""
+
+#: buddylist.module:467;510
+msgid "%username's %buddylist"
+msgstr ""
+
+#: buddylist.module:487;533
+msgid "%buddy"
+msgstr ""
+
+#: buddylist.module:487;533
+msgid "online"
+msgstr ""
+
+#: buddylist.module:498;670
+msgid "No %buddies found."
+msgstr ""
+
+#: buddylist.module:523
+msgid "RSS - %buddies posts"
+msgstr ""
+
+#: buddylist.module:531;582
+msgid "%username's %buddy groups"
+msgstr ""
+
+#: buddylist.module:533
+msgid "# of %buddies"
+msgstr ""
+
+#: buddylist.module:533
+msgid "%buddy's posts"
+msgstr ""
+
+#: buddylist.module:543
+msgid "To organize your %buddies into groups, visit the %edit_groups page"
+msgstr ""
+
+#: buddylist.module:545
+msgid "No groups found."
+msgstr ""
+
+#: buddylist.module:560
+msgid "view posts"
+msgstr ""
+
+#: buddylist.module:588
+msgid "Add a group"
+msgstr ""
+
+#: buddylist.module:593
+msgid "Add new group"
+msgstr ""
+
+#: buddylist.module:598;820
+msgid "Add"
+msgstr ""
+
+#: buddylist.module:614
+msgid "Remove groups"
+msgstr ""
+
+#: buddylist.module:626;854
+msgid "Remove"
+msgstr ""
+
+#: buddylist.module:656
+msgid "You don't have any groups defined."
+msgstr ""
+
+#: buddylist.module:661
+msgid "Submit"
+msgstr ""
+
+#: buddylist.module:669
+msgid "Unable to edit %buddy groups. Add %buddies to your %buddylist before making groups."
+msgstr ""
+
+#: buddylist.module:694
+msgid "%buddy groups"
+msgstr ""
+
+#: buddylist.module:729
+msgid "%buddy groups saved."
+msgstr ""
+
+#: buddylist.module:792
+msgid "%Buddies recent posts on %site"
+msgstr ""
+
+#: buddylist.module:804;841
+msgid "This user does not exist"
+msgstr ""
+
+#: buddylist.module:807
+msgid "This user is already on your %buddy list"
+msgstr ""
+
+#: buddylist.module:810
+msgid "Cannot add yourself to %buddy list"
+msgstr ""
+
+#: buddylist.module:817
+msgid "Add user %name to your %buddy list?"
+msgstr ""
+
+#: buddylist.module:820;854
+msgid "Cancel"
+msgstr ""
+
+#: buddylist.module:828
+msgid "%name will be be notified the next time s/he logs in."
+msgstr ""
+
+#: buddylist.module:844
+msgid "This user is not on your %buddy list"
+msgstr ""
+
+#: buddylist.module:851
+msgid "Remove user %name from your %buddy list?"
+msgstr ""
+
+#: buddylist.module:863
+msgid "%name will be be notified of being removed."
+msgstr ""
+
+#: buddylist.module:880
+msgid "%username has been added to your %buddy list"
+msgstr ""
+
+#: buddylist.module:883
+msgid "%username is already on your %buddylist"
+msgstr ""
+
+#: buddylist.module:894
+msgid "%username has been removed from your %buddylist"
+msgstr ""
+
+#: buddylist.module:899
+msgid "User %name was NOT added to your %buddylist."
+msgstr ""
+
+#: buddylist.module:904
+msgid "User %name was NOT removed from your %buddylist."
+msgstr ""
+
+#: buddylist.module:908
+msgid "yes"
+msgstr ""
+
+#: buddylist.module:908
+msgid "no"
+msgstr ""
+
+#: buddylist.module:939
+msgid "You should create an administrator mail address for your site! <a href=\"%url\">Do it here</a>."
+msgstr ""
+
+#: buddylist.module:946
+msgid "%type message was sent to %username"
+msgstr ""
+
+#: buddylist.module:950
+msgid "There was a problem sending the %type message to %username"
+msgstr ""
+
+#: buddylist.module:956
+msgid "Hi %addee_name,\n\nYou are %adder_name's newest buddy.\n\nHere's a link to %adder_name's profile. If you'd like, you can add them as one of your buddies:\n\n  %adder_link\n\nRegards,\nThe %site team"
+msgstr ""
+
+#: buddylist.module:970
+msgid "Hi %addee_name,\n\nYou have been removed from  %adder_name's  buddy list.\n\nHere's a link to %adder_name's profile:\n\n  %adder_link\n\nEnjoy your new freedom!\n\nRegards,\nThe %site team"
+msgstr ""
+
+#: buddylist.module:57
+msgid "maintain buddy list"
+msgstr ""
+
+#: buddylist.module:57
+msgid "view buddy lists"
+msgstr ""
+
+#: buddylist_views.inc:36
+msgid "Buddylist: User Name"
+msgstr ""
+
+#: buddylist_views.inc:41
+msgid "This will display the username of the owner of the buddylist."
+msgstr ""
+
+#: buddylist_views.inc:44
+msgid "Buddylist: User Picture"
+msgstr ""
+
+#: buddylist_views.inc:47
+msgid "This will display the user picture of the owner of the buddylist."
+msgstr ""
+
+#: buddylist_views.inc:52
+msgid "Buddylist: Buddy Name"
+msgstr ""
+
+#: buddylist_views.inc:53
+msgid "This allows you to sort alphabetically by buddy name."
+msgstr ""
+
+#: buddylist_views.inc:58
+msgid "Buddylist: Author Is A Buddy Of Username"
+msgstr ""
+
+#: buddylist_views.inc:62
+msgid "This allows you to filter by buddies of a particular user."
+msgstr ""
+
+#: buddylist_views.inc:66
+msgid "Buddylist: Author Is A Buddy Of Current User"
+msgstr ""
+
+#: buddylist_views.inc:69
+msgid "This allows you to filter by buddies of the current user."
+msgstr ""
+
+#: buddylist.module:13;29;694 contrib/buddylistinvite/buddylistinvite.module:9
+msgid "buddy"
+msgstr ""
+
+#: buddylist.module:15;947;951;0 contrib/buddylistinvite/buddylistinvite.module:7;12
+msgid "buddylist"
+msgstr ""
+
+#: buddylist.module:16 contrib/buddylistinvite/buddylistinvite.module:30;48
+msgid "buddies"
+msgstr ""
+
+#: buddylist.install:49
+msgid "Buddylist module installed successfully."
+msgstr ""
+
+#: buddylist.install:52
+msgid "Table installation for the Buddylist module was unsuccessful. The tables may need to be installed by hand. See the README.txt file for a list of the installation queries."
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:7
+msgid "Integrates the %buddylist and invite modules."
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:9
+msgid "<p>Whenever a person resonds to an invitation from the invite module and joins the site, the inviter and invitee are added to each other's %buddy list.</p>"
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:12
+msgid "<p>The people you invite will automatically added to your %buddylist when they accept the invitation.</p>"
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:30
+msgid "Users %uid1 and %uid2 are becoming %buddies"
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:40;44
+msgid "The buddylistinvite module depends on the %module module. Please <a href=\"admin/modules\">enable</a> the %module module."
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:48
+msgid "Everything is ready to go. Inviters and Invitees will become %buddies automatically."
+msgstr ""
+
+#: contrib/buddylistinvite/buddylistinvite.module:30;0
+msgid "buddylistinvite"
+msgstr ""

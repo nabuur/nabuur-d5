@@ -1,0 +1,42 @@
+<?php
+// $Id: content_type_facet.install,v 1.7.2.1 2008/06/17 15:45:12 davidlesieur Exp $
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function content_type_facet_uninstall() {
+  if (db_table_exists('faceted_search_variables')) {
+    db_query("DELETE FROM {faceted_search_variables} WHERE name = 'content_type_facet_types'");
+  }
+  if (db_table_exists('faceted_search_filters')) {
+    db_query("DELETE FROM {faceted_search_filters} WHERE filter_key = 'content_type'");
+  }
+}
+
+/**
+ * Renamed variable.
+ */
+function content_type_facet_update_1() {
+  $types = array_filter(variable_get('content_type_facet_status', array()));
+  if (count($types)) {
+    variable_set('content_type_facet_types', $types);
+  }
+  variable_del('content_type_facet_status');
+  return array();
+}
+
+/**
+ * Move settings to a faceted search environment.
+ */
+function content_type_facet_update_2() {
+  $ret = array();
+  $ret[] = update_sql("CREATE TABLE IF NOT EXISTS {faceted_search_variables} (
+      env_id int(10) unsigned NOT NULL default '0',
+      name varchar(48) NOT NULL default '',
+      value longtext NOT NULL,
+      PRIMARY KEY (env_id, name)
+    ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+  faceted_search_variable_set(1, 'content_type_facet_types', variable_get('content_type_facet_types', array()));
+  variable_del('content_type_facet_types');
+  return $ret;
+}

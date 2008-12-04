@@ -1,0 +1,82 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: \n"
+"POT-Creation-Date: \n"
+"PO-Revision-Date: 2005-05-26 19:45+0800\n"
+"Last-Translator: 拖泥带水 <tnds@sohu.com>\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: buddylist.module:5
+msgid "Enable Buddy List functionality"
+msgstr "启用好友列表"
+
+#: buddylist.module:21
+#: ;24;48;65
+msgid "Buddy List"
+msgstr "好友列表"
+
+#: buddylist.module:21
+msgid "Remove from Buddy List"
+msgstr "从好友列表中删除"
+
+#: buddylist.module:24
+msgid "Add to Buddy List"
+msgstr "加入好友列表"
+
+#: buddylist.module:49
+msgid "Buddy Blogs"
+msgstr "好友的Blog"
+
+#: buddylist.module:74
+msgid "My Friends' Blogs"
+msgstr "我的好友的Blog"
+
+#: buddylist.module:161
+msgid "username"
+msgstr "用户名"
+
+#: buddylist.module:162
+msgid "last seen"
+msgstr "上次见到"
+
+#: buddylist.module:164
+msgid "private message"
+msgstr "私人信息"
+
+#: buddylist.module:167
+#: ;188
+msgid "blog"
+msgstr "blog"
+
+#: buddylist.module:170
+#: ;191
+msgid "gallery"
+msgstr "相册"
+
+#: buddylist.module:185
+msgid "send message"
+msgstr "发送消息"
+
+#: buddylist.module:210
+msgid "This user does not exist"
+msgstr "用户不存在"
+
+#: buddylist.module:213
+msgid "This user is already on your buddy list"
+msgstr "此用户总是在你的好友列表中"
+
+#: buddylist.module:216
+msgid "Cannot add yourself to buddy list"
+msgstr "不能将自己加为好友,ft"
+
+#: buddylist.module:221
+msgid "Add User"
+msgstr "添加用户"
+
+#: buddylist.module:240
+msgid "Remove User"
+msgstr "删除用户"
+

@@ -1,0 +1,4 @@
+; $Id: nodecomment.info,v 1.1.1.2 2008/06/13 14:56:17 kester Exp $
+name = Node Comment
+description = Allows users to comment on and discuss published content using nodes.
+dependencies = views

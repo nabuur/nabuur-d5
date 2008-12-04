@@ -1,0 +1,12 @@
+; $Id: faceted_search_ui.info,v 1.4 2007/11/15 23:32:19 davidlesieur Exp $
+name = Faceted Search UI
+description = "User interface for searching and browsing through multiple facets."
+dependencies = faceted_search search
+package = Faceted Search
+
+
+; Information added by drupal.org packaging script on 2008-06-23
+version = "5.x-1.0-beta4"
+project = "faceted_search"
+datestamp = "1214182208"
+

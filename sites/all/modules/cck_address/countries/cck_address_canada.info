@@ -1,0 +1,15 @@
+; $Id: cck_address_canada.info,v 1.9.2.1 2007/12/14 20:16:15 rconstantine Exp $
+;/**
+; * @package CCK_Address_Canada
+; * @category NeighborForge
+; */
+name = Address Field Canadian Support
+description = Adds support for Canadian Provinces.
+dependencies = content cck_address
+package = CCK
+project = "cck_address"
+; Information added by drupal.org packaging script on 2007-12-14
+version = "5.x-2.1"
+project = "cck_address"
+datestamp = "1197663604"
+

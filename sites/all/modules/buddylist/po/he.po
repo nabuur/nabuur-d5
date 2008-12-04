@@ -1,0 +1,487 @@
+# LANGUAGE translation of Drupal (modules/buddylist/buddylist.module)
+# Copyright Amnon Levav <amnon@levavie.com>
+# Generated from files: buddylist.module v 1.48.2.13 and buddylist_views.inc, 2006/10/01 08:16:01 levavie
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: 4.7.0\n"
+"POT-Creation-Date: 2006-06-12 15:24+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: Amnon Levav <amnon@levavie.com>\n"
+"Language-Team: Hebrew (he) <amnon@levavie.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: buddylist.module:14
+msgid "Buddy"
+msgstr "כינוי"	
+
+#: buddylist.module:17
+msgid "Buddies"
+msgstr "חבר'ה"
+
+#: buddylist.module:18
+msgid "buddy of"
+msgstr "חבר'ה של"
+
+#: buddylist.module:19
+msgid "Buddylist"
+msgstr "החבר'ה"
+
+#: buddylist.module:29
+msgid "Enable %buddy list functionality."
+msgstr "מאפשר לכל חבר באתר לנהל רשימות של חבר'ה."
+
+#: buddylist.module:31
+msgid "\n<p>%Buddy list enables users to keep a list of %buddies from their social network in their user account.  Users can also track what their %buddies are posting to the site.  Furthermore, they can track their <i>%buddies'</i> %buddies and thereby explore their social network.</p>\n<p>If the administrator has enabled the profile module, users can add %buddies via their %buddies' user profiles.   On the \"View\" tab of each user's profile, there is a \"%Buddy list\" section.  Select the 'add %buddy' action to add the user to your %buddy list.  If a user is already in your %buddy list, the 'delete' action will remove the %buddy. Administrators can also enable the %buddylist block.  This block allows you to see a list of your %buddies. If the Friends Of A Friend (FOAF) module is enabled, it will be possible to share %buddy lists with other FOAF-aware social networking applications.</p>\n<p>You can</p>\n<ul>\n<li>add a %buddy by looking at their profile: <a href = \"%Userprofiles\" title = \"View user profiles\">view user profiles</a></li>\n<li>allow users to view profiles in <a href = \"%setaccesspermissions\" title = \"set access permissions\"> administer &raquo; access control</a></li>\n<li>enable the %buddy list block at <a href = \"%blockadministration\" title = \"block administration\">administer &raquo; block</a></li>\n<li>administer the %buddy list block at <a href = \"%buddylistsettings\" title = \"%buddylist settings\">administer &raquo; settings &raquo; %buddylist</a></li>\n</ul>\n\n<p>For more information, read the configuration and customization handbook <a href=\"http://drupal.org/handbook/modules/Buddylist\" title=\"Buddylist page\">Buddy list page</a></p>"
+msgstr "\n<p>רשימת החבר'ה מאפשרת לחברי האתר לנהל רשימה של חבר'ה מהרשת החברתית שלהם בתוך החשבון שלהם באתר. חברי האתר יכולים גם לעקוב אחרי מה שהחבר'ה שלהם כותבים באתר. זאת ועוד, הם יכולים להתעדכן לגבי החבר'ה של החבר'ה שלהם, וכך לתור את הרשת החברתית שלהם.</p>\n<p>אם מנהל האתר איפשר את רכיב פרופילי החברים, חברי האתר יכולים להוסיף חבר'ה חדשים דרך פרופיל החבר של החבר'ה שלהם. בלשונית \"הצג\" של הפרופיל של כל חבר באתר, יש איזור שבו מוצגת \"רשימת חבר'ה\". בחירת הפעולה ,\"הוסף לחברה\" תוסיף את  חבר האתר לרשימת החבר'ה שלך. אם הוא כבר נמצא ברשימת החברה'ה שלך, פעולת 'מחק' תבצע הסרה מרשימת החבר'ה. מנהלים יכולים לאפשר גם את תיבת 'רשימת החבר'ה שלי' המאפשרת לך לראות רשימה של החבר'ה שלך. אם רכיב "חבר של חבר" (FOAF) מאופשר, אפשר לשתף את רשימות החברים גם עם יישומי רשתות חברתיות אחרות מבוססות FOAF. </p>\n<p>ניתן</p>\n<ul>\n<li>להוסיף חבר'ה לרשימה גם מתוך דף הפרופיל שלהם באתר: <a href = \"%Userprofiles\" title = \"View user profiles\">תצוגת הפרופילים של חברי האתר</a></li>\n<li>אפשר לחברים אחרים באתר לצפות בפרופיל שלך <a href = \"%setaccesspermissions\" title = \"set access permissions\">ניהול הרשאות</a></li>\n<li>איפשור תיבת 'החבר'ה שלי' מתבצע בעזרת  <a href = \"%blockadministration\" title = \"block administration\">ניהול תיבות</a></li>\n<li>ניהול הגדרות תיבת החבר'ה מתבצע ב <a href = \"%buddylistsettings\" title = \"%buddylist settings\">ניהול הגדרות תיבת החבר'ה</a></li>\n</ul>\n\n<p>למידע  נוסף, אפשר לקרוא את מדריך ההגדרה וההתאמה של הרכיב <a href=\"http://drupal.org/handbook/modules/Buddylist\" title=\"Buddylist page\">באתר דרופל</a></p>"
+
+#: buddylist.module:71
+msgid "my %buddylist"
+msgstr "החבר'ה שלי"
+
+#: buddylist.module:76;543
+msgid "edit groups"
+msgstr "ערוך קבוצות"
+
+#: buddylist.module:77
+msgid "add to %buddylist"
+msgstr "הוסף לחבר'ה שלי"
+
+#: buddylist.module:78
+msgid "delete from %buddylist"
+msgstr "מחק מהחבר'ה שלי"
+
+#: buddylist.module:82
+msgid "%buddies"
+msgstr "חבר'ה"
+
+#: buddylist.module:83
+msgid "%buddyof"
+msgstr "חבר'ה של חבר'ה"
+
+#: buddylist.module:85
+msgid "list"
+msgstr "רשימה"
+
+#: buddylist.module:86
+msgid "recent posts"
+msgstr "הודעות אחרונות"
+
+#: buddylist.module:87
+msgid "view groups"
+msgstr "הצג קבוצות"
+
+#: buddylist.module:91
+msgid "%buddylist"
+msgstr "רשימת חבר'ה"
+
+#: buddylist.module:93
+msgid "xml feed"
+msgstr "הזנת XML"
+
+#: buddylist.module:107
+msgid "%Buddylist block options"
+msgstr "אפשרויות תיבת \"החבר'ה שלי\"""
+
+#: buddylist.module:111
+msgid "Number of %buddies to list in the user's %buddy block"
+msgstr "מספר החבר'ה שיוצגו בתיבת ' החבר'ה שלי'"
+
+#: buddylist.module:114
+msgid "This setting controls the maximum number of %buddies displayed in a user's \"%buddylist block\" given that the \"%buddylist block\" is enabled in the %link."
+msgstr "הגדרה זו קובעת את המספר המכסימלי של חבר'ה שיוצג בתיבת \"החבר'ה שלי\" , בתנאי שהתיבה מאופשרת בקישור זה: %link"
+
+#: buddylist.module:114;121
+msgid "block settings"
+msgstr "הגדרות תיבה"
+
+#: buddylist.module:118
+msgid "Number of posts to list in the %buddies' recent posts block"
+msgstr "מספר ההודעות שיוצגו בתיבת ההודעות האחרונות של החבר'ה שלי"
+
+#: buddylist.module:121
+msgid "This setting controls the maximum number of posts to display in a user's \"%buddy recent posts\" block given that the \"%buddies' recent posts\" block is enabled in the %link."
+msgstr "אפשרות זו שולטת על המספר המכסימלי שו הודעות שיוצגו ברשימת \"הודעות אחרונות של החבר'ה\", במידה ותיבת 'ההודעות האחרונות של החבר'ה תהיה מאופשרת בקישור זה: %link."
+
+#: buddylist.module:125
+msgid "\"My %buddies list\" block title"
+msgstr "כותרת תיבת \"רשימת החבר'ה שלי\""
+
+#: buddylist.module:126
+msgid "My buddy list"
+msgstr "רשימת החבר'ה שלי"
+
+#: buddylist.module:129
+msgid "This will be the title for the \"My %buddy list\" block. If none is specified, \"My %buddy list\" will be used."
+msgstr "זו תהיה הכותרת של תיבת 'החבר'ה שלי'. אם לא הוגדרה כותרת, ייעשרה שימוש בכותרת \"רשימת החבר'ה שלי\""
+
+#: buddylist.module:133
+msgid "\"My %buddies' recent posts\" block title"
+msgstr "כותרת תיבת 'ההודעות האחרונות של החבר'ה שלי'"
+
+#: buddylist.module:134;278;314
+msgid "My %buddies' recent posts"
+msgstr "ההודעות האחרונות של  החבר'ה שלי"
+
+#: buddylist.module:137
+msgid "This will be the title for the recent %buddies post block. If none is specified, \"My %buddies' recent posts\" will be used."
+msgstr "זו תהיה הכותרת של תיבת ההודעות האחרונות של החבר'ה. אם לא צויינה כותרת, יתבצע שימוש בכותרת 'ההודעותהאחרונות של החבר'ה שלי"
+
+#: buddylist.module:143
+msgid "Profile page options"
+msgstr "אפשרויות עמוד פרופיל משתמש"
+
+#: buddylist.module:147
+msgid "Number of %buddies and users who've added me"
+msgstr "מספר החבר'ה וחברי האתר האחרים שהוסיפו אותי לרשימה שלהם"
+
+#: buddylist.module:150
+msgid "The default maximum number of %buddies and users who've added me as a %buddy to display on a user's profile page."
+msgstr "ברירת המחדל למספר המכסימלי של חבר'ה וחברי אתר אחרים שהוסיפו אותי כאחד מהחבר'ה שלהם, שיוצג בעמוד הפרופיל של כל חבר באתר."
+
+#: buddylist.module:155
+msgid "email"
+msgstr "דואר אלקטרוני"
+
+#: buddylist.module:162
+msgid "Send add messages"
+msgstr "שלח הודעות הוספה"
+
+#: buddylist.module:168
+msgid "Added Buddy Email Subject"
+msgstr "נושא הודעת ההוספה לרשימת החבר'ה"
+
+#: buddylist.module:176
+msgid "Added Buddy Email Message"
+msgstr "גוף הודעת ההוספה לרשימת החבר'ה"
+
+#: buddylist.module:178;199
+msgid "Replacement strings are: %macros"
+msgstr "מחרוזות החלפה הן: %macros"
+
+#: buddylist.module:183
+msgid "Send remove messages"
+msgstr "שלח הודעות הסרה"
+
+#: buddylist.module:189
+msgid "Removed Buddy Email Subject"
+msgstr "נושא הודעת ההסרה מרשימת החבר'ה"
+
+#: buddylist.module:197
+msgid "Removed Buddy Email Message"
+msgstr "גוף הודעת ההסרה מרשימת החבר'ה"
+
+#: buddylist.module:231
+msgid "%Buddies"
+msgstr "חבר'ה"
+
+#: buddylist.module:243
+msgid "%Buddy of"
+msgstr "חבר'ה של חבר'ה"
+
+#: buddylist.module:261
+msgid "%Buddy actions"
+msgstr "פעולות"
+
+#: buddylist.module:264
+msgid "%Buddy List"
+msgstr "רשימת חבר'ה"
+
+#: buddylist.module:277;296
+msgid "My %buddy list"
+msgstr "רשימת החבר'ה שלי"
+
+#: buddylist.module:300;322
+msgid "more"
+msgstr "עוד"
+
+#: buddylist.module:300;322
+msgid "View more."
+msgstr "הצג עוד."
+
+#: buddylist.module:366
+msgid "%Buddy groups"
+msgstr "קבוצות חבר'ה"
+
+#: buddylist.module:434
+msgid "%linktouser has added you to his/her %buddylist."
+msgstr "צורפת לרשימת החבר'ה של %linktouser"
+
+#: buddylist.module:444
+msgid "Remove %name from my %buddy list"
+msgstr "הסר את %name מהחבר'ה שלי"
+
+#: buddylist.module:448
+msgid "Add %name to my %buddy list"
+msgstr "הוסף את %name לחבר'ה שלי"
+
+#: buddylist.module:467;510
+msgid "%username's %buddylist"
+msgstr "החבר'ה של %username"
+
+#: buddylist.module:487;533
+msgid "%buddy"
+msgstr "כינוי"
+
+#: buddylist.module:487;533
+msgid "online"
+msgstr "מחובר?"
+
+#: buddylist.module:498;670
+msgid "No %buddies found."
+msgstr "לא נמצאו חבר'ה."
+
+#: buddylist.module:523
+msgid "RSS - %buddies posts"
+msgstr "RSS - הודעות של החבר'ה"
+
+#: buddylist.module:531;582
+msgid "%username's %buddy groups"
+msgstr "קבוצות החבר'ה של %username"
+
+#: buddylist.module:533
+msgid "# of %buddies"
+msgstr "# חבר'ה"
+
+#: buddylist.module:533
+msgid "%buddy's posts"
+msgstr "הודעות של החבר'ה"
+
+#: buddylist.module:543
+msgid "To organize your %buddies into groups, visit the %edit_groups page"
+msgstr "כדי לארגן את  החבר'ה שלך לפי קבוצות, גש\י לעמוד %edit_groups"
+
+#: buddylist.module:545
+msgid "No groups found."
+msgstr "לא נמצאו קבוצות."
+
+#: buddylist.module:560
+msgid "view posts"
+msgstr "הצג הודעות"
+
+#: buddylist.module:588
+msgid "Add a group"
+msgstr "הוסף קבוצה"
+
+#: buddylist.module:593
+msgid "Add new group"
+msgstr "הוסף קבוצה חדשה"
+
+#: buddylist.module:598;820
+msgid "Add"
+msgstr "הוסף"
+
+#: buddylist.module:614
+msgid "Remove groups"
+msgstr "הסר קבוצות"
+
+#: buddylist.module:626;854
+msgid "Remove"
+msgstr "הסר"
+
+#: buddylist.module:656
+msgid "You don't have any groups defined."
+msgstr "טרם הגדרת קבוצות."
+
+#: buddylist.module:661
+msgid "Submit"
+msgstr "הגש"
+
+#: buddylist.module:669
+msgid "Unable to edit %buddy groups. Add %buddies to your %buddylist before making groups."
+msgstr "לא ניתן לערוך קבוצות חבר'ה. הוסף חבר'ה לרשימת החבר'ה לפני יצירת קבוצות."
+
+#: buddylist.module:694
+msgid "%buddy groups"
+msgstr "שיוך לקבוצה"
+
+#: buddylist.module:729
+msgid "%buddy groups saved."
+msgstr "הקבוצות נשמרו."
+
+#: buddylist.module:792
+msgid "%Buddies recent posts on %site"
+msgstr "ההודעות האחרונות של החבר'ה באתר %site"
+
+#: buddylist.module:804;841
+msgid "This user does not exist"
+msgstr "חבר זה אינו מוגדר באתר"
+
+#: buddylist.module:807
+msgid "This user is already on your %buddy list"
+msgstr "חבר האתר כבר נמצא ברשימת החבר'ה שלך"
+
+#: buddylist.module:810
+msgid "Cannot add yourself to %buddy list"
+msgstr "לא ניתן להוסיף את עצמך לרשימת החבר'ה שלך"
+
+#: buddylist.module:817
+msgid "Add user %name to your %buddy list?"
+msgstr "האם להוסיף את %name לרשימת החבר'ה שלך?"
+
+#: buddylist.module:820;854
+msgid "Cancel"
+msgstr "ביטול"
+
+#: buddylist.module:828
+msgid "%name will be be notified the next time s/he logs in."
+msgstr "%name יקבל הודעה בפעם הבאה שהוא ייכנס לאתר."
+
+#: buddylist.module:844
+msgid "This user is not on your %buddy list"
+msgstr "חבר זה אינו ברשימת החבר'ה שלך"
+
+#: buddylist.module:851
+msgid "Remove user %name from your %buddy list?"
+msgstr "הסר את %name מרשימת החבר'ה שלך"
+
+#: buddylist.module:863
+msgid "%name will be be notified of being removed."
+msgstr "תישלח הודעה אל %name על ההסרה מרשימת החבר'ה."
+
+#: buddylist.module:880
+msgid "%username has been added to your %buddy list"
+msgstr "התווספת לרשימת החבר'ה של %username"
+
+#: buddylist.module:883
+msgid "%username is already on your %buddylist"
+msgstr "%username כבר נמצא\\ת ברשימת החבר'ה שלך"
+
+#: buddylist.module:894
+msgid "%username has been removed from your %buddylist"
+msgstr "בוצעה הסרה של %username מרשימת החבר'ה שלך"
+
+#: buddylist.module:899
+msgid "User %name was NOT added to your %buddylist."
+msgstr "%name לא הוסף לרשימת החבר'ה שלך."
+
+#: buddylist.module:904
+msgid "User %name was NOT removed from your %buddylist."
+msgstr "%name לא הוסר מרשימת החבר'ה שלך."
+
+#: buddylist.module:908
+msgid "yes"
+msgstr "כן"
+
+#: buddylist.module:908
+msgid "no"
+msgstr "לא"
+
+#: buddylist.module:939
+msgid "You should create an administrator mail address for your site! <a href=\"%url\">Do it here</a>."
+msgstr "עליך ליצור כתובת דואר לניהול האתר שלך! <a href=\"%url\">אפשר לעשות זאת כאן</a>."
+
+#: buddylist.module:946
+msgid "%type message was sent to %username"
+msgstr "הודעה מסוג %type נשלחה אל %username"
+
+#: buddylist.module:950
+msgid "There was a problem sending the %type message to %username"
+msgstr "היתה בעיה במשלוח הודעה מסוג %type אל %username"
+
+#: buddylist.module:956
+msgid "Hi %addee_name,\n\nYou are %adder_name's newest buddy.\n\nHere's a link to %adder_name's profile. If you'd like, you can add them as one of your buddies:\n\n  %adder_link\n\nRegards,\nThe %site team"
+msgstr "שלום %addee_name,\n\nאת\ה החבר\ה החדשה ברשימת החבר'ה של %adder_name.\n\nהנה קישור לפרופיל של %adder_name. אם תרצ\י, תוכל\י להוסיף את %adder_name כאחד מהחבר'ה שלך:\n\n  %adder_link\n\nבברכה,\nצוות אתר %site"
+
+#: buddylist.module:970
+msgid "Hi %addee_name,\n\nYou have been removed from  %adder_name's  buddy list.\n\nHere's a link to %adder_name's profile:\n\n  %adder_link\n\nEnjoy your new freedom!\n\nRegards,\nThe %site team"
+msgstr "שלום %addee_name,\n\nנמחקת מרשימת החברים של %adder_name.\n\nהנה קישור לפרופיל של %adder_name:\n\n  %adder_link\n\nשיהיה בכף עם החופש החדש שלך!\n\nבברכה,\nצוות אתר %site"
+
+#: buddylist.module:57
+msgid "maintain buddy list"
+msgstr "ניהול רשימות חבר'ה"
+
+#: buddylist.module:57
+msgid "view buddy lists"
+msgstr "צפייה ברשימות חבר'ה"
+
+#: buddylist_views.inc:36
+msgid "Buddylist: User Name"
+msgstr "רשימת חבר'ה: שם חבר האתר"
+
+#: buddylist_views.inc:41
+msgid "This will display the username of the owner of the buddylist."
+msgstr "זה יציג את שם המשתמש של מנהל רשימת החבר'ה."
+
+#: buddylist_views.inc:44
+msgid "Buddylist: User Picture"
+msgstr "רשימת חבר'ה: תמונת החבר"
+
+#: buddylist_views.inc:47
+msgid "This will display the user picture of the owner of the buddylist."
+msgstr "זה יציג את תמונת מנהל רשימת החבר'ה."
+
+#: buddylist_views.inc:52
+msgid "Buddylist: Buddy Name"
+msgstr "רשימת חבר'ה: שם החבר"
+
+#: buddylist_views.inc:53
+msgid "This allows you to sort alphabetically by buddy name."
+msgstr "זה מאפשר לך למיין אלפביתית לפי שם החבר"
+
+#: buddylist_views.inc:58
+msgid "Buddylist: Author Is A Buddy Of Username"
+msgstr "רשימת חבר'ה: המחבר הוא אחד מהחבר'ה של חבר זה באתר"
+
+#: buddylist_views.inc:62
+msgid "This allows you to filter by buddies of a particular user."
+msgstr "זה מאפשר לסנן חבר'ה של חבר מסויים."
+
+#: buddylist_views.inc:66
+msgid "Buddylist: Author Is A Buddy Of Current User"
+msgstr "רשימת חבר'ה: המחבר הוא אחד מהחבר'ה של חבר האתר הנוכחי."
+
+#: buddylist_views.inc:69
+msgid "This allows you to filter by buddies of the current user."
+msgstr "זה מאפשר לך לסנן לפי החבר'ה של חבר האתר הנוכחי."
+
+#: buddylist.module:13;29;694 contrib/buddylistinvite/buddylistinvite.module:9
+msgid "buddy"
+msgstr "חבר'ה"
+
+#: buddylist.module:15;947;951;0 contrib/buddylistinvite/buddylistinvite.module:7;12
+msgid "buddylist"
+msgstr "רשימת החבר'ה"
+
+#: buddylist.module:16 contrib/buddylistinvite/buddylistinvite.module:30;48
+msgid "buddies"
+msgstr "חבר'ה"
+
+#: buddylist.install:49
+msgid "Buddylist module installed successfully."
+msgstr "רכיב רשימת החבר'ה הותקן בהצלחה."
+
+#: buddylist.install:52
+msgid "Table installation for the Buddylist module was unsuccessful. The tables may need to be installed by hand. See the README.txt file for a list of the installation queries."
+msgstr "התקנת הטבלאות לרכיב רשימת החבר'ה הושלמה לא הצליחה. ייתכן ויש צורך להתקין את הטבלאות ידנית. ראה קובץ README.txt לרשימה של שאילתות הנחוצות לצורך ההתקנה."
+
+#: contrib/buddylistinvite/buddylistinvite.module:7
+msgid "Integrates the %buddylist and invite modules."
+msgstr "משלב את רכיב רשימת החבר'ה ורכיב הזמנת החברים."
+
+#: contrib/buddylistinvite/buddylistinvite.module:9
+msgid "<p>Whenever a person resonds to an invitation from the invite module and joins the site, the inviter and invitee are added to each other's %buddy list.</p>"
+msgstr "<p>בכל פעם שאדם מגיב להזמנה הנשלחת על ידי רכיב הזמנת החברים ומצטרף לאתר, המזמין והמוזמן מצטרפים זה לרשימת החבר'ה של זה.</p>"
+
+#: contrib/buddylistinvite/buddylistinvite.module:12
+msgid "<p>The people you invite will automatically added to your %buddylist when they accept the invitation.</p>"
+msgstr "<p>המוזמנים יתווספו אוטומטית לרשימת החבר'ה שלך עם הצטרפותם לאתר.</p>"
+
+#: contrib/buddylistinvite/buddylistinvite.module:30
+msgid "Users %uid1 and %uid2 are becoming %buddies"
+msgstr "חברי האתר %uid1 ו-%uid2 הופכים לחבר'ה"
+
+#: contrib/buddylistinvite/buddylistinvite.module:40;44
+msgid "The buddylistinvite module depends on the %module module. Please <a href=\"admin/modules\">enable</a> the %module module."
+msgstr "רכיב הזמנת החבר'ה תלוי ברכיב %module. בבקשה <a href=\"admin/modules\">לאפשר</a> את הרכיב %module."
+
+#: contrib/buddylistinvite/buddylistinvite.module:48
+msgid "Everything is ready to go. Inviters and Invitees will become %buddies automatically."
+msgstr "הכל מוכן לפעולה. המזמינים והמוזמנים יהפכו אוטומטית לחבר'ה."
+
+#: contrib/buddylistinvite/buddylistinvite.module:30;0
+msgid "buddylistinvite"
+msgstr "הזמנת חבר'ה"

@@ -1,0 +1,39 @@
+<?php
+// $Id: geonames_nearbyplace.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames nearbyplace API / by Erlend Eide, erlend(|)edesign.no
+ */
+
+/**
+ * Service configuration
+ */ 
+function geonames_nearbyplace_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array( 
+    'service_name'             => 'nearbyplace',
+    'service_full_name'        => 'Find nearby Place Name (reverse geocoding)',
+    'description'              => t('Find nearby place name (reverse geocoding)'),
+    'service_path'             => 'findNearbyPlaceName',
+    'credit_cost'              => 4,
+    'result_cache_prefix'      => 'neares:',
+    'data_cache_prefix'        => 'neadat:',
+    'allowed_parameters'       => array(
+      //our style  geonames style
+      'lat'      => 'lat',
+      'lng'      => 'lng',
+      'radius'   => 'radius',
+      'maxrows'  => 'maxRows',
+      'style'    => 'style', 				// Default = MEDIUM
+    ),
+		'query_defaults' => array(
+		  'radius' => 20
+		),
+    'required_parameters'      => array( // If you have set query_defaults you should not include the parameter here
+      'lat', 
+      'lng'
+    ),
+    'required_parameters_type' => 'all',
+	 );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

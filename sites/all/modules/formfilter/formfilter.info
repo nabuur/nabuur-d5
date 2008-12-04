@@ -1,0 +1,10 @@
+; $Id: formfilter.info,v 1.4 2008/03/29 16:36:51 nedjo Exp $
+name = Formfilter
+description = Provides tools and a UI for simplifying and altering forms.
+
+
+; Information added by drupal.org packaging script on 2008-03-29
+version = "5.x-1.0"
+project = "formfilter"
+datestamp = "1206810611"
+

@@ -1,0 +1,10 @@
+; $Id: sms_muse.info,v 1.1.2.1 2008/08/13 09:03:00 kester Exp $
+name = "Muse"
+description = "Allows the SMS Framework to Muse as a gateway."
+package = SMS Framework
+dependencies = sms
+; Information added by drupal.org packaging script on 2008-08-07
+version = "5.x-1.x-dev"
+project = "smsframework"
+datestamp = "1218067859"
+

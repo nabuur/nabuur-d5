@@ -1,0 +1,11 @@
+; $Id: similarnodes.info,v 1.1.2.2 2008/05/05 15:00:21 jacobsingh Exp $
+name = Similar Nodes
+description = Similar Nodes provides a way to get a view of related nodes based on taxonomy using weighting
+dependencies = views
+package = ""
+version = ""
+; Information added by drupal.org packaging script on 2008-05-20
+version = "5.x-1.1"
+project = "similarnodes"
+datestamp = "1211260827"
+

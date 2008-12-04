@@ -1,0 +1,156 @@
+<?php
+// $Id: buddylist.install,v 1.7.2.5 2007/05/15 12:48:49 robertDouglass Exp $
+
+/**
+ * Install the initial schema.
+ */
+function buddylist_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $query1 = db_query("
+        CREATE TABLE {buddylist} (
+          uid int(10) unsigned NOT NULL default '0',
+          buddy int(10) unsigned NOT NULL default '0',
+          timestamp int(11) NOT NULL default '0',
+          received tinyint(1) NOT NULL default '0',
+          PRIMARY KEY  (uid,buddy)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      $query2 = db_query("
+        CREATE TABLE {buddylist_buddy_group} (
+          uid int(11) NOT NULL default '0',
+          buddy int(11) NOT NULL default '0',
+          label_id int(11) NOT NULL default '0',
+          PRIMARY KEY  (uid, buddy, label_id)
+         ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      $query3 = db_query("
+        CREATE TABLE {buddylist_groups} (
+          uid int(11) NOT NULL default '0',
+          label_id int(11) NOT NULL default '0',
+          label varchar(255) NOT NULL default '',
+          visible tinyint(1) NOT NULL default '0',
+        PRIMARY KEY  (uid, label_id)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      $query4 = db_query("
+        CREATE TABLE {buddylist_pending_requests} (
+          requester_uid int(11) NOT NULL default '0',
+          requestee_uid int(11) NOT NULL default '0',
+           received tinyint(1),
+        PRIMARY KEY (requester_uid, requestee_uid)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      if ($query1 && $query2 && $query3 && $query4) {
+        $created = TRUE;
+      }
+      break;
+
+     case 'pgsql':
+
+     $query1 = db_query("
+      CREATE TABLE {buddylist} (
+        uid integer DEFAULT 0 NOT NULL,
+        buddy integer DEFAULT 0 NOT NULL,
+        \"timestamp\" integer DEFAULT 0 NOT NULL,
+        received integer DEFAULT 0 NOT NULL
+      );");
+
+     $query2 = db_query("ALTER TABLE ONLY {buddylist} ADD CONSTRAINT {buddylist}_pkey PRIMARY KEY (uid, buddy);");
+
+     $query3 = db_query("
+      CREATE TABLE {buddylist_buddy_group} (
+        uid integer DEFAULT 0 NOT NULL,
+        buddy integer DEFAULT 0 NOT NULL,
+        label_id integer DEFAULT 0 NOT NULL
+      );");
+
+     $query4 = db_query("ALTER TABLE ONLY {buddylist_buddy_group} ADD CONSTRAINT {buddylist_buddy_group}_pkey PRIMARY KEY (uid, buddy, label_id);");
+
+     $query5 = db_query("
+      CREATE TABLE {buddylist_groups} (
+        uid integer DEFAULT 0 NOT NULL,
+        label_id integer DEFAULT 0 NOT NULL,
+        label character varying(255) NOT NULL,
+        visible integer DEFAULT 0 NOT NULL
+      );");
+
+     $query6 = db_query("ALTER TABLE ONLY {buddylist_groups} ADD CONSTRAINT {buddylist_groups}_pkey PRIMARY KEY (uid, label_id);");
+
+     $query7 = db_query("
+      CREATE TABLE {buddylist_pending_requests} (
+        requester_uid integer DEFAULT 0 NOT NULL,
+        requestee_uid integer DEFAULT 0 NOT NULL,
+        received integer
+      );");
+
+     $query8 = db_query("ALTER TABLE ONLY {buddylist_pending_requests} ADD CONSTRAINT {buddylist_pending_requests}_pkey PRIMARY KEY (requester_uid, requestee_uid);");
+
+     if ($query1 && $query2 && $query3 && $query4 && $query5 && $query6 && $query7 && $query8) {
+       $created = TRUE;
+     }
+     break;
+
+  }
+  if ($created) {
+    drupal_set_message(t('Buddylist module installed successfully.'));
+  }
+  else {
+    drupal_set_message(t('Table installation for the Buddylist module was unsuccessful. The tables may need to be installed by hand. See the README.txt file for a list of the installation queries.'), 'error');
+  }
+}
+
+function buddylist_uninstall() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("DROP TABLE {buddylist}");
+      db_query("DROP TABLE {buddylist_buddy_group}");
+      db_query("DROP TABLE {buddylist_groups}");
+      db_query("DROP TABLE {buddylist_pending_requests}");
+    break;
+
+    case 'pgsql':
+      db_query("DROP TABLE {buddylist}");
+      db_query("DROP TABLE {buddylist_buddy_group}");
+      db_query("DROP TABLE {buddylist_groups}");
+      db_query("DROP TABLE {buddylist_pending_requests}");
+    break;
+  }
+ }
+
+function buddylist_update_1() {
+  return _system_update_utf8(array('buddylist'));
+}
+
+function buddylist_update_2() {
+  $ret = array();
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("
+        CREATE TABLE {buddylist_pending_requests} (
+          requester_uid int(11) NOT NULL default '0',
+          requestee_uid int(11) NOT NULL default '0',
+          received tinyint(1),
+          PRIMARY KEY (requester_uid, requestee_uid)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;
+      ");
+    break;
+
+    case 'pgsql':
+      $ret[] = update_sql("
+        CREATE TABLE {buddylist_pending_requests} (
+          requester_uid integer DEFAULT 0 NOT NULL,
+          requestee_uid integer DEFAULT 0 NOT NULL,
+          received integer
+        );");
+
+      $ret[] = update_sql("ALTER TABLE ONLY {buddylist_pending_requests} ADD CONSTRAINT {buddylist_pending_requests}_pkey PRIMARY KEY (requester_uid, requestee_uid);");
+    break;
+  }
+
+  return $ret;
+}

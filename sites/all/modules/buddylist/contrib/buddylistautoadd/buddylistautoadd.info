@@ -1,0 +1,11 @@
+; $Id: buddylistautoadd.info,v 1.1 2007/04/25 01:38:58 kbahey Exp $
+name = Buddylist Auto Add
+description = Adds a user automatically to the buddy list
+package = Social networking
+dependencies = buddylist
+
+; Information added by drupal.org packaging script on 2007-11-19
+version = "5.x-1.1-beta"
+project = "buddylist"
+datestamp = "1195498807"
+

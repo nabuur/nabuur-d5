@@ -1,0 +1,36 @@
+<?php
+// $Id: geonames_hierarchy.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames Place Hierarchy Children / by Erlend Eide, erlend(|)edesign.no
+ * 
+ * http://www.geonames.org/export/place-hierarchy.html
+ */
+ 	
+/**
+ * Service configuration
+ */  
+function geonames_hierarchy_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'hierarchy',
+    'service_full_name'   => 'Place Hierarchy: Hierarchy',
+		'description' 				=> t('Find all Geonames higher up in the hierarchy of a place name.'),
+    'service_path'        => 'hierarchy',
+    'credit_cost'         => 1,
+    'result_cache_prefix' => 'hires:',
+    'data_cache_prefix'   => 'hidat:',
+	  'allowed_parameters'  => array(
+      // our style     // geonames style
+      'geonameid'       => 'geonameId',
+			'style'           => 'style',
+			'lang'            => 'lang',
+    ),
+    'required_parameters' => array( 
+      'geonameid', 
+	  ),
+		'required_parameters_type' => 'single',
+		'detect_style'   => TRUE,
+  );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

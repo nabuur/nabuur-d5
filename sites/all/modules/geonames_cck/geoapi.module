@@ -1,0 +1,244 @@
+<?php
+/* $Id: geoapi.module,v 1.1 2008/03/25 10:14:42 thegreenman Exp $ */
+/**
+ * @file
+ * An api for easy management of CCK geo location information.
+ * 
+ * This module provides some code and web level api functions.  
+ * 
+ *  
+ */
+
+/* ======================= API ===========================*/
+
+/**
+ * Get the lat and lng for a location. 
+ * Call the geonames api to find a matching place
+ * 
+ * @param $query
+ *   The name of a place to search for
+ * @param $country
+ *   Limit searches to a specific country
+ */
+function geoapi_convert_location_to_geo($query, $country = 'uk') {  
+  // we start by just searching on the name
+  // if we get no results, we broaden the search a bit
+  $query = array(
+    'query' => $query, 
+    'country' => $country,
+    'featureclass' => 'p',
+    'style' => 'FULL',
+    'maxrows' => 15,     
+    );    
+           
+  $location = geonames_query('search', $query);
+  return $location; 
+}
+
+/**
+ * Set the value of the location field to the specified geoname id.
+ * 
+ * @param $nid #
+ *   Node id to update
+ * @param $field 
+ *   The name of the cck location field to update 
+ * @param $index 
+ *   For multivalue fields, the index of the value to update. 
+ *   Set to -1 to append a new value.
+ * @param $geonameid 
+ *   The geonames id of the location we are using 
+ */
+function geoapi_insert_geoname_location($nid, $field, $index, $geonameid) {
+  if (node_access('update', node_load($nid)) && is_numeric($nid) && $field && is_numeric($geonameid)) {
+    // get the name of the primary location field
+    // look up geoname id using heirarchy      
+    $location = _geoapi_get_data_for_geonameid($geonameid); 
+    $location = _geoapi_convert_geonames_result_to_cck_value($location); 
+    _geoapi_set_field_value($nid, $field, $index, $location);
+  } 
+  else {
+    drupal_access_denied();       
+  }
+}
+
+/**
+ * Delete a location entry from a node
+ *
+ * @param unknown_type $nid
+ * @param unknown_type $field The cck field to update
+ * @param unknown_type $counter Which value in the field to delete
+ */
+function geoapi_delete_geoname_location($nid, $field, $index = 0 ) {
+  //TODO: allow the deletion of location info via web
+}
+
+
+/**
+ * Create a list of country codes for a dropdown box
+ * If a code is specified, will return the name of the country with that code
+ * 
+ * @param $code 
+ *   If specified, return the name of the country with the matching code
+ * @return mixed 
+ *   If no code is specified, an array of countries and their codes is returned. 
+ *   If a code is provided, the name of that country will be returned as a string
+ */
+function geoapi_countries($code = null) {
+  if (!is_null($code)) {
+    return countries_api_get_name($code);
+  } 
+  else {
+    $countries_raw = countries_api_get_list();
+    $countries = array('' => t('Select a country'), 'GB' => '', 'US' => '');
+    foreach ($countries_raw as $country) {
+      $countries[$country['iso2']] = $country['name'];  
+    }    
+  }
+  return $countries; 
+}
+
+
+// ============== Internals ============== //
+
+
+   
+/**
+ * Get the location details for an id. 
+ * We are using heirarchy search for this, but it may not be the most efficient. 
+ * The geonames module handles caching, so we dont bother 
+ */
+function _geoapi_get_data_for_geonameid($geonameid) {
+  $query = array('geonameid' => $geonameid);
+  $result = geonames_query('hierarchy', $query); 
+  $location = array_pop($result -> results);   
+  return $location;   
+}
+
+
+/**
+ * Set a cck field value in the database. 
+ * @param nid
+ * @param field
+ * @param index  Set to -1 to append values to multivalue fields
+ */
+function _geoapi_set_field_value($nid, $field, $index = -1, $value) {  
+  $field_data = content_fields($field);
+  
+  $node = node_load($nid, NULL, true);
+  // load the current values
+  $values = content_field('load', $node, $field_data, $node -> {$field}, NULL, NULL);  
+  if ($index < 0) {
+    $values[$field][] = $value;
+  } 
+  else {
+    $values[$field][$index] = $value;
+  }     
+  content_field('update', $node, $field_data, $values[$field], NULL, NULL);
+  // we have gone underneath the normal node interface, so have to clear our node cache
+  cache_clear_all('content:'. $node->nid .':'. $node -> vid, 'cache_content');
+}
+
+
+/**
+ * Convert the array structure returned by a geonames call to an array that can be written to a cck field.  
+ *
+ */ 
+function _geoapi_convert_geonames_result_to_cck_value($result) {
+  $map = array(
+  // cck field  => result field
+   'name' => 'name',
+   'lat' => 'lat',
+   'lng' => 'lng',
+   'country' => 'countrycode',
+   'geonameId' => 'geonameid',
+   'fcode' => 'fcode',
+   'adminName1' => 'adminName1',
+   'adminName2' => 'adminName2',
+   'adminCode1' => 'adminCode1',
+   'adminCode2' => 'adminCode2',     
+  ); 
+  foreach ($map as $cck => $geonames) {
+    $value[$cck] = $result[$geonames];
+  }
+  return $value;
+}
+
+/**
+ * Some geolocation stuff. expand it sometime. 
+ */
+
+/**
+ * if there is no existing country information, set the default
+ *
+ */
+function geoapi_get_default_country() {
+  //TODO: Make other modules possible
+  $geolocation_module = 'geoapi_iplocator_maxmind';
+  // we dont want to set any default on the content type admin pages. This causes bad defaults.
+  if (!( arg(0) == 'admin' && arg(1) == 'content' && arg(2) == 'types') ) {
+    // force a test ip if one exists in the request
+    if (!$ip = $_REQUEST['TEST_IP_ADDRESS']) {  
+      $ip = $_SERVER['REMOTE_ADDR'];
+    }  
+    $location = module_invoke($geolocation_module, 'goapi_iplocation', $ip);
+    return $location['country'];
+  }      
+}
+
+/**
+ * Detect the default city
+ *
+ * @return unknown
+ */
+function geoapi_get_default_city() {
+  //TODO: Make other modules possible
+  $geolocation_module = 'geoapi_iplocator_maxmind';
+   // we dont want to set any default on the content type admin pages. This causes bad defaults.
+  if (!( arg(0) == 'admin' && arg(1) == 'content' && arg(2) == 'types') ) {
+    if (!$ip = $_REQUEST['TEST_IP_ADDRESS']) {  
+      $ip = $_SERVER['REMOTE_ADDR'];
+    }
+    $location = module_invoke($geolocation_module, 'goapi_iplocation', $ip);
+    // TODO: Make regions work for other locations
+    if ($location['country'] == 'US') {
+      $city = $location['city'] .', '. $location['region'];
+    } 
+    else {
+      $city = $location['city'];
+    }   
+    return $city;
+  }    
+}
+
+
+// ============== REST INTERFACE 
+/**
+ * This is a simple implementation of the service using hook_menu. 
+ */
+
+/**
+ * implementation of hook_menu
+ */
+function geoapi_menu($may_cache) {
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'services/location/geonames',
+      'callback' => '_geoapi_service_handler',
+      'access' => true,
+    );     
+  }
+  return $items;
+}
+
+/**
+ * Handle the REST calls to the api
+ */
+function _geoapi_service_handler($action, $nid, $field, $index, $geonameid) {
+  switch ($action) {
+    case 'insert':
+      geoapi_insert_geoname_location($nid, $field, $index, $geonameid); 
+      drupal_goto('node/'. $nid); 
+      break; 
+  }
+}
+

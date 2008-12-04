@@ -1,0 +1,423 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Taxonomy Image 5.x-1.1\n"
+"POT-Creation-Date: 2008-03-23 11:20-0400\n"
+"PO-Revision-Date: \n"
+"Last-Translator: Mario Perabo <mario@einfach-trainieren.de>\n"
+"Language-Team: Einfach-Trainieren.de <mario@einfach-trainieren.de>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: taxonomy_image.module:258
+msgid "The taxonomy_image module allows site administrators to associate images with category terms.  Once defined, this association allows Drupal themes to display images with site content.  For example, this module might be used to display a penguin with content about Linux, and a cheeseburger with content about junk food. To modify or delete an existing image or to upload a new image, click \"edit image\" on the overview page or use the term edit page.  To learn more about how to create vocabularies and terms, review the <a href=\"!taxonomy-help\">taxonomy help page</a>."
+msgstr "Das Taxonomy_Image Modul erlaubt es Administratoren, Bilder mit Taxonomiebegriffen zu assoziieren. Einmal definiert, erlauben diese Assoziazionen Drupal Themes Bilder im Seiteninhalt anzuzeigen. Zum Beispiel könnte dieses Modul dazu benutzt werden, einen Pinguin in Inhalten über Linux und einen Cheeseburger in Inhalten über Junkfood darzustellen. Um existierende Bilder zu ändern oder zu löschen oder um neue Bilder hinzuzufügen, auf der Übersichtsseite auf \"Bild bearbeiten\" klicken oder den Taxonomiebegriff bearbeiten. <a href=\"!taxonomy-help\">Taxonomie-Hilfeseite</a> aufrufen, um weitere Informationen über das Anlegen von Vokabularen und Begriffen zu erhalten."
+
+#: taxonomy_image.module:261
+msgid ""
+"<h3>Introduction</h3>\r\n"
+"      <p>The taxonomy_image module allows site administrators to associate images with category terms.  Once defined, this association allows Drupal sites to display images with site content.  For example, the taxonomy_image module might be used to display a penguin with content about Linux, and a cheeseburger with content about junk food.</p>\r\n"
+"      <p>The module allows both a one-to-one term-to-image relationship, and a many-to-one terms-to-image relationship.</p>\r\n"
+"      <p>The taxonomy_image module requires that the taxonomy module also be enabled. The Categories module is not currently supported.</p>\r\n"
+"      <h3>Configuration</h3>\r\n"
+"      <h4>Uploading images</h4>\r\n"
+"      <p>With the taxonomy_image module enabled, images can be uploaded and associated with category terms at \"Administer >> Content management >> Categories\".  On that page you will find links to tables containing all your vocabularies and terms.  Next to each term is a link titled \"edit term\" which you can click to upload an image for that term.  After clicking that link, you will be you will find the image management section at the bottom of that page. Using the \"browse\" button you can select your image then click \"Save\".\r\n"
+"      <p>Continue this process to upload appropriate images for your category terms.  Note that by default images will be displayed at the size they were uploaded.  Alternatively, you can go to \"Administer >> Site configuration >> Taxonomy_image\" to set the display height and/or width of all taxonomy images.</p>\r\n"
+"      <h4>Permissions</h4>\r\n"
+"      <p>For your users to be able to view the images you have uploaded, you will need to give them the necessary permissions.  Only users with the \"access taxonomy images\" permission will see images.  If you wish to give your users the ability to disable the images, also give them the \"can disable taxonomy images\" permission. A third permission, \"administer taxonomy images\", controls which users are allowed to configure taxonomy images.</p>\r\n"
+"      <h4>Recursive image display</h4>\r\n"
+"      <p>Taxonomy is a very powerful tool. One of its features is providing the ability to create hierarchical vocabularies, with which you can build a tree of terms.  It is possible that an entire tree of terms, or even just a branch of terms, are all about a similar subject and should all be associated with the same image.  By going to \"Administer >> Site configuration >> Taxonomy_image\", you can enable \"Recursive image display\".  With this option enabled, you only need to configure an image for the parent term, and all children will automatically inheret the same image (unless they are manually configured to display an alternate image).</p>\r\n"
+"      <h3>Displaying images</h3>\r\n"
+"      <p>To actually display images, you will have to make a call to taxonomy_image_display(). [There are some included add-on modules that will do this for you.]  When calling this function, you will need to pass in the taxonomy term for which an image should be displayed.  For example, from your theme's \"_node\" function you might do the following:\r\n"
+"<pre>\r\n"
+"  foreach (taxonomy_node_get_terms($node->nid) as $term) {\r\n"
+"    if ($image = taxonomy_image_display($term->tid)) {\r\n"
+"      $output .= \\\"$image\\\";\r\n"
+"    }\r\n"
+"</pre>\r\n"
+"    <p>Taxonomy_image_display uses \"theme('image',...\" so you may override the display in your theme layer.</p>\r\n"
+"    "
+msgstr ""
+"<h3>Einführung</h3>\r\n"
+"      <p>Das Taxonomy_Image Modul erlaubt es Administratoren, Bilder mit Taxonomiebegriffen zu assoziieren. Einmal definiert, erlauben diese Assoziazionen Drupal Themes Bilder im Seiteninhalt anzuzeigen. Zum Beispiel könnte dieses Modul dazu benutzt werden, einen Pinguin in Inhalten über Linux und einen Cheeseburger in Inhalten über Junkfood darzustellen.</p>\r\n"
+"      <p>Das Modul erlaubt sowohl eins-zu-eins wie auch als auch n-zu-eins Beziehungen zwischen Begriffen und Bildern. </p>\r\n"
+"      <p>Das Taxonomy_Image Moduls setzt das in Drupal enthaltene Taxonomy Modul voraus. Das Categories Modul wird derzeit nicht unterstützt.</p>\r\n"
+"      <h3>Konfiguration</h3>\r\n"
+"      <h4>Bilder hochladen</h4>\r\n"
+"      <p>Wenn das Taxonomy_Image Modul aktiviert wurde, können Bilder über \"Verwalten >> Inhaltsverwaltung >> Kategorien\" hochgeladen und mit Taxonomiebegriffen verknüpft werden.  Diese Seite enthält Links zu Auflistungen von Vokabularien und Begriffen. Neben jedem Begriff befindet sich ein Link \"Begriff bearbeiten\" auf den man klicken und dann ein Bild hochladen kann.  Dort befindet sich ein Abschnitt zur Verwaltung der Bilder. Durch Klicken auf den  \"Durchsuchen\" kann ein Bild ausgewählt und durch Klicken auf \"Speichern\" hochgeladen werden.\r\n"
+"      <p>Diesen Prozess für alle benötigten Bilder wiederholen.  Hinweis: Standardmäßig werden alle Bilder in der Größe angezeigt, in der sie hochgeladen wurden. Alternative Größen können unter \"Verwalten >> Einstellungen >> Taxonomie Bild\" eingestellt werden.</p>\r\n"
+"      <h4>Rechte</h4>\r\n"
+"      <p>Benutzer benötigen entsprechende Rechte um hochgeladene Bilder anzusehen.  Nur Benutzer mit dem Recht \"Taxonomie Bilder aufrufen\" können Bilder ansehen. Wenn Benutzer die Möglichkeit haben sollen, Bilder zu deaktivieren, benötigen sie die Berechtigung \"Kann Taxonomie Bilder deaktivieren\". Die Berechtigung \"Taxonomie Bilder administrieren\" berechtigt die jeweiligen Benutzer, Taxonomiebilder zu bearbeiten, neu anzulegen oder zu löschen.</p>\r\n"
+"      <h4>Rekursive Bildsuche</h4>\r\n"
+"      <p>Taxonomy ist ein mächtiges Werkzeug. Eine der vielen Möglichkeiten ist die Erstellung von hierarchischen Vokabularen, wodurch Vokabularbäume aufgebaut werden können. Es besteht die Möglichkeit, dass ein ganzer Baum von Begriffen oder nur einige davon sich mit einem ähnlichen Thema beschäftigen und daher alle mit dem gleichen Bild dargestellt werden sollen. Unter \"Verwalten >> Einstellungen >> Taxonomie Bild\" kann \"Rekursive Bildsuche\" ausgewählt werden. Danach muss lediglich ein Bild für einen Überbegriff definiert werden und alle Unterbegriffe werden automatisch dieses Bild verwenden, sofern nicht für einzelne manuell andere Bilder festgelegt wurden.</p>\r\n"
+"      <h3>Bilder anzeigen</h3>\r\n"
+"      <p>Um Bilder anzuzeigen, muss die Funktion taxonomy_image_display() aufgerufen werden. [Es werden einige Zusatzmodule mitgeliefert, die dies übernehmen.]  Wenn diese Funktion aufgerufen wird, muß dabei der Taxonomiebegriff übergeben werden, dessen Bild angezeigt werden soll.  Beispiel: Ausgehend von der \"_node\" Funktion des Themes könnte folgendes getan werden:\r\n"
+"<pre>\r\n"
+"  foreach (taxonomy_node_get_terms($node->nid) as $term) {\r\n"
+"    if ($image = taxonomy_image_display($term->tid)) {\r\n"
+"      $output .= \\\"$image\\\";\r\n"
+"    }\r\n"
+"</pre>\r\n"
+"    <p>Taxonomy_image_display benutzt \"theme('image',...\", also kann die Darstellung über die Thmeebene angepasst werden.</p>\r\n"
+"    "
+
+#: taxonomy_image.module:284
+msgid "<h3>Views</h3><p>Views support has been added, so you can use the field \"Taxonomy Image\" in your view definition.</p>"
+msgstr "<h3>Ansichten</h3><p>Unterstützung für Ansichten (Views) wurde hinzugefügt. Damit ist es nun möglich, das Feld \"Taxonomie Bild\" in der Definition von Ansichten zu benutzen.</p>"
+
+#: taxonomy_image.module:287
+msgid ""
+"<h3>Imagecache</h3>\r\n"
+"          <p>With imagecache enabled, you may use Imagecache profiles instead of image height/width. You can set a default profile on the settings page, or use it manually with taxonomy_image_display(), like this:</p>\r\n"
+"<pre>\r\n"
+"taxonomy_image_display($term->tid, NULL, 'PROFILE_NAME');\r\n"
+"</pre>\r\n"
+"         <p>set <em>PROFILE_NAME</em> to whatever profile you want to use.</p>"
+msgstr ""
+"<h3>Bildcache</h3>\r\n"
+"          <p>Bei aktiviertem Bildcache können Bildcache-Profile anstatt der Angaben für Höhe und Breite benutzt werden. Das Standardprofil kann auf der Einstellungsseite ausgewählt oder manuell mit taxonomy_image_display() eingebunden werden, wie hier:</p>\r\n"
+"<pre>\r\n"
+"taxonomy_image_display($term->tid, NULL, 'PROFILE_NAME');\r\n"
+"</pre>\r\n"
+"         <p>Über<em>PROFILE_NAME</em> kann das Profil eingestellt werden, das benutzt werden soll.</p>"
+
+#: taxonomy_image.module:297
+msgid "<h3>Add-on Feature Modules</h3>"
+msgstr "<h3>Zusatzmodule</h3>"
+
+#: taxonomy_image.module:300
+msgid "<h4>Taxonomy Image Node Display</h4><p>With this add-on feature, Taxonomy Image will automatically include all available term-associated images into the display of selected node types. The weight option determines where in the output the image will be positioned. Another option specifies whether or not to add a \"taxonomy/term/nn\" link to each image. Configuration is part of the usual Taxonomy Image settings page.</p>"
+msgstr "<h4>Taxonomie Bild Inhaltsdarstellung</h4><p>Dieses Zusatzmodul erlaubt es Taxonomie Bild, automatisch alle mit dem Taxonomybegriff assozierten Bilder in die Darstellung des ausgewählten Inhaltstyps zu integrieren. Die Gewichtsoption (-10 bis +10) definiert, an welcher stelle des Inhalts das jeweilige Bild dargestellt wird. Eine weitere Option spezifiziert ob ein Link (\"taxonomy/term/nn\") zum Bild hinzugefügt wird oder nicht. Die Konfiguration wird über die allgemeine Einstellungsseite von Taxonomie Bild vorgenommen.</p>"
+
+#: taxonomy_image.module:303
+msgid "<h4>Taxonomy Image Link Alter</h4><p>With this add-on feature, Taxonomy Image will automatically modify the standard taxonomy term display to use the term's image, if it has one. Configuration is part of the usual Taxonomy Image settings page.</p>"
+msgstr "<h4>Taxonomie Bild Link Verknüpfungen</h4><p>Mit diesem Zusatzmodul kann Taxonomie Bild automatisch die Darstellung von standardmäßigen Taxonomiebegriffen in damit verknüpfte Bilder ändern, sofern diese zuvor angelegt wurden. Die Konfiguration wird über die allgemeine Einstellungsseite von Taxonomie Bild vorgenommen.</p>"
+
+#: taxonomy_image.module:318
+msgid "Images"
+msgstr "Bilder"
+
+#: taxonomy_image.module:321
+msgid "An overview of taxonomy images"
+msgstr "Eine Übersicht des Moduls taxonomy_images"
+
+#: taxonomy_image.module:328
+#: taxonomy_image.info:0;0
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.info:0
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.info:0
+msgid "Taxonomy Image"
+msgstr "Taxonomie Bilder"
+
+#: taxonomy_image.module:332
+msgid "Global configuration of taxonomy image functionality."
+msgstr "Allgemeine Einstellungen der Taxonomie Bider Funktion."
+
+#: taxonomy_image.module:349
+msgid "Content images"
+msgstr "Inhaltsbilder"
+
+#: taxonomy_image.module:353
+msgid "Disable images"
+msgstr "Bilder deaktivieren"
+
+#: taxonomy_image.module:356;391
+msgid "Check this box to disable the display of content images."
+msgstr "Auswahl aktivieren um keine Inhaltsbilder anzuzeigen."
+
+#: taxonomy_image.module:370
+msgid "The picture directory does not exist, or is not writable."
+msgstr "Das Bilderverzeichnis existiert nicht oder ist schreibgeschützt."
+
+#: taxonomy_image.module:378
+msgid "Picture image path"
+msgstr "Bilderpfad"
+
+#: taxonomy_image.module:383
+msgid "Subdirectory in the directory \"%dir\" where category pictures will be stored. Lower case is recommended. "
+msgstr "Unterverzeichnis in \"%dir\", in dem die Kategoriebilder gespeichert werden. Kleinschreibung empfohlen."
+
+#: taxonomy_image.module:390
+msgid "User \"Disable\" box description"
+msgstr "\"Disable\" Box Beschreibung für Benutzer"
+
+#: taxonomy_image.module:392
+msgid "This allows you to describe the ability to disable Taxonomy Image display in a manner that your users will understand."
+msgstr "Dies erlaubt es, die Deaktivierungsmöglichkeit der Anzeige der Taxonomiebilder in einer Weise zu beschreiben, die die Benutzer verstehen."
+
+#: taxonomy_image.module:398
+msgid "Resizing Options"
+msgstr "Skalierungsoptionen"
+
+#: taxonomy_image.module:413
+msgid "Resizing Options - Imagecache"
+msgstr "Skalierungsoptionen - Bildercache"
+
+#: taxonomy_image.module:421
+msgid "Imagecache Preset"
+msgstr "Bildercache Einstellungen"
+
+#: taxonomy_image.module:422
+msgid "The Imagecache module is available. If you select one of these presets, or provide one in your call, then Taxonomy Image will use Imagecache to process the image and ignore the following settings. \"ORIGINAL\" effectively disables Imagecache and uses the following settings."
+msgstr "Das Bildercache-Modul ist verfügbar. "
+
+#: taxonomy_image.module:432
+msgid "Resizing Options - Taxonomy Image"
+msgstr "Skalierungsoptionen - Taxonomie Bilder"
+
+#: taxonomy_image.module:440
+msgid "Constraint"
+msgstr "Begrenzungen"
+
+#: taxonomy_image.module:443
+msgid "This option allows you to control the size of pictures displayed by this module.  If set to \"disabled,\" pictures will not be resized, i.e. displayed exactly as they are uploaded.  If set to \"not greater than,\" pictures larger than the specified size will be scaled down.  If set to \"not less than,\" pictures smaller than the specified size will be scaled up.  If set to \"exact,\" pictures will be resized to exactly the specified dimension(s)."
+msgstr "Diese Option erlaubt es, die Größe eines Bildes in der Darstellung zu beeinflussen. Bei \"disabled\" wird keine Änderung an der Bildgröße vorgenommen, sondern das Bild exakt so angezeigt, wie es hochgeladen wurde. Ein größeres Bild wird auf die spezifizierte Größe reduziert, wenn  \"not greater than\" ausgewählt wurde. \"Not less than\" vergrößert zu kleine Bilder auf die angegebene Größe. Für beide Fälle gilt jeweils die längere Seite des Bildes als Richtlinie. \"Exact\" dagegen skaliert sowohl Höhe wie auch Breite so, dass sie exakt die vorgegebenen Werte treffen."
+
+#: taxonomy_image.module:450
+msgid "Picture height"
+msgstr "Bildhöhe"
+
+#: taxonomy_image.module:454;464
+msgid "pixels"
+msgstr "Pixel"
+
+#: taxonomy_image.module:455
+msgid "Specify a height in pixels.  If left blank or set to 0 this field is ignored."
+msgstr "Höhe in Pixeln spezifizieren. Die Einstellung wird ignoriert, wenn Feld leer oder 0 ist."
+
+#: taxonomy_image.module:460
+msgid "Picture width"
+msgstr "Bildbreite"
+
+#: taxonomy_image.module:465
+msgid "Specify a width in pixels.  If left blank or set to 0 this field is ignored."
+msgstr "Breite in Pixeln spezifizieren. Die Einstellung wird ignoriert, wenn Feld leer oder 0 ist."
+
+#: taxonomy_image.module:470
+msgid "Advanced"
+msgstr "Erweitert"
+
+#: taxonomy_image.module:478
+msgid "Add wrapper div tag"
+msgstr "\"&lt;Div&gt;\" Tag hinzufügen"
+
+#: taxonomy_image.module:480
+msgid "This option indicates whether to add a \"&lt;div&gt;\" tag to the image. This may be useful in lists where the images are not of the same width."
+msgstr "Diese Option kann verwendet werden, um einen \"&lt;div&gt;\" Tag zu einem Bild hinzuzufügen. Die kann in Listen nützlich sein, in denen die Bilder nicht alle die gleiche Breite besitzen."
+
+#: taxonomy_image.module:485
+msgid "Recursive image display"
+msgstr "Rekursive Bildanzeige"
+
+#: taxonomy_image.module:488
+msgid "When enabled, taxonomy_image_display() will recursively search for an image to display, starting with the passed in term, then trying the term's parents.  This functionality is only useful if you have defined hierarchical taxonomies, and multiple terms within a tree will share the same image.  If this doesn't mean anything to you, leave this option disabled."
+msgstr "Wenn diese Option aktiviert wird, sucht taxonomy_image_display() rekursiv nach einem Bild, das es anzeigen kann. Dabei startet es mit dem aktuellen Begriff und sucht danach in den Überbegriffen, falls es im ersten Lauf nicht fündig wurde. Diese Funktion ist nur dann sinnvoll, wenn hierarchische Taxonomiestrukturen definiert wurden und mehrere Begriffe im Baum das gleiche Bild verwenden sollen. Option deaktivieren, wenn dies nicht zutrifft."
+
+#: taxonomy_image.module:522
+msgid "Taxonomy Image: Image"
+msgstr "Taxonomie Bild: Bild"
+
+#: taxonomy_image.module:523
+msgid "The image associated with the node's taxonomy term."
+msgstr "Das Bild, das mit dem Taxonomiebegriff des Inhalts verknüpft wird."
+
+#: taxonomy_image.module:525;643
+#: contributed/update_term_images.php:30
+msgid "Image"
+msgstr "Bild"
+
+#: taxonomy_image.module:618
+msgid "Save"
+msgstr "Speichern"
+
+#: taxonomy_image.module:622;710
+#: contributed/update_term_images.php:30
+msgid "Delete"
+msgstr "Löschen"
+
+#: taxonomy_image.module:637
+msgid "Recursively displaying images."
+msgstr "Anzuzeigendes Bild rekursiv suchen."
+
+#: taxonomy_image.module:641
+msgid "Name"
+msgstr "Name"
+
+#: taxonomy_image.module:642
+msgid "Node Types"
+msgstr "Inhaltstypen"
+
+#: taxonomy_image.module:644
+msgid "Op"
+msgstr "Op"
+
+#: taxonomy_image.module:667
+msgid "edit term"
+msgstr "Begriff bearbeiten"
+
+#: taxonomy_image.module:670
+msgid "none"
+msgstr "keines"
+
+#: taxonomy_image.module:696
+msgid "Term Image"
+msgstr "Begriffsbild"
+
+#: taxonomy_image.module:703
+msgid "Current Image"
+msgstr "Aktuelles Bild"
+
+#: taxonomy_image.module:717
+msgid "Upload image"
+msgstr "Bild hochladen"
+
+#: taxonomy_image.module:719
+msgid "The image file you wish to associate this term."
+msgstr "Die Bilddatei, die mit dem Begriff verknüpft werden soll."
+
+#: taxonomy_image.module:758
+msgid "Database insert failed. [tid = !tid, path = @path."
+msgstr "Einfügen in die Datenbank fehlgeschlagen. [tid = !tid, path = @path."
+
+#: taxonomy_image.module:761
+msgid "Image uploaded as @name."
+msgstr "Bild hochgeladen als @name."
+
+#: taxonomy_image.module:766
+msgid "The category picture directory \"%dir\" does not exist, or is not writable."
+msgstr "Das Kategoriebilder-Verzeichnis \"%dir\" existiert nicht oder ist schreibgeschützt."
+
+#: taxonomy_image.module:769
+msgid "Image upload failed."
+msgstr "Hochladen des Bildes fehlgeschlagen."
+
+#: taxonomy_image.module:784
+msgid "@name image deleted."
+msgstr "Bild mit dem Namen@name gelöscht."
+
+#: taxonomy_image.module:787
+msgid "Image delete failed. File: !file, Db: !db."
+msgstr "Löschen des Bildes fehlgeschlagen. Datei: !file, Datenbank: !db."
+
+#: taxonomy_image.module:249
+msgid "access taxonomy images"
+msgstr "Taxonomie Bilder aufrufen"
+
+#: taxonomy_image.module:249
+msgid "administer taxonomy images"
+msgstr "Taxonomie Bilder administrieren"
+
+#: taxonomy_image.module:249
+msgid "can disable taxonomy images"
+msgstr "Kann Taxonomie Bilder deaktivieren"
+
+#: taxonomy_image.module:0
+msgid "taxonomy_image"
+msgstr "Taxonomie Bild"
+
+#: taxonomy_image.install:39
+msgid "Mapping of term to image."
+msgstr "Begriff auf Bild weiterleiten."
+
+#: taxonomy_image.install:42
+msgid "Term identifier."
+msgstr "Begriffsidentifizierung."
+
+#: taxonomy_image.install:49
+msgid "File system path to the image."
+msgstr "Pfad zum Bild im Dateisystem"
+
+#: taxonomy_image.install:79
+msgid "The Taxonomy Image module was installed. You may want to go to the <a href=\"!settings\">settings page now</a>."
+msgstr "Das Modul \"Taxonomie Bild\" wurde installiert. Die EInstellungen können <a href=\"!settings\">hier</a> angepasst werden."
+
+#: (duplicate) taxonomy_image.install:13
+msgid "GD Library"
+msgstr "GD Bibliothek"
+
+#: (duplicate) taxonomy_image.install:26
+msgid "Disabled"
+msgstr "Deaktiviert"
+
+#: (duplicate) taxonomy_image.install:27
+msgid "The Taxonomy Image module requires that you configure PHP with GD support."
+msgstr "Das Taxonomie Bild Modul erfordert die Konfiguration von PHP mit GD Unterstützung."
+
+#: taxonomy_image.info:0
+msgid "Upload and associate images with taxonomy terms."
+msgstr "Bilder hochladen und mit Taxonomie Begriffen verknüpfen."
+
+#: contributed/update_term_images.php:30
+msgid "Term"
+msgstr "Begriff"
+
+#: contributed/update_term_images.php:30
+msgid "Migrate"
+msgstr "Umstellen"
+
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.module:35
+msgid "Alter Taxonomy Links"
+msgstr "Taxonomie Links umwandeln"
+
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.module:42
+msgid "Select content types to alter links"
+msgstr "Inhaltstypen für Linkumwandlung auswählen"
+
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.module:45
+msgid "For the selected content types, the taxonomy links will use taxonomy images if they are available."
+msgstr "Für die ausgewählten Inhaltstypen werden Taxonomie Bilder anstelle von Taxonomie Links verwendet, falls sie verfügbar sind."
+
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.module:0
+msgid "taxonomy_image_link_alter"
+msgstr "taxonomy_image_link_alter"
+
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.info:0
+msgid "Taxonomy Image Link Alter"
+msgstr "Taxonomie Bild Link-Umwandlung"
+
+#: contributed/taxonomy_image_link_alter/taxonomy_image_link_alter.info:0
+msgid "Modify taxonomy term links to use Taxonomy Image."
+msgstr "Modifiziert Links von Taxonomiebegriffen für die Benutzung von Taxonomiebildern."
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:38
+msgid "Node Display"
+msgstr "Darstellung des Inhalts"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:46
+msgid "Display taxonomy images on tagged nodes"
+msgstr "Zeige Taxonomie Bilder in ausgewählten Inhalten"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:49
+msgid "Show images in the selected content types."
+msgstr "Zeige Bilder in ausgewählten Inhaltstypen."
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:56
+msgid "Show Taxonomy Image in node teaser view"
+msgstr "Zeige Taxonomie Bild im Anrisstext"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:63
+msgid "Link displayed Taxonomy Image to taxonomy/term/n page"
+msgstr "Erstelle einen Link vom angezeigten Bild zur taxonomy/term/n Seite"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:70
+msgid "Display weight of taxonomy images"
+msgstr "Darstellungsposition der Taxonomie Bilder"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:71
+msgid "Determines where the images will be displayed. Less than zero will place it before the content; greater than zero, after."
+msgstr "Definiert, wo die Bilder angezeigt werden. Ein Wert kleiner als 0 zeigt das Bild vor dem INhalt an, eine größere Zahl nach dem Inhalt."
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.module:0
+msgid "taxonomy_image_node_display"
+msgstr "taxonomy_image_node_display"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.info:0
+msgid "Taxonomy Image Node Display"
+msgstr "Darstellung der Taxonomie Bild Inhalte"
+
+#: contributed/taxonomy_image_node_display/taxonomy_image_node_display.info:0
+msgid "Display taxonomy images in nodes where and when you want them."
+msgstr "Taxonomie Bilder in Inhalten anzeigen, wo und wann immer gewünscht."
+

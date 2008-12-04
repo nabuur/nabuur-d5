@@ -1,0 +1,660 @@
+<?php
+/* $Id: geonames_cck.module,v 1.2 2008/03/25 11:29:40 thegreenman Exp $ */
+
+/**
+ * The geonames_cck module implements basic geolocation tools using geonames web services.
+ * 
+ * This module was designed to work with the geomap module. Locations will be output using 
+ * Geo microformats, and the geomap module will display any geo data on a google map. 
+ * 
+ * TODO: Make multiple values work. Some work has been done, but, the form does not currently handle multiples
+ * TODO: Make places work. A stab has been made at "things nearby" but it's not really production level.
+ * TODO: Views integration. Since it's cck, there are come views tools, but not enough to really use.  
+ * 
+ */
+
+/**
+ * implementation of hook_menu
+ */
+function geonames_cck_menu($may_cache) {
+  
+  if ($may_cache) {
+
+    $items[] = array(
+      'path' => 'admin/settings/geonamescck',
+      'title' => t('Geonames CCK'),
+      'description' => t('Settings for Geonames cck module'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'geonames_cck_admin_form',
+      'access' => user_access('administer site configuration'),
+    );
+    $items[] = array(
+      'path' => 'admin/settings/geonamescck/main',
+      'title' => t('Geonames CCK'),
+      'description' => t('Settings for Geonames cck module'),
+      'type' => MENU_DEFAULT_LOCAL_TASK, // optional
+    );
+  } 
+  else {
+    /**
+     * Places are not ready yet.
+     * 
+    $items[] = array(
+      'path' => 'place',
+      'title' => t('places'),
+      'description' => t('Display a place'),
+      'callback' => 'geonames_cck_place_page',      
+      'access' => user_access('access place pages'), 
+      'type' => MENU_CALLBACK,
+    );
+    */
+    if (arg(0) == 'node' && is_numeric(arg(1))) {
+      $items[] = array(
+        'path' => 'node/'. arg(1) .'/disambiguate',
+        'title' => t('Choose a location'),
+        'access' => node_access('update', node_load(arg(1))), 
+        'callback' => 'geonames_cck_disambiguate',
+        'callback arguments' => array(arg(1)),
+        'type' => MENU_CALLBACK, // This may work as a local task. 
+      );
+    }         
+  }  
+  return $items; 
+}  
+
+/**
+ * Build the administration form
+ *
+ * 
+ */
+function geonames_cck_admin_form() {
+  // Custom text display text editing
+	// Note that for now these override any default translations
+	// For multilingual sites please use normal drupal-wide translation via l10n
+	//
+	// Disambiguation text display settings
+  $form['geonames_cck_disambiguation_header'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Header for results'),
+    '#default_value' => _geonames_cck_text('disambiguation_header'),
+    '#description' => t('Available tokens: !location, @resultcount'),                    
+  ); 
+  $form['geonames_cck_disambiguation_noresults'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Header for no results'),
+    '#default_value' => _geonames_cck_text('disambiguation_noresults'),
+  );
+  $form['geonames_cck_disambiguation_oneresult'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Header for only one result.'),
+    '#default_value' => _geonames_cck_text('disambiguation_oneresult'),
+    '#description' => t('Available token: !location'),  
+  );
+  $form['geonames_cck_disambiguation_empty'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Header if no location data exists'),
+    '#default_value' => _geonames_cck_text('disambiguation_empty'),
+  );
+  $form['geonames_cck_disambiguation_footer'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Footer'),
+    '#default_value' => _geonames_cck_text('disambiguation_footer'),
+  );
+  // Location display strings 
+  $form['geonames_cck_location_known'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Text for known location data'),
+    '#default_value' => _geonames_cck_text('location_known'),
+    '#description' => t('Text to display to a user who with good location info. Tokens: !location, @country, @url'),                    
+  ); 
+  $form['geonames_cck_location_nodata'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Text for no location data'),
+    '#default_value' => _geonames_cck_text('location_nodata'),
+    '#description' => t('Text to display to a user who has not provided location info'),                    
+  ); 
+  $form['geonames_cck_location_unknown'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Text unknown location'),
+    '#default_value' => _geonames_cck_text('location_unknown'),
+    '#description' => t('Text to display to a user who has not provided location info. Tokens: @country, !location,  @url'),                    
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * Return custom text strings for given internal message IDs
+ *
+ * 
+ */
+function _geonames_cck_text($messageid, $variables = array()) {
+
+  // Check if an admin setting overrides the default string.
+  if ($admin_setting = variable_get('geonames_cck_'. $messageid, FALSE)) {
+    return strtr($admin_setting, $variables);
+  }
+  // No override, return with default strings.
+  else {
+    switch ($messageid) {
+      case 'disambiguation_header':
+        return '<p>'. t('Map pointer not where you expected it to be?') .'</p>'.
+               '<p>'. t('According to our locations database, there are @resultcount possible places matching <strong>!location</strong>', $variables) .'</p>'.
+               '<p>'. t("If we've picked the wrong one for you, we're very sorry.  Simply choose the correct one from the list below to update it.") .'</p>';
+      case 'disambiguation_noresults':
+        return t('No locations', $variables);
+      case 'disambiguation_oneresult':
+        return t('We only have one location matching <strong>!location</strong>', $variables);
+      case 'disambiguation_empty':
+        return t('We do not currently have any location data available. Use the form below to search our database.', $variables);
+      case 'disambiguation_footer':
+        return t("If your location isn't listed above, it might not be in the Geonames locations database yet. Try searching for another location nearby, or the closest town or city.", $variables);
+      case 'location_known':
+        return t('!location (<a href="@url">change</a>)', $variables);
+      case 'location_nodata':
+        return t('You have not provided any location data', $variables);
+      case 'location_unknown':
+        return t('@country (<a href="@url">unknown</a>)', $variables);
+    }
+  }
+}
+
+/**
+ * implementation of hook_perms
+ *
+ * @return unknown
+ */
+function geonames_cck_perms() {
+  return array('access place pages');
+}
+
+
+/**
+ * Implementation of hook_field_info().
+ */
+function geonames_cck_field_info() {
+  return array(
+    'geonames_cck' => array('label' => 'Geonames location'),
+  );
+}
+
+/**
+ * Implementation of hook_field_settings().
+ */
+function geonames_cck_field_settings($op, $field) {
+  switch ($op) {
+    case 'form':
+      $form = array();
+      return $form;
+
+    case 'validate':
+      break;
+
+    case 'save':
+      return array('name', 'geonameId', 'country', 'lat', 'lng', 'adminName1', 'adminCode1', 'adminName2', 'adminCode2', 'fcode');
+
+    case 'database columns':
+      $columns = array(
+        'name' => array('type' => 'varchar', 'length' => 250, 'not null' => TRUE),
+        'geonameId' => array('type' => 'varchar', 'length' => 20, 'not null' => TRUE),        
+        'country' => array('type' => 'varchar', 'length' => 2, 'not null' => TRUE),
+        'lat' => array('type' => 'float', length => 10, 'not null' => FALSE),
+        'lng' => array('type' => 'float', length => 10, 'not null' => FALSE),     
+        'adminName1' => array('type' => 'varchar', 'length' => 100, 'not null' => TRUE),
+        'adminCode1' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE),
+        'adminName2' => array('type' => 'varchar', 'length' => 100, 'not null' => TRUE),
+        'adminCode2' => array('type' => 'varchar', 'length' => 10, 'not null' => TRUE),
+        'fcode' => array('type' => 'varchar', length => 10, 'not null' => FALSE), 
+      );
+      return $columns;
+    case 'filters':
+      
+  }
+}
+
+/**
+ * Implementation of hook_field().
+ */
+function geonames_cck_field($op, &$node, $field, &$items, $teaser, $page) {  
+  switch ($op) {
+    case 'load':
+      break;
+    case 'view':
+      break;
+    case 'insert':
+      break;
+    case 'update':
+      break;
+    case 'delete':   
+      break;
+  }
+  return $output;
+}
+
+/**
+ * Implementation of hook_widget_info().
+ */
+function geonames_cck_widget_info() {
+  return array(
+    'geoname_cck' => array(
+      'label' => 'Global Location',
+      'field types' => array('geonames_cck'),
+    ),
+  );
+}
+
+
+/**
+ * Implementation of hook_widget_settings().
+ */
+function geonames_cck_widget_settings($op, $widget) {
+  switch ($op) {
+    case 'form':
+      $form = array();
+      
+      return $form;
+    case 'validate':
+      break;
+    case 'save':
+  }
+}
+
+/**
+ * Implementation of hook_widget().
+ */
+function geonames_cck_widget($op, &$node, $field, &$items) {
+  $fieldname = $field['field_name'];
+  switch ($op) {
+    case 'prepare form values':          
+      break;
+
+    case 'form':     
+      $form = _geonames_cck_widget_form($node, $field, $items);
+      return $form;
+      
+    case 'validate':         
+      foreach ($items as $delta => $item) {
+        if ($item['name'] != $item['old_name'] OR $item['country'] != $item['old_country']) {
+          // location has changed
+          $search_results = geoapi_convert_location_to_geo($item['name'], $item['country']);
+          if ( !$search_results -> results ) {
+            // We are not using for_set_error here because we use the disambiguation pages to fix things
+            $values = array('@name' => $item['name']); 
+            
+            $message = 'Your location ,"@name" was not found in our locations database.';
+            if ($node->nid) {
+              $values['!link'] = l( t('Find another location?'), 'node/'. $node->nid .'/disambiguate');
+              $message .= ' !link';
+            }
+            drupal_set_message(t( $message , $values ));
+          }
+        } 
+      } 
+      break; 
+    case 'process form values':
+      foreach ($items as $delta => $item) {              
+        if ($item['name'] != $item['old_name'] OR $item['country'] != $item['old_country']) {
+          // location has changed
+          // This code currently duplicates the validation code. Not perfect, but results are cached. 
+          // TODO: Clean up the validation process
+          $search_results = geoapi_convert_location_to_geo($item['name'], $item['country']);
+          $locations = $search_results -> results;
+          if ($search_results -> total_results_count) {
+            $items[$delta] = _geoapi_convert_geonames_result_to_cck_value($locations[0]);
+          } 
+          else {
+            // clear any old values             
+            unset($items[$delta]['lat']); 
+            unset($items[$delta]['lng']);                        
+          }
+        }
+      }
+      break;
+  }
+}
+
+
+/**
+ * Generate the form for the widget
+ *
+ */
+function _geonames_cck_widget_form($node, $field, $items) {
+  $fieldname = $field['field_name'];
+  $fieldname_css = 'edit-'. strtr($field['field_name'], '_', '-');
+  $form[$fieldname]['#tree'] = true;
+  $count = 0; 
+  $form[$fieldname][$count]=array(
+    'name' => array(    
+      '#type' => 'textfield',
+      '#description' => t($field['widget']['description']),
+      '#title' => t('Location'),
+      '#size' => 30,
+      '#maxlength' => 250, 
+      '#default_value' => $items[$count]['name'] ? $items[$count]['name'] : geoapi_get_default_city(),
+      '#attributes' => array('class' => 'float'),          
+    ),    
+    'country' => array(    
+      '#type' => 'select', 
+      '#title' => t('country'),     
+      '#default_value' => $items[$count]['country'] ? strtoupper($items[$count]['country']) : geoapi_get_default_country(),
+      '#attributes' => array('class' => 'float'),
+      '#options' => geoapi_countries(),
+      '#multiple' => false,         
+      '#required' => (!(arg(0) == 'admin' && arg(1) == 'content')) ? true : false, // make field not required on admin pages   
+    ),
+    'lat' => array(
+      '#type' => 'hidden',        
+      '#default_value' => $items[$count]['lat'], 
+    ),
+    'lng' => array(
+      '#type' => 'hidden', 
+      '#default_value' => $items[$count]['lng'],
+    ),    
+    'old_name' => array(
+      '#type' => 'value',
+      '#value' => $items[$count]['name']
+    ),
+    'old_country' => array(
+      '#type' => 'value',
+      '#value' => $items[$count]['country']
+    ),
+    
+  ); 
+  return $form;   
+}
+
+
+/**
+ * Implementation of hook_field_formatter_info().
+ */
+function geonames_cck_field_formatter_info() {
+  $formatters = array(
+    'default' => array(
+      'label' => t('Default'),
+      'field types' => array('geonames_cck'),
+    ),
+    'geo_hidden' => array(
+      'label' => t('Hidden geo code'),
+      'field types' => array('geonames_cck'),
+    ),
+  );
+  return $formatters;
+}
+
+/**
+ * Implementation of hook_field_formatter().
+ */
+function geonames_cck_field_formatter($field, $item, $formatter, $node) {
+  if (!isset($item['name'])) {
+    return '';
+  }
+ 
+    switch ($formatter) { 
+    case 'geo_hidden':     
+      $output = theme('geonames_hidden', $item['lat'], $item['lng'], theme('geonames_cck_location_name', $item), $item,  $node);
+      break;
+    default:     
+      $output = theme('geonames_location', $item['lat'], $item['lng'], theme('geonames_cck_location_name', $item), $item, $node);
+  }
+  return $output;
+}
+
+
+// =========================== Disambiguation    
+
+/**
+ * Manage the disambiguation for a node. This allows a user to say that the location we selected was incorrect. 
+ * This is added to menu as a sub-path for each node. 
+ * We look at various parameters to find out which fields to disambigute
+ */
+
+function geonames_cck_disambiguate($nid) {
+  // first we need to check what field to work with
+  if ($_REQUEST['field']) {
+    $fields[$_REQUEST['field']] = $_REQUEST['field'];
+  } 
+  else {
+    //TODO: Multiple field disambiguation would require some presentation work. (it's also untested) 
+    // no field was specified, so lets do them all
+    // we might have more than one geonames field. We need to handle all of them
+    $all_fields=content_fields();
+    if (is_array($all_fields)) {
+      foreach ($all_fields as $field) {
+        ($field['type'] == 'geonames_cck') and $fields[$field['field_name']] = $field['field_name'];
+      }
+    }
+  }   
+  $node = node_load($nid); 
+  // get place and country info from node
+  foreach ($fields as $field) {   
+    // if we have a field index, and a new name and country, 
+    // then we work only with that field value.
+    // otherwise we have to work with all values
+    
+    if ($_REQUEST['field'] && !is_null($_REQUEST['index']) && $_REQUEST['name'] && $_REQUEST['country']) {
+      $indexes = array($_REQUEST['index']); // set the index   
+    } 
+    else {
+      // set up indexes array to process all field values
+      for ($count = 0; $count < sizeof($field); $count++) $indexes[] = $count;     
+    }
+    
+    foreach ($indexes as $index) {
+      // work out which location we need to disambiguate  
+      if ($_REQUEST['name']) {
+        $place = check_plain($_REQUEST['name']);
+      }  
+      else {        
+        $place = $node -> {$field}[$index]['name'];
+      } 
+      if ($_REQUEST['country']) {
+        $country = check_plain($_REQUEST['country']);
+      }  
+      else {        
+        $country = $node -> {$field}[$index]['country'];
+      }   
+      if ($place) {
+        $locations = geoapi_convert_location_to_geo($place, $country);   
+      }
+      $output .= theme('geonames_cck_disambiguate_page', $place, $country, $locations, $nid, $field, $index);
+    }
+  }     
+  return $output; 
+} 
+
+/**
+ * Determine which admin reqion we want to allocate this location to. 
+ * Sometimes we want to create boundarys for locations to make things
+ * more intuitive for our users. (London in particular) 
+ * TODO: Create an admin interface for this
+ */
+function geonames_cck_get_admin_region($adminname, $lat, $lng) {
+  $regions = array(
+    'London' => array(
+      'topleft' => array('lat' => 51.766 , 'lng' => 0.366), 
+      'bottomright' => array('lat' => 51.233 , 'lng' => -0.583 )
+    ) 
+  ); 
+  foreach ($regions as $name => $region) {  
+    if ($lat < $region['topleft']['lat'] && $lat>$region['bottomright']['lat'] 
+        && $lng > $region['bottomright']['lng'] && $lng < $region['topleft']['lng']) {
+      $adminname = $name;
+    }
+  }  
+  return $adminname;
+}
+
+/**
+ * Define a form for the disambiguation page. 
+ * Allows a user to specify location
+ */
+function geonames_cck_disambiguate_form($original, $country, $nid, $field, $index) {
+  $form['nid'] = array(
+   '#type' => 'value',
+   '#value' => $nid,   
+  );
+  $form['field'] = array(
+   '#type' => 'value',
+   '#value' => $field,   
+  );
+  
+  $form['index'] = array(
+   '#type' => 'value',
+   '#value' => $index,   
+  );
+  
+  $form['search'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Find a new location'),
+    '#description' => t('The the correct location is not listed, use this form to look up a new one. 
+                        You may need to check spelling or provide a little more information if you
+                        consistently get no results'),    
+  );
+  $form['search']['name'] = array(    
+    '#type' => 'textfield',
+    '#description' => t('Enter a new location'),
+    '#title' => t('Location'),
+    '#size' => 30,
+    '#maxlength' => 250, 
+    '#default_value' => $original,
+    '#attributes' => array('class' => 'float'),          
+  );
+  $form['search']['country'] = array(    
+    '#type' => 'select', 
+    '#title' => t('country'),     
+    '#default_value' => strtoupper($country),
+    '#attributes' => array('class' => 'float'),
+    '#options' => geoapi_countries(),
+    '#multiple' => false,         
+  );
+  $form['search']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Lookup'),  // Note: translating button labels can be troublesome in Drupal 5. Everything works fine at the moment but developers extending this module should bear this in mind.
+  );
+  // We use the get method here to make this form just send it's data back to the page    
+  $form['#method'] = 'get';
+  return $form;
+}
+
+
+
+// =============helpers ========================//
+
+
+/**
+ * Get the names of all geonames_cck fields. 
+ *
+ * @return $array A list of field objects
+ */
+function geonames_cck_get_all_fields() {
+  $fields = content_fields();
+  if (is_array($fields)) {     
+    foreach ($fields as $field) {
+      ($field['type'] == 'geonames_cck') and $results[$field['field_name']] = $field;
+    }
+  }
+  return $results;
+}
+
+
+
+//=================== Place Pages  =================//
+/*
+ View entries by location. Not really operational at the moment
+ */ 
+ 
+
+/**
+ * Generate a page for a geonameid 
+ *
+ * @param unknown_type $geonameid
+ * @param unknown_type $start
+ * @return unknown
+ */
+
+function geonames_cck_place_page($geonameid, $start = 0) {
+  $geodata = _geoapi_get_data_for_geonameid($geonameid);  
+  $output .= ''; 
+  $field = variable_get('geonames_cck_default_location_field', 'field_geonames_location');
+  $nodes = geonames_cck_get_nodes_for_location($field, $geodata['lat'], $geodata['lng'], $start);
+  $output .= theme('place_page', $country, $location, $nodes, $geodata);
+  drupal_set_title(t('Near @placename, @country', array('@placename' => $geodata['name'], '@country' => $geodata['countrycode'])));
+  return $output;
+}
+
+
+/**
+ *  We load the events and return an array of data. 
+ *  Normally with drupal, we just return the node id's and then use node_load to get the data. 
+ *  But, in this case, we want to push for speed, so we will load the data raw. 
+ */
+function geonames_cck_get_nodes_for_location($field_name, $lat, $lng, $start = 0) {
+  $geo_fields = geonames_cck_get_all_fields();
+  $field = $geo_fields[$field_name];       
+  if ($field['field_name']) {      
+    //TODO: Detect what table layout is used
+    // How do we correctly determine the table  and field names ?
+    $table = 'content_'. $field['field_name'];  
+    $latcol = $field['field_name'] .'_lat'; 
+    $lngcol = $field['field_name'] .'_lng';
+
+    // limit the range of our result set
+    $minlat = $lat-1.0;
+    $maxlat = $lat+1.0;
+    $minlng = $lng-0.5;
+    $maxlng = $lng+2.0;
+    $truncate =  " AND (truncate(". $latcol .", 0) >= truncate($minlat, 0)and truncate(". $lngcol .",0) >= truncate($minlng, 0)) and
+          (truncate(". $lngcol .", 0) <= truncate($maxlng, 0)and truncate(". $latcol .",0) <= truncate($maxlat, 0))"; 
+      
+    $limit = 20;  // limit the number of results  
+    
+    //Calculation in Kilometre  
+    $r = 3963.1; //radius of the earth in miles
+    // find events
+    $sql = "select nid , 
+      (acos((cos(". $latcol .") * cos(". $lngcol .") * cos($lat) * cos($lng)) +	(cos(". $latcol .") * sin(". $lngcol .") * cos($lat) * sin($lng)) +(sin(". $latcol .") * sin($lat))) * $r) dist
+      from {". $table ."}   
+      where 1 
+      AND $latcol is not null AND $lngcol is not null            
+      $truncate 
+      order by dist asc 
+      limit  $start, $limit";  
+    $result = db_query($sql);
+    while ($node = db_fetch_object($result)) {
+      $nodes[] = $node; 
+    } 
+  }
+  return $nodes; 
+}
+
+
+// =================== Block ================== //
+
+/**
+ * implementation of hook block 
+ *
+ */
+function geonames_cck_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case 'list':
+      $blocks = array(        
+        'locations' => array('info' => t('geonames node locations list')),
+      ); 
+      return $blocks;
+      break;
+    case 'view':      
+      if (arg(0) == 'node' && is_numeric(arg(1)) && !arg(2)) {
+        $node = node_load(arg(1));        
+        switch ($delta) {
+          case 'locations':        
+            $block['content'] = theme('geonames_cck_location', $node, true);          
+          break;
+        }
+      }  
+      return $block;
+    break;       
+  }
+}
+
+// ===================  theme ================= //
+// Include theme functions
+include_once('geonames_cck.theme.inc');

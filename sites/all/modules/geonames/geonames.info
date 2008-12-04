@@ -1,0 +1,10 @@
+; $id$
+name = Geonames API
+description = The Geonames API provides the programming framework for the Geonames services. You must install this module before you install any of the services.
+package = Geonames
+version = "$Name: DRUPAL-5 $"
+; Information added by drupal.org packaging script on 2007-10-10
+version = "5.x-1.x-dev"
+project = "geonames"
+datestamp = "1192017839"
+

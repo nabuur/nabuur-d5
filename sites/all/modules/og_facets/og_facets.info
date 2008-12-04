@@ -1,0 +1,12 @@
+; $Id: og_facets.info,v 1.1 2008/04/24 22:55:14 delius Exp $
+name = Organic Group Facets
+description = "Provides a facet for organic groups."
+dependencies = faceted_search search og
+package = Faceted Search
+
+
+; Information added by drupal.org packaging script on 2008-04-24
+version = "5.x-1.0-beta1"
+project = "og_facets"
+datestamp = "1209078611"
+

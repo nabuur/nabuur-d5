@@ -1,0 +1,35 @@
+<?php
+// $Id: geonames_countrysubdivision.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames countrycode / by Erlend Eide, erlend(|)edesign.no
+ */
+
+/**
+ * Service configuration
+ */ 
+function geonames_countrysubdivision_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array( 
+    'service_name'        => 'countrysubdivision',
+    'service_full_name'   => 'Country Subdivision (reverse geocoding)',
+		'description'         => t('Find Country Code from latitude and longitude'),
+	  'service_path'        => 'countrySubdivision',
+	  'credit_cost'         => 1,
+	  'result_cache_prefix' => 'csres:',
+	  'data_cache_prefix'   => 'csdat:',
+	  'allowed_parameters'  => array(
+      //our style  geonames style
+      'lat'      => 'lat',
+      'lng'      => 'lng',
+			'lang'     => 'lang',
+		),
+	  'required_parameters'      => array( // If you have set query_defaults you should not include the parameter here
+		  'lat', 
+		  'lng'
+    ),
+		'required_parameters_type' => 'all',
+		'columns' => array('countrycode', 'countryname', 'admincode1', 'adminname1'),
+	 );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

@@ -1,0 +1,131 @@
+<?php
+// $Id: tagadelic_views.module,v 1.1.2.2 2007/07/27 12:26:35 douggreen Exp $
+
+/**
+ *  Implementation of hook_views_style_plugins()
+ */
+function tagadelic_views_views_style_plugins() {
+  $plugins = array();
+  $plugins['tagadelic'] = array(
+    'name' => t('Tagadelic'),
+    'theme' => 'tagadelic_display',
+    'summary_theme' => 'tagadelic_display',
+    'validate' => 'tagadelic_views_validate',
+  );
+  return $plugins;
+}
+
+function tagadelic_views_validate($type, $view, $form) {
+  if (isset($view['field']['count'])) {
+    for ($i = 0; $i < $view['field']['count']; $i ++) {
+      if (substr($view['field'][$i]['id'], 0, 9) == 'term_node') {
+        return;
+      }
+    }
+  }
+  form_error($form[$type .'-info'][$type .'_type'], t('The Tagadelic View requires one vocabulary field.'));
+}
+
+function theme_tagadelic_display(&$view, &$items, $type) {
+  // get the views query and query parts (join and where) that we'll need
+  $query = _tagadelic_build_query($view, $type);
+  _tagadelic_views_parse_query($query, $join, $where);
+
+  // get the vocabularies and size from the view
+  $vids = _tagadelic_views_vocabs($view->field);
+  $size = $type == 'block' ? $view->nodes_per_block : $view->nodes_per_page;
+  if ($size == 0) {
+    $size = 100000;
+  }
+  elseif (!isset($size)) {
+    $size = 60;
+  }
+  $steps = 6;
+
+  // execute the tagadelic query and create the tags
+  $result = db_query_range('SELECT COUNT(*) AS count, d.tid, d.name, d.vid FROM {term_data} d INNER JOIN {term_node} n ON d.tid = n.tid INNER JOIN {node} node ON n.nid=node.nid '. $join .' WHERE d.vid IN ('. substr(str_repeat('%d,', count($vids)), 0, -1) .') '. $where .' GROUP BY d.tid, d.name, d.vid ORDER BY count DESC', $vids, 0, $size);
+  $tags = tagadelic_build_weighted_tags($result, $steps);
+  $tags = tagadelic_sort_tags($tags);
+
+  // theme the output
+  return theme('tagadelic_views', $tags, $view);
+}
+
+function theme_tagadelic_views($tags, $view) {
+  return theme('tagadelic_weighted', $tags);
+}
+
+function _tagadelic_build_query(&$view, $type) {
+  // if the query doesn't exist
+  if (!$view->query) {
+    $path = drupal_get_path('module', 'views');
+    require_once("$path/views_query.inc");
+    if ($view->view_args_php) {
+      ob_start();
+      $result = eval($view->view_args_php);
+      if (is_array($result)) {
+        $args = $result;
+      }
+      ob_end_clean();
+    }
+    else {
+      $args = $view->args;
+    }
+    $info = _views_build_query($view, $args);
+    $view->query = _views_replace_args($info['query'], $info['args']);
+    $view->countquery = _views_replace_args($info['countquery'], $info['args']);
+  }
+  $query = $view->query;
+
+  // Run-time replacement so we can do cacheing
+  $replacements = module_invoke_all('views_query_substitutions', $view);
+  foreach ($replacements as $src => $dest) {
+    $query = str_replace($src, $dest, $query);
+  }
+  return $query;
+}
+
+function _tagadelic_views_parse_query($query, &$join, &$where) {
+  // get the positions of the sql clauses
+  $join_pos = strpos($query, ' LEFT JOIN ');
+  $where_pos = strpos($query, ' WHERE ');
+  $orderby_pos = strpos($query, ' ORDER BY ');
+
+  // get the join clause
+  if ($join_pos > 0) {
+    if ($where_pos > 0) {
+      $join = substr($query, $join_pos, $where_pos - $join_pos);
+    }
+    elseif ($orderby_pos > 0) {
+      $join = substr($query, $join_pos, $orderby_pos - $join_pos);
+    }
+    else {
+      $join = substr($query, $join_pos);
+    }
+  }
+
+  // get the where clause
+  if ($where_pos > 0) {
+    if ($orderby_pos > 0) {
+      $where = ' AND '. substr($query, $where_pos + 7, $orderby_pos - ($where_pos + 7));
+    }
+    else {
+      $where = ' AND '. substr($query, $where_pos + 7);
+    }
+  }
+}
+
+function _tagadelic_views_vocabs($fields) {
+  foreach ($fields as $field) {
+    $id = substr($field['id'], 0, 10);
+    if ($id == 'term_node.') {
+      foreach (taxonomy_get_vocabularies(NULL) as $vocabulary) {
+        $vids[] = $vocabulary->vid;
+      }
+    }
+    elseif ($id == 'term_node_') {
+      $vids[] = substr($field['id'], 10);
+    }
+  }
+  return $vids;
+}

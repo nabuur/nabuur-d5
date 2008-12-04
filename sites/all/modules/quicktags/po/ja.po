@@ -1,0 +1,71 @@
+# $Id: ja.po,v 1.2 2007/04/24 12:05:56 imagine Exp $
+# -----------------------------------------------------------------------------
+# Japanese translation of Drupal (quicktags.module)
+#
+# Copyright (c) 2006-2007  Drupal Japan  ( http://drupal.jp/ )  /
+#                          Drupal Nippon ( http://drupon.org/ ) /
+#                          Takafumi      ( jp.drupal@imagine **reverse order**)
+#
+# Generated from file:
+#  quicktags.module,v 1.21.2.2 2007/02/03 11:42:00 ber
+#  quicktags.info,v 1.1 2007/02/03 10:23:51 ber
+#
+# -----------------------------------------------------------------------------
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2007-04-20 20:39+0900\n"
+"Last-Translator: Takafumi <jp.drupal@imagine **reverse order**>\n"
+"Language-Team: Drupal Japan / Drupal Nippon\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: quicktags.module:10
+msgid "Allows Drupal to use quicktags around the textarea for easier user input"
+msgstr "テキストエリアで入力に便利なクイックタグを利用できるようになります。"
+
+#: quicktags.module:28
+msgid "Quicktags options"
+msgstr "クイックタグのオプション"
+
+#: quicktags.module:32
+msgid "Show quicktags"
+msgstr "クイックタグの表示"
+
+#: quicktags.module:34
+msgid "Everywhere"
+msgstr "すべて"
+
+#: quicktags.module:34
+msgid "Only nodes"
+msgstr "ノードのみ"
+
+#: quicktags.module:34
+msgid "Nodes and comments"
+msgstr "ノードとコメント"
+
+#: quicktags.module:35
+msgid "Where to show the quicktags toolbar."
+msgstr "クイックタグツールバーの表示場所を指定してください。"
+
+#: quicktags.module:56 quicktags.info:0
+msgid "Quicktags"
+msgstr "クイックタグ"
+
+#: quicktags.module:57
+msgid "Configure Quicktags options."
+msgstr "クイックタグのオプションを設定します。"
+
+#: quicktags.module:18
+msgid "use quicktags"
+msgstr "クイックタグの使用"
+
+#: quicktags.module:0 quicktags.info:0
+msgid "quicktags"
+msgstr "quicktags"
+
+#: quicktags.info:0
+msgid "Quicktags adds buttons to your forms, for easy insertation of code (like basic HTML) into a textarea."
+msgstr "テキストエリアに簡単にコード（HTMLのような）を挿入するためのボタンを投稿フォームに追加します。"
+

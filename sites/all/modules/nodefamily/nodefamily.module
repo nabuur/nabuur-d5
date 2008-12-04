@@ -1,0 +1,1070 @@
+<?php
+// $Id: nodefamily.module,v 1.19.2.13 2007/04/29 14:12:58 fago Exp $
+
+/**
+ * @file
+ * Builds node families based on content types and author information
+ */
+
+
+/**
+ * Implementation of hook_menu().
+ */
+function nodefamily_menu($may_cache) {
+  $items = array();
+
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/content/nodefamily',
+      'title' => t('Node family'),
+      'description' => t('Manage relations between content types.'),
+      'callback' => 'nodefamily_admin_page',
+      'access' => user_access('administer nodes'),
+    );
+    $items[] = array(
+      'path' => 'nodefamily',
+      'callback' => 'nodefamily_lonely_node_page_args',
+      'access' => user_access('access content'),
+      'type' => MENU_CALLBACK,
+    );
+  }
+  return $items;
+}
+
+
+/**
+ * Menu callback; provide the means to add and remove relations between
+ * content types.
+ */
+function nodefamily_admin_page() {
+  $output = drupal_get_form('nodefamily_admin');
+  return $output . nodefamily_ct_relation_overview();
+}
+
+function nodefamily_admin() {
+  $typenames = node_get_types('names');
+
+  $form['add'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Add relation between content types'),
+  );
+  $form['add']['parent'] = array(
+    '#type' => 'select',
+    '#title' => t('Parent type'),
+    '#options' => $typenames,
+    '#required' => true,
+  );
+  $form['add']['child'] = array(
+    '#type' => 'select',
+    '#title' => t('Child type'),
+    '#options' => $typenames,
+    '#required' => true,
+  );
+  $form['add']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add relation'),
+    '#weight' => 10,
+  );
+  return $form;
+}
+
+function nodefamily_admin_validate($form_id, &$form_values, &$form) {
+  if ($form_values['parent'] == $form_values['child']) {
+    form_set_error('child', t('You have to select two different content types.'));
+  }
+  
+  $relations = variable_get('nodefamily_relations',array());
+  if (nodefamily_check_cycle($form_values['parent'], $form_values['child'], $relations)) {
+    form_set_error('child', t('You must not add this relation as it would result in a loop.'));
+  }
+}
+
+function nodefamily_admin_submit($form_id, &$form_values) {
+  nodefamily_ct_relation_add($form_values['parent'], $form_values['child']);
+}
+
+
+/**
+ * Determine if adding the relation between parent and child would
+ * result in a cycle.
+ */
+function nodefamily_check_cycle($parent, $child, &$relations) {
+
+  //if we manage to reach the parent from the child, we would have a cycle
+  if (!array_key_exists($child, $relations)) {
+      return false;
+  }
+  else {
+    $new_relatives = array($child);
+    $all_relatives = array();
+    do {
+      $all_relatives = array_merge($all_relatives, $new_relatives);
+      $relatives = $new_relatives; //this relatives will be checked for new ones
+      $new_relatives = array();
+      foreach ($relatives as $related) {
+        if (array_key_exists($related, $relations)) {
+          foreach ($relations[$related] as $new_related => $array) {
+            $new_relatives[] = $new_related;
+          }
+        }
+      }
+    }
+    while ($new_relatives);
+    //finding all relatives done, is the parent in there?
+    return in_array($parent, $all_relatives);
+  }
+}
+
+/**
+ * Display the existing content type relations in a table.
+ */
+function nodefamily_ct_relation_overview() {
+  $relations = variable_get('nodefamily_relations',array());
+  if (!$relations) {
+      return '';
+  }
+  
+  if (arg(3) && arg(4)) {
+      // delete the relation
+      nodefamily_ct_relation_remove(arg(3), arg(4));
+      drupal_goto('admin/content/nodefamily');
+  }
+  
+  $header = array(t('Parent type'), t('Child type'), '');
+  $rows = array();
+  $typenames = node_get_types('names');
+  foreach($relations as $key => $value) {
+    $rows = array_merge($rows, _nodefamily_relation_overview_dive($key, $value, $typenames));
+  }  
+  
+  return theme('table', $header, $rows, array('class' => 'nodefamily'));
+}
+
+function _nodefamily_relation_overview_dive($parent, $array, $typenames) {
+  $rows = array();
+  foreach($array as $key => $value) {
+    $rows[] = array($typenames[$parent], $typenames[$key],
+              l(t('delete'),'admin/content/nodefamily/' . $parent .'/'. $key)); 
+    if ($value && is_array($value)) {
+      $rows = array_merge($rows, _nodefamily_relation_overview_dive($key, $value, $typenames));
+    }
+  }
+  return $rows;
+}
+
+
+
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function nodefamily_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+
+  switch($op) {
+    case 'insert':
+        $parents = nodefamily_get_parent_types($node->type);
+        $children = nodefamily_get_child_types($node->type);
+    
+        if ($parents) {
+          foreach ($parents as $parent_typename) {
+            nodefamily_relatives_set_parent($parent_typename, $node->uid, $node);
+          }
+        }
+        if ($children) {
+          foreach ($children as $child_typename) {
+            nodefamily_relatives_set_child($node, $child_typename, $node->uid);
+          }
+        }
+        break;
+        
+    case 'delete':
+        nodefamily_relation_remove_parents($node);
+        nodefamily_relation_remove_children($node);
+        break;
+        
+    case 'validate':
+        if (!$node->nid && user_access('administer nodes')) {
+          if ($account = user_load(array('name' => $node->name))) {
+            $node->uid = $account->uid;
+          }
+          else {
+            $node->uid = 0;
+          }
+        }
+        
+        if (!$node->nid && nodefamily_content_type_is_max($node->type, $node->uid)) {
+           form_set_error('name', t("You can't create more nodes of this type for this user."));
+           $form = NULL;
+        }
+        break;
+    case 'submit':
+        if ($node->nid && user_access('administer nodes')) {
+          $parents = nodefamily_get_parent_types($node->type);
+          $children = nodefamily_get_child_types($node->type);
+          $oldnode = node_load($node->nid);          
+          if ($oldnode->uid != $node->uid) {
+            //we have to update the relations because the node author changed
+            if ($parents) {
+              nodefamily_relation_remove_parents($node);
+              foreach ($parents as $parent_typename) {
+                nodefamily_relatives_set_parent($parent_typename, $node->uid, $node);
+              }
+            }
+            if ($children) {
+              nodefamily_relation_remove_children($node);
+              foreach ($children as $child_typename) {
+                nodefamily_relatives_set_child($node, $child_typename, $node->uid);
+              }  
+            }
+          }
+        }
+        break;
+
+    default:
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function nodefamily_form_alter($form_id, &$form) {
+  if ($form_id == 'node_type_form' &&
+      ( !module_exists('usernode') || $form['#node_type']->type != USERNODE_CONTENT_TYPE )) {
+
+    /* The 'nodefamily_max' field is in the workflow fieldset at the moment,
+     * because the buttons are not properly weighted.
+     * TODO: if node_type_form() in node's content_types.inc fixes this,
+     *       we can think about switching back to our own block.
+     */
+    /*
+    $form['nodefamily'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Nodefamily'),
+      '#collapsible' => 1,
+      '#weight' => 30,
+    );*/
+    $form['workflow']['nodefamily_max'] = array(
+      '#type' => 'textfield',
+      '#title' => 'Maximum population',
+      '#size' => 4,
+      '#maxlength' => 4,
+      '#description' => t('Maximum number of nodes of this content type per user. Enter 0 for no limit.'),
+      '#required' => FALSE,
+      '#validate' => array('nodefamily_node_settings_validate' => array()),
+      '#default_value' => nodefamily_content_type_get_max($form['#node_type']->type),
+    );
+  }
+  else if (($form['#node_type']) && $form['#node_type']->type .'_node_form' == $form_id) {
+    $node = $form['#node'];
+    if (!$node->nid && !user_access('administer nodes') && nodefamily_content_type_is_max($node->type, $node->uid)) {
+      drupal_set_message(t("You can't create any more nodes of this type."), 'error');
+      $form = NULL;
+    }
+  }
+}
+
+function nodefamily_node_settings_validate(&$formelement) {
+  if (!is_numeric($formelement['#value'])) {
+    form_set_error($formelement['#parents'][0], t('Entry must be an integer.'));
+  }
+  else if ($formelement['#value'] < 0) {
+    form_set_error($formelement['#parents'][0], t('Entry must be at least 0.'));      
+  }
+}
+
+/**
+ * Set the maximum number of nodes of a content type per user (population).
+ */
+function nodefamily_content_type_set_max($typename, $max) {
+  variable_set('nodefamily_max_'. $typename, $max);
+}
+
+/**
+ * Get the maximum number of nodes of a content type per user (population).
+ */
+function nodefamily_content_type_get_max($typename) {
+  return variable_get('nodefamily_max_'. $typename, 0);
+}
+
+function _nodefamily_content_type_del_max($typename) {
+  variable_del('nodefamily_max_'. $typename);
+}
+
+/**
+ * Return, if the maximum population is already reached.
+ */
+function nodefamily_content_type_is_max($typename, $uid) {
+  $max = nodefamily_content_type_get_max($typename);
+  if ($max == 0 || $uid == 0) {
+    return FALSE;
+  }
+  $result = db_query("SELECT COUNT(*) FROM {node} n WHERE uid = %d AND type = '%s'", $uid, $typename);
+  $count = db_result($result);
+  return $count == $max;
+}
+
+/**
+ * Implementation of hook_node_type():
+ * If a content type changes, rename or delete the concerned relations
+ * and the maximum population variable.
+ */
+function nodefamily_node_type($op, $info) {
+  switch ($op){
+    case 'delete':
+      _nodefamily_content_type_del_max($info->type); // maximum population
+      nodefamily_ct_relation_remove_all($info->type); // relations
+      break;
+    case 'update':
+      if (!empty($info->old_type) && $info->old_type != $info->type) {
+        // maximum population
+        $type_max_population = variable_get('nodefamily_max_'. $info->old_type, -1);
+        if ($type_max_population != -1) {
+          _nodefamily_content_type_del_max($info->old_type);
+          nodefamily_content_type_set_max($info->type, $type_max_population);
+        }
+
+        // relations
+        foreach (nodefamily_get_parent_types($info->old_type) as $parent_typename) {
+          nodefamily_ct_relation_remove($parent_typename, $info->old_type);
+          nodefamily_ct_relation_add($parent_typename, $info->type);
+        }
+        foreach (nodefamily_get_child_types($info->old_type) as $child_typename) {
+          nodefamily_ct_relation_remove($info->old_type, $child_typename);
+          nodefamily_ct_relation_add($info->type, $child_typename);
+        }
+      }
+      break;
+  }
+}
+
+
+/**
+ * @defgroup nodefamily_ct_relation Implementation of content type relation API
+ * @{
+ */
+
+/**
+ * Add a relation between content types.
+ */
+function nodefamily_ct_relation_add($parent_typename, $child_typename) {
+
+  $relations = variable_get('nodefamily_relations', array());
+
+  if (array_key_exists($parent_typename, $relations)) {
+      $relations[$parent_typename][$child_typename] = array();
+  }
+  else {
+    $relations[$parent_typename] = array($child_typename => array());
+  }
+  variable_set('nodefamily_relations', $relations);
+
+  // add node-node relations
+  nodefamily_relation_add_by_type($parent_typename, $child_typename);
+}
+
+/**
+ * Remove a relation between content types.
+ */
+function nodefamily_ct_relation_remove($parent_typename, $child_typename) {
+
+  $relations = variable_get('nodefamily_relations', array());
+  if (array_key_exists($parent_typename, $relations)) {
+    unset($relations[$parent_typename][$child_typename]);
+    if (!$relations[$parent_typename]) {
+      unset($relations[$parent_typename]);
+    }
+    variable_set('nodefamily_relations', $relations);
+
+    // remove existing node relations
+    nodefamily_relation_remove_by_type($parent_typename, $child_typename);
+  }
+}
+
+/**
+ * Get all relations between content types.
+ */
+function nodefamily_ct_get_relations() {
+
+  return variable_get('nodefamily_relations', array());
+}
+
+/**
+ * Remove all relations that involve the given content type.
+ */
+function nodefamily_ct_relation_remove_all($typename) {
+  foreach (nodefamily_get_parent_types($typename) as $parent_typename) {
+    nodefamily_ct_relation_remove($parent_typename, $typename);
+  }
+  foreach (nodefamily_get_child_types($typename) as $child_typename) {
+    nodefamily_ct_relation_remove($typename, $child_typename);
+  }
+}
+
+
+/**
+ * Return an array of all parent content types for the given child content type.
+ */
+function nodefamily_get_parent_types($typename = NULL) {
+  $relations = variable_get('nodefamily_relations', array());
+
+  $parent_typenames = array();
+  foreach($relations as $parent_typename => $children) {
+    if ($typename == NULL || in_array($typename, array_keys($children))) {
+      $parent_typenames[] = $parent_typename;
+    }
+  }
+  return $parent_typenames;
+}
+
+/**
+ * Return an array of all child content types for the given parent content type.
+ */
+function nodefamily_get_child_types($typename = NULL) {
+  $relations = variable_get('nodefamily_relations', array());
+
+  if ($typename == NULL || array_key_exists($typename, $relations)) {
+    return array_keys($relations[$typename]);
+  }
+  else {
+    return array();
+  }
+}
+
+/**
+ * Return an array of all ancestor content types for the given content type.
+ */
+function nodefamily_get_ancestor_types($typename = NULL) {
+  $typenames = array();
+
+  foreach (nodefamily_get_parent_types($typename) as $parent) {
+    $typenames[] = $parent;
+    $typenames = array_merge($typenames, nodefamily_get_ancestor_types($parent));
+  }
+  return $typenames;
+}
+
+/**
+ * Return an array of all descendant content types for the given content type.
+ */
+function nodefamily_get_descendant_types($typename = NULL) {
+  $typenames = array();
+
+  foreach (nodefamily_get_child_types($typename) as $child) {
+    $typenames[] = $child;
+    $typenames = array_merge($typenames, nodefamily_get_descendant_types($child));
+  }
+  return $typenames;
+}
+
+
+/**
+ * Set the node-node relation for all parent nodes
+ * with the type $parent_typename and the author uid $uid.
+ */
+function nodefamily_relatives_set_parent($parent_typename, $uid, &$childnode) {
+
+  $result = db_query("SELECT nid FROM {node} WHERE uid=%d AND type='%s'",
+                     $uid, $parent_typename);
+
+  while ($node = db_fetch_object($result)) {
+    nodefamily_relation_add($node, $childnode);
+  }
+}
+
+/**
+ * Set the node-node relation for all child nodes
+ * with the type $child_typename and the author uid $uid.
+ */
+function nodefamily_relatives_set_child($parentnode, $child_typename, $uid) {
+
+  $result = db_query("SELECT nid FROM {node} WHERE uid=%d AND type='%s'",
+                     $uid, $child_typename);
+
+  while ($node = db_fetch_object($result)) {
+    nodefamily_relation_add($parentnode, $node);
+  }
+}
+
+/**
+ * @} End of "defgroup nodefamily_ct_relation".
+ */
+
+
+
+
+/**
+ * @defgroup nodefamily_relation Implementation of node - node relation API
+ * @{
+ */
+
+function nodefamily_relation_add(&$parent_node, &$child_node) {
+
+  db_query("INSERT INTO {nodefamily} (parent_nid, child_nid) VALUES(%d, %d)", 
+    $parent_node->nid, $child_node->nid);
+}
+
+function nodefamily_relation_remove(&$parent_node, &$child_node) {
+
+  db_query("DELETE FROM {nodefamily} WHERE parent_nid = %d AND child_nid = %d", 
+    $parent_node->nid, $child_node->nid);
+}
+
+function nodefamily_relation_remove_children(&$parent_node) {
+
+  db_query("DELETE FROM {nodefamily} WHERE parent_nid = %d", $parent_node->nid);
+}
+
+function nodefamily_relation_remove_parents(&$child_node) {
+
+  db_query("DELETE FROM {nodefamily} WHERE child_nid = %d", $child_node->nid);
+}
+
+function nodefamily_relation_remove_by_type(&$parent_typename, &$child_typename) {
+  
+  db_query("DELETE FROM {nodefamily} WHERE parent_nid IN ".
+           "(SELECT nid FROM {node} WHERE type ='%s') AND ".
+           "child_nid IN (SELECT nid FROM {node} WHERE type ='%s')",
+           $parent_typename, $child_typename);
+}
+
+function nodefamily_relation_add_by_type(&$parent_typename, &$child_typename) {
+  
+  db_query("INSERT INTO {nodefamily} (parent_nid, child_nid) ".
+           "SELECT n1.nid,n2.nid FROM {node} n1 ".
+           "JOIN {node} n2  ON n2.type = '%s' ".
+           "LEFT JOIN {nodefamily} nf ON nf.parent_nid = n1.nid AND nf.child_nid = n2.nid ".
+           "WHERE n1.type = '%s' AND nf.parent_nid IS NULL AND n1.uid = n2.uid",
+           $child_typename, $parent_typename);
+}
+
+/**
+ * Load all children's nids for a node. This function doesn't obey node_access
+ * for the current user, it just loads all children.
+ * The children's node-ids will be loaded into the array $node->children.
+ *
+ * @param $node The node object or the node's id
+ */
+function nodefamily_relation_load_all_nids(&$node) {
+
+  if (!is_object($node)) {
+    //$node is the nid
+    $node2 = node_load($node);    
+    return is_object($node2) ? nodefamily_relation_load_all_nids($node2) : FALSE;
+  }
+
+  $result = db_query("SELECT child_nid FROM {nodefamily} WHERE parent_nid = %d", $node->nid);
+  
+  $node->children = array();
+  while ($row = db_fetch_object($result)) {
+    $node->children[$row->child_nid] = $row->child_nid;
+  }
+  return $node->children;
+}
+
+/**
+ * Load all children for a node.
+ * The children's nodes will be loaded into the array $node->children.
+ *
+ * @param $node The node object or the node's id
+ * @param $status The minimum status value a node must have to be included.  Use 0 for all nodes.
+ */
+function nodefamily_relation_load(&$node, $status = 1) {
+  
+  if (!is_object($node)) {
+    //$node is the nid
+    $node2 = node_load($node);    
+    return is_object($node2) ? nodefamily_relation_load($node2, $status) : FALSE;
+  }
+
+  $result = db_query(db_rewrite_sql("SELECT n.nid FROM {node} n ".
+            "JOIN {nodefamily} nf ON nf.child_nid = n.nid WHERE nf.parent_nid = %d AND n.status >= %d ORDER BY n.nid"), $node->nid, $status);
+
+  $node->children = array();
+  while ($row = db_fetch_object($result)) {
+    if ($child = node_load($row->nid)) {
+      $node->children[] = $child;
+    }
+  }
+  return $node->children;
+}
+
+
+/**
+ * Load all children for a node, sorted by content type.
+ * The children's nodes will be loaded into the array $node->children
+ * which contains an array of children for each content type.
+ *
+ * @param $node The node object or the node's id
+ * @param $status The minimum status value a node must have to be included.  Use 0 for all nodes.
+ */
+function nodefamily_relation_load_by_type(&$node, $status = 1) {
+
+  if (!is_object($node)) {
+    //$node is the nid
+    $node2 = node_load($node);
+    return is_object($node2) ? nodefamily_relation_load_by_type($node2, $status) : FALSE;
+  }
+  
+  $result = db_query(db_rewrite_sql("SELECT n.nid FROM {node} n ".
+            "JOIN {nodefamily} nf ON nf.child_nid = n.nid WHERE nf.parent_nid = %d AND n.status >= %d ORDER BY n.nid"), $node->nid, $status);
+
+  $node->children = array();
+  while ($row = db_fetch_object($result)) {
+    if ($child = node_load($row->nid)) {
+      $node->children[$child->type][] = $child;
+    }
+  }
+  return $node->children;
+}
+
+/**
+ * Load all parents for a node.
+ * The parent nodes will be loaded into the array $node->parents.
+ *
+ * @param $node The node object or the node's id
+ * @param $status The minimum status value a node must have to be included.  Use 0 for all nodes.
+ */
+function nodefamily_relation_load_parents(&$node, $status = 1) {
+
+  if (!is_object($node)) {
+    //$node is the nid
+    $node2 = node_load($node);    
+    return is_object($node2) ? nodefamily_relation_load_parents($node2, $status) : FALSE;
+  }
+
+  $result = db_query(db_rewrite_sql("SELECT n.nid FROM {node} n ".
+            "JOIN {nodefamily} nf ON nf.parent_nid = n.nid WHERE nf.child_nid = %d AND n.status >= %d ORDER BY n.nid"), $node->nid, $status);
+  
+  
+  $node->parents = array();
+  while ($row = db_fetch_object($result)) {
+    if ($parent = node_load($row->nid)) {
+      $node->parents[] = $parent;
+    }
+  }
+  return $node->parents;
+}
+
+
+/**
+ * Load all siblings for a node.
+ * The sibling nodes will be loaded into the array $node->siblings and grouped by their parent.
+ *
+ * @param $node The node object or the node's id
+ * @param $status The minimum status value a node must have to be included.  Use 0 for all nodes.
+ */
+function nodefamily_relation_load_siblings(&$node, $status = 1) {
+
+  if (!is_object($node)) {
+    //$node is the nid
+    $node2 = node_load($node);    
+    return is_object($node2) ? nodefamily_relation_load_siblings($node2, $status) : FALSE;
+  }
+  //load the parents
+  nodefamily_relation_load_parents($node, $status);
+  $node->siblings = array();
+  // find and load the children of the parents
+  foreach ($node->parents as $parent) {
+    $children = nodefamily_relation_load($parent->nid, $status);
+    foreach ($children as $child) {
+      // don't include current node in list of siblings
+      if ($child->nid != $node->nid) {
+        $node->siblings[][] = $child;
+      }
+    }
+  }
+  return $node->siblings;
+}
+
+/**
+ * @} End of "defgroup nodefamily_relation".
+ */
+
+
+
+/**
+ * Provide a unique URL for adding/editing nodes of types
+ * with a maximum population of one.
+ */
+function nodefamily_lonely_node_page_args() {
+
+  $types = node_get_types();
+  $typename = arg(1);
+  
+  if (!$types[$typename] || nodefamily_content_type_get_max($typename) != 1) {
+    drupal_not_found();
+    exit;
+  }
+  
+  $uid = (arg(2) && is_numeric(arg(2))) ? arg(2) : NULL;
+
+  return nodefamily_lonely_node_page($typename, $uid);
+}  
+
+
+function nodefamily_lonely_node_page($typename, $uid = NULL) {
+  global $user;
+  
+  $node = node_load(array('type' => $typename, 'uid' => $uid ? $uid : $user->uid));
+  
+  if (!$node) {
+    // show add form
+    return node_add($typename);
+  }
+  else if (node_access('update', $node)) {
+    //show edit form
+    return node_page_edit($node);
+  }
+  drupal_not_found();
+}
+
+
+
+/**
+ * Pageroute integration
+ */
+
+/**
+ * Implementation of hook_pageroute_info().
+ */
+function nodefamily_pageroute_info() {
+  return array(
+    'manage_lonely' => array('name' => t('Lonely node management'), 'base' => 'nodefamily', 'default_target' => PAGEROUTE_FORWARD),
+    'view_lonely' => array('name' => t('Lonely node display'), 'base' => 'nodefamily'),
+  );
+}
+
+/*
+ * Implementation of pageroutes' hook_page()
+ */
+function nodefamily_page_manage_lonely($route, $page, $form) {
+  $task = pageroute_page_arg($page, 0);
+  if ($task == 'delete') {
+    $page->arg_offset++; //the delete subpage is to be shown..
+  }
+  $node = node_load(array(
+    'type' => $page->options['content-type'],
+    'uid' => $uid = pageroute_page_get_uid($page),
+  ));
+  //do we need to show the delete confirm form?
+  if ($task == 'delete') {
+    return pageroute_node_delete_confirm($node, $page, $form);
+  }
+  //the node edit form page type will present an add form for us, if there is no node id
+  return pageroute_page_edit($route, $page, $form, $node->nid ? $node->nid : FALSE);
+}
+
+/*
+ * Implementation of pageroutes' hook_page()
+ */
+function nodefamily_page_view_lonely($route, $page, $form) {
+  $node = node_load(array(
+    'type' => $page->options['content-type'],
+    'uid' => pageroute_page_get_uid($page),
+  ));
+  if ($node->nid && node_access('view', $node)) {
+    $page->options['nid'] = $node->nid;
+    return pageroute_page_view($route, $page, $form);
+  }
+  else {
+    $type_name = node_get_types('name', $page->options['content-type']);
+    $form['empty'] = array('#value' => theme('nodefamily_lonely_node_view_empty', $type_name));
+    return $form;
+  }
+}
+
+function theme_nodefamily_lonely_node_view_empty($type_name) {
+  return '<div class="nodefamily-empty">'.
+         t('You have not created a @type yet. Go ahead and create one!', array('@type' => $type_name)) .'</div>';
+}
+
+/*
+ * Implementations of hook_page_ui().
+ */
+function nodefamily_page_view_lonely_ui($route, $page, &$form, $type) {
+  $form['options']['content-type'] = array(
+    '#type' => 'select',
+    '#title' => t('content type'),
+    '#options' => nodefamily_lonely_node_types(),
+    '#required' => TRUE,
+    '#default_value' => $page->options['content-type'],
+    '#weight' => 2,
+    '#description' => t('You can only use content types with a maximum '.
+                        'nodefamily population set to one!'),
+  );
+}
+function nodefamily_page_manage_lonely_ui($route, $page, &$form, $type) {
+  nodefamily_page_view_lonely_ui($route, $page, $form, $type);
+  pageroute_pages_node_ui($route, $page, $form, $type);
+}
+
+/*
+ * Returns an array of lonely node types
+ */
+function nodefamily_lonely_node_types($op = 'names') {
+  $types = node_get_types($op);
+  $lonely_node_types = array();
+  foreach($types as $typename => $type) {
+    if (nodefamily_content_type_get_max($typename) == 1) {
+      $lonely_node_types[$typename] = $type;
+    }
+  }
+  return $lonely_node_types;
+}
+
+/*
+ * Implementations of hook_page_help().
+ */
+function nodefamily_page_manage_lonely_help() {
+  return t('The "lonely" page types may be used only with content types, '.
+           'which are restricted to a maximum population of one by the '.
+           'nodefamily module. Then you can use the lonely node '.
+           'management page to add/edit the "lonely node" as it might be '.
+           'useful e.g. for user profiles.');
+}
+function nodefamily_page_view_lonely_help() {
+  return t('The lonely node display page can be used to view this lonely '.
+           'node. This might be useful for displaying the lonely node after'.
+           'creation or update. There will be '.
+           'a (themeable) message if there is no node that can be displayed.');
+}
+
+
+/**
+ * Views integration
+ */
+
+/**
+ * Implementation of hook_views_fusion().
+ */
+function nodefamily_views_fusion() {
+  
+  return array('nodefamily_parent' => array(
+                 'title' => t('nodefamily relation: parent - child'),
+                 'field' => 'child_nid',
+               ),
+               'nodefamily_child' => array(
+                 'title' => t('nodefamily relation: child - parent'),
+                 'field' => 'parent_nid',
+               ),
+         );
+}
+
+function nodefamily_views_tables() {
+  $tables['nodefamily_parent'] = array(
+    'name' => 'nodefamily',
+    'join' => array(
+      'left' => array(
+        'table' => 'node',
+        'field' => 'nid',
+      ),
+      'right' => array(
+        'field' => 'parent_nid'
+      ),
+      'type' => 'inner',
+    ),
+    'filters' => array(
+      'child_nid' => array(
+        'name' => t('Nodefamily: Child Node ID'),
+        'operator' => 'views_handler_operator_eqneq',
+        'option' => array(
+            '#type' => 'select',
+            '#options' => node_get_types('names'),
+        ),
+        'handler' => 'nodefamily_views_filter',
+        'help' => t('This allows you to filter by child node ID.').t('You can optionally restrict the filter to a certain content type, which makes sense to use in conjunctions with the NOT EQUAL operator.'),
+      ),
+    ),
+  );
+  $tables['nodefamily_child'] = array(
+    'name' => 'nodefamily',
+    'join' => array(
+      'left' => array(
+        'table' => 'node',
+        'field' => 'nid',
+      ),
+      'right' => array(
+        'field' => 'child_nid'
+      ),
+      'type' => 'inner',
+    ),
+    'filters' => array(
+      'parent_nid' => array(
+        'name' => t('Nodefamily: Parent Node ID'),
+        'operator' => 'views_handler_operator_eqneq',
+        'option' => array(
+            '#type' => 'select',
+            '#options' => node_get_types('names'),
+        ),
+        'handler' => 'nodefamily_views_filter',
+        'help' => t('This allows you to filter by parent node ID.').t('You can optionally restrict the filter to a certain content type, which makes sense to use in conjunctions with the NOT EQUAL operator.'),
+      ),
+    ),
+  );
+  // these tables are used for the above filters to join the node table again
+  $tables['nf_node_child'] = array(
+    'name' => 'node',
+    'join' => array(
+      'left' => array(
+        'table' => 'nodefamily_parent',
+        'field' => 'child_nid',
+      ),
+      'right' => array(
+        'field' => 'nid'
+      ),
+      'type' => 'inner',
+    ),
+  );
+  $tables['nf_node_parent'] = array(
+    'name' => 'node',
+    'join' => array(
+      'left' => array(
+        'table' => 'nodefamily_child',
+        'field' => 'parent_nid',
+      ),
+      'right' => array(
+        'field' => 'nid'
+      ),
+      'type' => 'inner',
+    ),
+  );
+  return $tables;
+}
+
+
+function nodefamily_views_arguments() {
+  $arguments = array(
+    'parent_nid' => array(
+      'name' => t('Nodefamily: Parent ID'),
+      'handler' => 'nodefamily_views_handler_arg_parent_nid',
+      'help' => t('This argument is the Node ID of the parent node of a node.'),
+    ),
+    'child_nid' => array(
+      'name' => t('Nodefamily: Child ID'),
+      'handler' => 'nodefamily_views_handler_arg_child_nid',
+      'help' => t('This argument is the Node ID of the child node of a node.'),
+    ),
+    'grandchild_nid' => array(
+      'name' => t('Nodefamily: Grandchild ID'),
+      'handler' => 'nodefamily_views_handler_arg_grand_child_nid',
+      'help' => t('This argument is the Node ID of a grandchild node of a node.'),
+    ),
+    'grandparent_nid' => array(
+      'name' => t('Nodefamily: Grandparent ID'),
+      'handler' => 'nodefamily_views_handler_arg_grand_parent_nid',
+      'help' => t('This argument is the Node ID of a grandparent node of a node.'),
+    ),
+  );
+  return $arguments;
+}
+
+
+function nodefamily_views_handler_arg_parent_nid($op, &$query, $argtype, $arg = '') {
+  switch($op) {
+    case 'summary':
+      // do nothing. field name parent_nid makes troubles...
+      break;
+    case 'sort':
+      $query->add_orderby('nodefamily', 'parent_nid', $argtype);
+      break;
+    case 'filter':
+      $num = $query->add_table('nodefamily_child');
+      $tablename = $query->get_table_name('nodefamily_child', $num);
+      $query->add_where($tablename. ".parent_nid = %d", $arg);
+      break;
+    case 'link':
+      return l($query->parent_nid, "$arg/$query->parent_nid");
+    case 'title':
+      $node = db_fetch_object(db_query("SELECT title FROM {node} WHERE nid=%d", $query));
+      return check_plain($node->title);
+  }
+}
+
+
+function nodefamily_views_handler_arg_child_nid($op, &$query, $argtype, $arg = '') {
+  switch($op) {
+    case 'summary':
+      // do nothing. field name child_nid makes troubles...
+      break;
+    case 'sort':
+      $query->add_orderby('nodefamily', 'child_nid', $argtype);
+      break;
+    case 'filter':
+      $num = $query->add_table('nodefamily_parent');
+      $tablename = $query->get_table_name('nodefamily_parent', $num);
+      $query->add_where($tablename. ".child_nid = %d", $arg);
+      break;
+    case 'link':
+      return l($query->child_nid, "$arg/$query->child_nid");
+    case 'title':
+      $node = db_fetch_object(db_query("SELECT title FROM {node} WHERE nid=%d", $query));
+      return check_plain($node->title);
+  }
+}
+
+function nodefamily_views_handler_arg_grand_child_nid($op, &$query, $argtype, $arg = '') {
+  switch($op) {
+    case 'summary':
+      // do nothing. field name child_nid makes troubles...
+      break;
+    case 'sort':
+      $query->add_orderby('nodefamily', 'child_nid', $argtype);
+      break;
+    case 'filter':
+      $table_data = _views_get_tables();
+      $num = $query->add_table('nodefamily_parent');
+      // join again the nodefamily table
+      $joininfo = $table_data['nodefamily_parent']['join'];
+      $joininfo['left']['table'] = $query->get_table_name('nodefamily_parent', $num);
+      $joininfo['left']['field'] = 'child_nid';
+      $num = $query->add_table('nodefamily_parent', false, 1, $joininfo);
+      $tablename = $query->get_table_name('nodefamily_parent', $num);
+      $query->add_where($tablename. ".child_nid = %d", $arg);
+      break;
+    case 'link':
+      return l($query->child_nid, "$arg/$query->child_nid");
+    case 'title':
+      $node = db_fetch_object(db_query("SELECT title FROM {node} WHERE nid=%d", $query));
+      return check_plain($node->title);
+  }
+}
+
+function nodefamily_views_handler_arg_grand_parent_nid($op, &$query, $argtype, $arg = '') {
+  switch($op) {
+    case 'summary':
+      // do nothing. field name child_nid makes troubles...
+      break;
+    case 'sort':
+      $query->add_orderby('nodefamily', 'parent_nid', $argtype);
+      break;
+    case 'filter':
+      $table_data = _views_get_tables();
+      $num = $query->add_table('nodefamily_child');
+      // join again the nodefamily table
+      $joininfo = $table_data['nodefamily_child']['join'];
+      $joininfo['left']['table'] = $query->get_table_name('nodefamily_child', $num);
+      $joininfo['left']['field'] = 'parent_nid';
+      $num = $query->add_table('nodefamily_child', false, 1, $joininfo);
+      $tablename = $query->get_table_name('nodefamily_child', $num);
+      $query->add_where($tablename. ".parent_nid = %d", $arg);
+      break;
+    case 'link':
+      return l($query->parent_nid, "$arg/$query->parent_nid");
+    case 'title':
+      $node = db_fetch_object(db_query("SELECT title FROM {node} WHERE nid=%d", $query));
+      return check_plain($node->title);
+  }
+}
+
+
+function nodefamily_views_filter($op, $filter, $filterinfo, &$query) {
+  $query->ensure_table($filterinfo['table']);
+  $query->add_where("%s.%s %s '%s'", $filterinfo['table'], $filterinfo['field'], $filter['operator'], $filter['value']);
+  
+  if ($filter['options']) {
+    $table = ($filterinfo['table'] == 'nodefamily_child') ? 'nf_node_parent' : 'nf_node_child';
+    $num = $query->add_table($table);
+    $tablename = $query->get_table_name($table, $num);
+    $query->add_where("%s.type = '%s'", $tablename, $filter['options']);
+  }
+}

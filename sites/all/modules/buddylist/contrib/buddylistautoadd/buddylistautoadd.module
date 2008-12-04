@@ -1,0 +1,92 @@
+<?php
+// $Id: buddylistautoadd.module,v 1.1.2.1 2007/09/06 21:29:19 dldege Exp $
+
+define('BUDDYLISTAUTOADD',           'buddylistautoadd');
+define('BUDDYLISTAUTOADD_USER_NAME', 'buddylistautoadd_user_name');
+define('BUDDYLISTAUTOADD_UID',       'buddylistautoadd_uid');
+
+function buddylistautoadd_help($section) {
+  switch ($section) {
+    case 'admin/help#buddylistautoadd':
+      return '<p>'. t('Adds a user automatically to the buddy list.') . '</p>';
+  }
+}
+
+function buddylistautoadd_menu($may_cache) {
+  $items = array();
+
+  if ($may_cache) {
+    $items[] = array(
+      'path'               => 'admin/settings/buddylistautoadd',
+      'title'              => t('Buddylist Auto Add'),
+      'description'        => t('Buddylist Auto Add settings.'),
+      'callback'           => 'drupal_get_form',
+      'callback arguments' => array('buddylistautoadd_admin_settings'),
+    );
+
+    $items[] = array(
+      'path'     => 'buddylistautoadd/user/autocomplete',
+      'title'    => t('Buddylist Auto Add user autocomplete'),
+      'callback' => 'buddylistautoadd_list_user',
+      'access'   => user_access('administer site configuration'),
+      'type'     => MENU_CALLBACK,
+    );
+  }
+  return $items;
+}
+
+function buddylistautoadd_admin_settings() {
+  $form[BUDDYLISTAUTOADD_USER_NAME] = array(
+    '#type'              => 'textfield',
+    '#title'             => 'User to auto add',
+    '#default_value'     => buddylistautoadd_get_user(),
+    '#description'       => t('Select the user that should be added to all other users buddy list'),
+    '#autocomplete_path' => 'buddylistautoadd/user/autocomplete',
+  );
+  return system_settings_form($form);
+}
+
+function buddylistautoadd_get_user() {
+  $uid = variable_get(BUDDYLISTAUTOADD_UID, 0);
+  $user = user_load(array('uid' => $uid));
+  return $user->name;
+}
+
+function buddylistautoadd_list_user($string) {
+  $matches = array();
+  $result = db_query_range("SELECT name FROM {users} WHERE name LIKE '%s%%'", $string, NULL, 10);
+  while ($user = db_fetch_object($result)) {
+    $matches[$user->name] = check_plain($user->name);
+  }
+  print drupal_to_js($matches);
+  exit();
+}
+
+function buddylistautoadd_admin_settings_validate($form_id, $form_values) {
+  if (empty($form_values[BUDDYLISTAUTOADD_USER_NAME])) {
+    form_set_error('user', t('You must specify a valid user name.'));
+    return;
+  }
+  $name = $form_values[BUDDYLISTAUTOADD_USER_NAME];
+  if (!$user = db_fetch_object(db_query("SELECT name, uid FROM {users} WHERE name = '%s'", $name))) {
+    form_set_error('user', t('%user is not a valid user on this site.', array('%user' => $name)), 'error');
+    return;
+  }
+  variable_set(BUDDYLISTAUTOADD_UID, $user->uid);
+}
+
+function buddylistautoadd_user($op, &$edit, &$account, $category = NULL) {
+  switch($op) {
+    case 'insert':
+      $uid = variable_get(BUDDYLISTAUTOADD_UID, 0);
+      if ($uid) {
+        $buddy = user_load(array('uid' => $uid));
+        db_query('INSERT INTO {buddylist} (received, uid, buddy, timestamp) VALUES (1, %d, %d, %d)',
+          $account->uid , $buddy->uid , time());
+        drupal_set_message(t('User @name was automatically added to your buddy list',
+          array('@name' => $buddy->name)));
+        module_invoke_all('buddylist', 'add', $buddy, $account, true);
+      }
+      break;
+  }
+}

@@ -1,0 +1,86 @@
+<?php
+/* $Id: geoapi_iplocator_maxmind.module,v 1.1 2008/03/25 10:14:42 thegreenman Exp $ */
+
+/**
+ * This is a smallmodule that adds IP location defaults to the geonames_cck edit form. 
+ * 
+ * This uses Maxmind's commercial IP location webservice, an will require a key. 
+ * 
+ */
+
+/**
+ * implementation of hook_geoapi_iplocation. 
+ * Implement this hook to add new iplocation modules
+ *
+ * @param string $ip Ip address to look up 
+ */
+function geoapi_iplocator_maxmind_goapi_iplocation($ip) {
+  return maxmind_ip_lookup($ip);
+}
+
+/**
+ * implementation of hook menu
+ *
+ * @param unknown_type $may_cache
+ * @return unknown
+ */
+function geoapi_iplocator_maxmind_menu($may_cache) {  
+  if ($may_cache) {    
+    $items[] = array(
+      'path' => 'admin/settings/geonamescck/maxmind',
+      'title' => t('Maxmind'),
+      'description' => t('Maxmind config'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'geoapi_iplocator_maxmind_admin_form',
+      'access' => user_access('administer site configuration'),
+      'type' => MENU_LOCAL_TASK,
+    );
+  }
+  return $items; 
+}    
+
+/**
+ * admin form
+ *
+ */
+function geoapi_iplocator_maxmind_admin_form() {
+  $form['geoapi_maxmind_key'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Maxmind Account Key'),
+    '#default_value' => variable_get('geoapi_maxmind_key', ''),                        
+    '#description' => t('Maxmind is a commercial service, so you will need to get an account key. Enter it here.'),                    
+  ); 
+   return system_settings_form($form);
+}
+
+
+/**
+ * Get location information for an ip address using maxmind's web services
+ *
+ * @param unknown_type $ip
+ */
+function maxmind_ip_lookup($ip) {
+  static $locations = array();
+  if (!$location = $locations[$ip]) {
+    // nothing in our cache, lets do a lookup 
+    $maxmind_key = variable_get('geoapi_maxmind_key', '');  
+    $url = 'http://geoip1.maxmind.com/b?l='. $maxmind_key .'&i='. $ip; 
+    $result = drupal_http_request($url);
+    if ($result -> code == '200') {
+      // successful response
+      $location = _maxmind_parse_result($result -> data);
+      $locations[$ip] = $location;
+    }
+  }
+  return $location;
+}
+/**
+ * Parse a result from maxmind, and return a structured array
+ *
+ * @param string $data A http result from maxmind
+ */
+function _maxmind_parse_result($data) {
+  $location = array();
+  list($location['country'], $location['region'], $location['city']) = explode(',', $data);
+  return $location;  
+}

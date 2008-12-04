@@ -1,0 +1,796 @@
+<?php
+// $Id: nodeprofile.module,v 1.7.2.35 2008/04/20 20:57:14 fago Exp $
+
+/**
+ * @file
+ * Marks content types as profiles
+ */
+
+// Workflow-ng module support.
+if (module_exists('workflow_ng')) {
+  include_once drupal_get_path('module', 'nodeprofile') .'/nodeprofile_workflow_ng.inc';
+}
+
+// panels module support.
+if (module_exists('panels')) {
+  include_once drupal_get_path('module', 'nodeprofile') .'/nodeprofile_panels.inc';
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function nodeprofile_menu($may_cache) {
+  $items = array();
+
+  if (!$may_cache && arg(0) == 'admin' && arg(1) == 'content' && arg(2) == 'types' && arg(3)) {
+    $type = str_replace('-', '_', arg(3));
+    if ($type_name = node_get_types('name', $type) && is_nodeprofile($type)) {
+      $items[] = array(
+        'path' => 'admin/content/types/'. arg(3) .'/edit',
+        'title' => t('Edit'),
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+      );
+      $items[] = array(
+        'path' => 'admin/content/types/'. arg(3) .'/nodeprofile',
+        'title' => t('Node profile'),
+        'description' => t('Configure the display and management of this node profile.'),
+        'callback' => 'drupal_get_form',
+        'callback arguments' => array('nodeprofile_admin_settings', $type),
+        'access' => user_access('administer nodes'),
+        'type' => MENU_LOCAL_TASK,
+        'weight' => 1,
+      );
+    }
+  }
+  else if ($may_cache) {
+    if (module_exists('usernode')) {
+      // prevent the deletion of the usernode-ct - nodeprofile-ct relation
+      $items[] = array(
+      'path' => 'admin/content/nodefamily/'. USERNODE_CONTENT_TYPE,
+      'title' => t('delete relation'),
+        'callback' => 'nodeprofile_keep_relation',
+        'access' => user_access('administer nodes'),
+        'type' => MENU_CALLBACK,
+      );
+    }
+  }
+  return $items;
+}
+
+/**
+ * Menu callback; node profile settings.
+ */
+function nodeprofile_admin_settings($type) {
+  $form['integration'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Input Form Integration'),
+    '#description' => t('Note that this settings apply only to this content type, not to any possible related content types that might extend this profile.'),
+    '#collapsible' => TRUE,
+  );
+  $form['integration']['user_edit'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Integrate this node profile with user categories."),
+    '#default_value' => nodeprofile_get_settings('user_edit', $type),
+    '#description' => t('If selected this node profile\'s form will appear as a new category at the "My Account" - "Edit" pages, just like the profile.module.'),
+  );
+  $form['integration']['register'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Show this node profile during user registration."),
+    '#default_value' => nodeprofile_get_settings('register', $type),
+    '#description' => t('If selected this node profile\'s form will be shown on the user register page. ') . 
+      t('Note that this will bypass the node creation permission settings, so this will work for your users regardless if they have access to edit or create their nodeprofile later!'),
+  );
+  if (module_exists('rolesignup')) {
+    // List roles having Role Signup's "register for role" permission
+    if ($roles = user_roles(TRUE, 'register for role')) {
+      $form['integration']['register_roles'] = array(
+        '#type' => 'checkboxes',
+        '#title' => t('Roles allowed to see this node profile during user registration'),
+        '#default_value' => nodeprofile_get_settings('register_roles', $type),
+        '#options' => $roles,
+        '#description' => t('If the <em>Show this node profile during user registration</em> option has been enabled, you may select what roles will see it. If no role is selected, all users will see this node profile. Note that this feature relies on the Role Signup module.'),
+      );
+    }
+  }
+  else {
+    $form['integration']['#description'] .= '<br />'. t('The !rolesignup module is currently not installed. If installed, it would allow you show this node profile only to users who register for specific roles.', array('!rolesignup' => l(t('Role Signup'), 'http://drupal.org/project/rolesignup')));
+  }
+  $form['weight'] = array(
+    '#type' => 'weight',
+    '#title' => t("Weight"),
+    '#default_value' => nodeprofile_get_settings('weight', $type),
+    '#description' => t('The weight of nodes of this content type where ever they appear - this applies to the input form integration as well to the display integration.'),
+    '#weight' => 5,
+  );
+  $form['display'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Display settings'),
+    '#description' => t('This allows you to customize the display of this nodeprofile.'),
+    '#collapsible' => TRUE,
+  );
+  $form['display']['user_display'] = array(
+    '#type' => 'radios',
+    '#title' => t("User page display style"),
+    '#default_value' => nodeprofile_get_settings('user_display', $type),
+    '#options' => array(
+      0 => t('Don\'t display this nodeprofile on the user account page'),
+      'link' => t('Display it as link to the profile node'),
+      'full' => t('Display it as full node view'),
+      'teaser' => t('Display it as teaser node view'),
+    ),
+  );
+  $form['display']['edit_link'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Include an edit link to the display"),
+    '#default_value' => nodeprofile_get_settings('edit_link', $type),
+  );
+  $form['display']['add_link'] = array(
+    '#type' => 'checkbox',
+    '#title' => t("Include an add link to the display if they haven't yet."),
+    '#default_value' => nodeprofile_get_settings('add_link', $type),
+    '#description' => t("If selected and the user has no profile of this type yet, a link to add one is shown on the user page."),
+  );
+  $form['type'] = array('#type' => 'value', '#value' => $type);
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Submit'),
+    '#weight' => 10,
+  );
+  return $form;
+}
+
+function nodeprofile_admin_settings_submit($form_id, $form_values) {
+  $settings = nodeprofile_get_settings();
+  foreach (nodeprofile_available_settings() as $setting) {
+    if (is_array($form_values[$setting])) {
+      $form_values[$setting] = array_filter($form_values[$setting]);
+    }
+    $settings[$setting][$form_values['type']] = $form_values[$setting];
+  }
+  nodeprofile_set_settings($settings);
+  drupal_set_message('Your changes have been saved.');
+}
+
+
+
+/**
+ * Menu callback.
+ * Hooks into admin/content/nodefamily/usernode which is normally handled by
+ * the nodefamily module, but gets special handling here for relations that
+ * may not be deleted.
+ */
+function nodeprofile_keep_relation() {
+
+  if (is_nodeprofile(arg(4))) {
+    drupal_set_message(t('You may not delete this relation manually. To remove it unmark the '.
+                         'content type "%type" as nodeprofile.',
+                         array('%type' => node_get_types('name', arg(4)))), 'error');
+    drupal_goto('admin/content/nodefamily');
+  }
+  else {
+    // proceed with deletion
+    return nodefamily_admin_page();
+  }
+}
+
+
+/**
+ * Determine if a given node is a nodeprofile.
+ * @param $type The node object or the node's type
+ */
+function is_nodeprofile($type) {
+  if (is_object($type)) {
+    $type = $type->type;
+  }
+  return variable_get('nodeprofile_'. $type, 0);
+}
+
+/**
+ * Builds a list of available content types that are marked as nodeprofiles,
+ * and returns an array of nodeprofile content types in the specified format.
+ *
+ * @param $op When set to 'types', nodeprofile content types are returned
+ *            as type objects. When set to 'names', only their type names
+ *            are returned.
+ */
+function nodeprofile_get_types($op = 'types') {
+  $types = array();
+
+  foreach (node_get_types($op) as $key => $type) {
+    if (is_nodeprofile($key)) {
+      $types[$key] = $type;
+    }
+  }
+  return $types;
+}
+
+/**
+ * Implementation of hook_node_type():
+ * Rename or delete the maximum population variable if a type name changes.
+ */
+function nodeprofile_node_type($op, $info) {
+  switch ($op) {
+    case 'delete':
+      variable_del('nodeprofile_'. $info->type);
+      $settings = nodeprofile_get_settings();
+      foreach (nodeprofile_available_settings() as $setting) {
+        unset($settings[$setting][$info->type]);
+      }
+      nodeprofile_set_settings($settings);
+      break;
+    case 'update':
+      if (!empty($info->old_type) && $info->old_type != $info->type) {
+        $is_nodeprofile = variable_get('nodeprofile_'. $info->old_type, -1);
+        if ($is_nodeprofile != -1) {
+          variable_del('nodeprofile_'. $info->old_type);
+          variable_set('nodeprofile_'. $info->type, $is_nodeprofile);
+        }
+        $settings = nodeprofile_get_settings();
+        foreach (nodeprofile_available_settings() as $setting) {
+          $settings[$setting][$info->type] = $settings[$setting][$info->old_type];
+          unset($settings[$setting][$info->old_type]);
+        }
+        nodeprofile_set_settings($settings);
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_form_alter().
+ */
+function nodeprofile_form_alter($form_id, &$form) {
+
+  if ($form_id == 'node_type_form' &&
+      ( !module_exists('usernode') || $form['#node_type']->type != USERNODE_CONTENT_TYPE )) {
+
+    /* The 'nodeprofile_type' field is in the workflow fieldset at the moment,
+     * because the buttons are not properly weighted.
+     * TODO: if node_type_form() in node's content_types.inc fixes this,
+     *       we can think about switching back to our own block.
+     */
+    /*
+    $form['nodeprofile'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Node Profile'),
+      '#collapsible' => 1,
+      '#weight' => 32,
+    );*/
+    $form['workflow']['nodeprofile'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Use this content type as a nodeprofile for users'),
+      '#default_value' => is_nodeprofile($form['#node_type']->type),
+      '#return_value' => 1,
+    );
+    $form['#submit']['nodeprofile_node_settings_submit'] = array(
+      is_nodeprofile($form['#node_type']->type),
+    );
+
+    if (is_nodeprofile($form['#node_type']->type)) {
+      $form['workflow']['nodefamily_max']['#disabled'] = TRUE;
+    }
+  }
+  else if (module_exists('rolesignup') && $form_id == 'user_admin_perm') {
+    $form['#submit']['nodeprofile_user_admin_perm_submit'] = array();
+  }
+}
+
+/**
+ * Submit handler for the access control administration page.
+ *
+ * This is needed for Role Signup integration. This function clears up old
+ * settings when some roles are no longer enabled for signup. This ensures that
+ * we get the expected behavior when no specific role is enabled for
+ * registration in the nodeprofile settings.
+ */
+function nodeprofile_user_admin_perm_submit($form_id, $form_values) {
+  $settings = nodeprofile_get_settings();
+  $user_roles = user_roles(TRUE, 'register for role');
+  if (isset($settings['register_roles'])) {
+    foreach (array_filter($settings['register_roles']) as $type => $type_settings) {
+      foreach ($type_settings as $role_id => $status) {
+        if (!isset($user_roles[$role_id])) {
+          // Remove irrelevant setting.
+          unset($settings['register_roles'][$type][$role_id]);
+        }
+      }
+    }
+    nodeprofile_set_settings($settings);
+  }
+}
+
+function nodeprofile_node_settings_submit($form_id, $form_values, $old_value) {
+  $type = $form_values['type'];
+  if (!$old_value && $form_values['nodeprofile']) {
+    // activated
+    if (module_exists('usernode')) {
+      nodefamily_ct_relation_add(USERNODE_CONTENT_TYPE, $type);
+      nodefamily_content_type_set_max($type, 1);
+    }
+  }
+  else if ($old_value && !$form_values['nodeprofile']) {
+    // deactivated
+    if (module_exists('usernode')) {
+      nodefamily_ct_relation_remove(USERNODE_CONTENT_TYPE, $type);
+    }
+  }
+}
+
+/**
+ * Implementation of hook_user():
+ * Delete the profile node when the user is deleted.
+ */
+function nodeprofile_user($op, &$edit, &$account, $category = NULL) {
+  global $user;
+
+  switch ($op) {
+    case 'categories':
+      $data = array();
+      if ($settings = nodeprofile_get_settings('user_edit')) {
+        foreach ($settings as $type => $value) {
+          if (!empty($value) && node_access('create', $type)) {
+            $data[] = array(
+               'name' => $type,
+               'title' => check_plain(node_get_types('name', $type)),
+               'weight' => nodeprofile_get_settings('weight', $type),
+            );
+          }
+        }
+      }
+      return $data;
+
+    case 'form':
+      if (nodeprofile_get_settings('user_edit', $category) && node_access('create', $category)) {
+        $type = $category;
+        $node = nodeprofile_load($type, $account->uid);
+        if (empty($node)) {
+          $node = (object)array('uid' => $account->uid, 'name' => $account->name, 'type' => $type);
+        }
+        else if (!node_access('update', $node)) {
+          break;
+        }
+        $fields[$category] = array(
+          '#type' => 'subform',
+          '#id' => $node->type. '_node_form',
+          '#arguments' => array($node),
+          '#data_separation' => ($category == 'account'),
+          '#subform_after_build' => array('nodeprofile_integration_adapt_node_form'),
+        );
+        return $fields;
+      }
+      break;
+
+    case 'update':
+      if (nodeprofile_get_settings('user_edit', $category) && node_access('create', $category)) {
+        subform_element_submit();
+        unset($edit[$category. '_node_form']);
+      }
+      break;
+
+    case 'view':
+      $fields = array();
+      foreach (nodeprofile_get_types('names') as $type => $type_name) {
+        if ($style = nodeprofile_get_settings('user_display', $type)) {
+          $output = array(
+            '#type' => 'nodeprofile_display_'. $style,
+            '#tabs' => nodeprofile_get_settings('edit_link', $type) ? array('view', 'edit') : ($style == 'teaser' ? array('view') : array()),
+            '#uid' => $account->uid,
+            '#content_type' => $type,
+          );
+          $title = $style != 'link' ? check_plain($type_name) : '';
+          if ($content = drupal_render($output)) {
+            $fields[$title][$type] = array(
+              'title' => NULL,
+              'value' => $content,
+              'class' => 'nodeprofile-display',
+              'weight' => nodeprofile_get_settings('weight', $type),
+            );
+            $fields[$title]['weight'] = nodeprofile_get_settings('weight', $type);
+          }
+          else if ($account->uid == $user->uid && nodeprofile_get_settings('add_link', $type) && user_access('create '. $type .' content')) {
+            $fields[$type_name]['profile']['value'] = theme('nodeprofile_display_add_link', $type, $type_name);
+            $fields[$type_name]['weight'] = nodeprofile_get_settings('weight', $type);
+          }
+        }
+      }
+      if (isset($fields['']) && count($fields['']) > 1) {
+        uasort($fields[''], '_user_sort'); //sorts the links if there are multiple links
+      }
+      uasort($fields, '_user_sort');
+      //remove the weights we used for sorting, because user module can't display them..
+      foreach ($fields as $key => $category) {
+        $fields[$key] = array_filter($category, 'is_array');
+      }
+      return $fields;
+
+    case 'delete':
+      // retrieve profile node types to be deleted
+      $typenames = array();
+      foreach (node_get_types('names') as $typename => $visiblename) {
+        if (is_nodeprofile($typename)) {
+          $typenames[] = $typename;
+          $typenames = array_merge($typenames, nodefamily_get_descendant_types($typename));
+        }
+      }
+
+      // Retrieve the matching profile nodes for this user by issueing an SQL
+      // query. node_load() doesn't work, because its own query still requires
+      // the user to be in the {user} table, which is not the case anymore.
+      // That node_load() doesn't work also means that node_delete() doesn't
+      // work, which is why we have to use _nodeprofile_node_delete() instead.
+      $cond = array();
+      $arguments = array();
+
+      foreach ($typenames as $typename) {
+        $cond[] = "type = '%s'";
+        $arguments[] = $typename;
+      }
+      $cond = implode(' OR ', $cond);
+      $arguments[] = $account->uid;
+
+      if ($cond) {
+        $result = db_query("SELECT * FROM {node} WHERE (". $cond .") AND uid = %d", $arguments);
+        while ($node = db_fetch_object($result)) {
+          _nodeprofile_node_delete($node);
+        }
+      }
+      break;
+
+    case 'register':
+      //without data separation adding new users as admin won't worky any more (see #207802),
+      //so we turn the nodeprofile integration of there
+      if (arg(0) != 'admin' || arg(2) != 'user') {
+        return nodeprofile_get_register_form();
+      }
+      break;
+
+    case 'insert':
+      global $new_account;
+
+      if ($types = nodeprofile_get_settings('register')) {
+        $new_account = $account; //this will be used on nodeapi op submit to set the correct author uid
+        subform_element_submit();
+      }
+      break;
+  }
+}
+
+/**
+ * The original node_delete() function uses node_load() to get the $node object.
+ * Unfortunately, when a hook_user('delete') is called, node_load() doesn't
+ * work anymore because the user has already been deleted, and node_load()
+ * still expects the user to exist in the {user} table.
+ *
+ * So this is a modified copy of node_delete() that deletes a node without
+ * calling node_load(), taking the full $node object (as retrieved by a simple
+ * "SELECT * FROM {node}" query) instead of just the $nid.
+ */
+function _nodeprofile_node_delete($node) {
+
+  // Copied over from node_load(), so that node_invoke('delete') gets
+  // the fully extended node object, like modules would expect:
+
+  if ($node->nid) {
+    // Call the node specific callback (if any) and piggy-back the
+    // results to the node or overwrite some values.
+    if ($extra = node_invoke($node, 'load')) {
+      foreach ($extra as $key => $value) {
+        $node->$key = $value;
+      }
+    }
+
+    if ($extra = node_invoke_nodeapi($node, 'load')) {
+      foreach ($extra as $key => $value) {
+        $node->$key = $value;
+      }
+    }
+  }
+
+  // Copied over from node_delete():
+
+  db_query('DELETE FROM {node} WHERE nid = %d', $node->nid);
+  db_query('DELETE FROM {node_revisions} WHERE nid = %d', $node->nid);
+
+  // Call the node-specific callback (if any):
+  node_invoke($node, 'delete');
+  node_invoke_nodeapi($node, 'delete');
+
+  // Clear the cache so an anonymous poster can see the node being deleted.
+  cache_clear_all();
+
+  // Remove this node from the search index if needed.
+  if (function_exists('search_wipe')) {
+    search_wipe($node->nid, 'node');
+  }
+  drupal_set_message(t('%title has been deleted.', array('%title' => $node->title)));
+  watchdog('content', t('@type: deleted %title.', array('@type' => node_get_types('name', $node->type), '%title' => $node->title)));
+}
+
+/*
+ * Returns a form, that will be added to the registration form
+ */
+function nodeprofile_get_register_form() {
+  $form = array();
+  foreach (nodeprofile_get_types('names') as $type => $type_name) {
+    if (nodeprofile_get_settings('register', $type)) {
+      // If a role has been selected for registration.
+      if (module_exists('rolesignup') && isset($_SESSION['role'])) {
+        // Find roles relevant to Role Signup that have settings for the current type.
+        if ($register_roles = nodeprofile_get_settings('register_roles', $type)) {
+          $user_roles = user_roles(TRUE, 'register for role');
+          if (!isset($user_roles[$_SESSION['role']]) || !isset($register_roles[$_SESSION['role']])) {
+            continue; // Do not show the current type.
+          }
+        }
+      }
+      $form[$type] = array(
+        '#type' => 'fieldset',
+        '#title' => check_plain($type_name),
+        '#collapsible' => TRUE,
+        '#weight' => nodeprofile_get_settings('weight', $type),
+      );
+      $node = (object)array('uid' => 0, 'name' => '', 'type' => $type);
+      $form[$type]['form'] = array(
+        '#type' => 'subform',
+        '#id' => $type. '_node_form',
+        //data separation should be set to FALSE, so that imagefield works (see #201804)
+        '#data_separation' => FALSE,
+        '#arguments' => array($node),
+        '#subform_after_build' => array('nodeprofile_integration_adapt_node_form'),
+      );
+    }
+  }
+  if (!empty($form)) {
+    $form['#attributes']['enctype'] = 'multipart/form-data';
+    return $form;
+  }
+}
+
+/*
+ * Implementation of hook_nodeapi
+ */
+function nodeprofile_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  global $new_account, $last_nid;
+  
+  //Set the correct author for new nodes created during registration
+  if ($op == 'submit' && is_nodeprofile($node->type) && isset($new_account)) {
+    $node->uid = $new_account->uid;
+    $node->name = $new_account->name;
+  }
+  
+  //index themed node
+  if ($op == 'alter' && is_nodeprofile($node->type) && isset($last_nid)) {
+    $node->body = theme('node', $node, FALSE, TRUE);
+  }
+}
+
+/*
+ * Returns the nodeprofiles' settings
+ * @param $return One of the nodeprofile_available_settings(), e.g. user_edit, register or weight
+ * @param $type If not all, return the setting for the specified type
+ */
+function nodeprofile_get_settings($return = 'all', $type = NULL) {
+  if ($return == 'all') {
+    return nodeprofile_get_all_settings();
+  }
+  if (isset($type)) {
+    $settings = nodeprofile_get_settings($return);
+    return $settings[$type];
+  }
+  if (!isset($type)) {
+    $settings = nodeprofile_get_settings();
+    return $settings[$return];
+  }
+  return array();
+}
+
+/*
+ * Returns all settings with the applied defaults
+ */
+function nodeprofile_get_all_settings() {
+  $settings = variable_get('nodeprofile_settings', array());
+  foreach (nodeprofile_available_settings() as $setting) {
+    $settings += array($setting => array());
+    foreach (nodeprofile_get_types('names') as $type => $type_name) {
+      if (!isset($settings[$setting][$type]) && $value = nodeprofile_get_setting_defaults($setting, $type)) {
+        $settings[$setting][$type] = $value;
+      }
+    }
+  }
+  return $settings;
+}
+
+/*
+ * Defines default values for the settings
+ */
+function nodeprofile_get_setting_defaults($setting, $type) {
+  switch ($setting) {
+    default:
+      return array();
+    case 'user_display':
+      return 'teaser';
+    case 'user_edit':
+    case 'register':
+    case 'weight':
+      return 0;
+    case 'add_link':
+    case 'edit_link':
+      return 1;
+  }
+}
+
+
+/*
+ * Saves the nodeprofile settings - needs the complete settings array
+ */
+function nodeprofile_set_settings($settings) {
+  //cleanup the settings before saving
+  foreach (nodeprofile_available_settings() as $setting) {
+    if (isset($settings[$setting])) {
+      foreach ($settings[$setting] as $type => $value) {
+        $default_value = nodeprofile_get_setting_defaults($setting, $type);
+        if ($value == $default_value && isset($settings[$setting][$type])) {
+          unset($settings[$setting][$type]);
+        }
+      }
+    }
+  }
+  variable_set('nodeprofile_settings', $settings);
+}
+
+/*
+ * returns an array containing all available nodeprofile settings
+ */
+function nodeprofile_available_settings() {
+  return array('weight', 'user_edit', 'register', 'register_roles', 'user_display', 'edit_link', 'add_link');
+}
+
+/*
+ * Deactivates some unwanted fields for integrated node forms
+ * This is invoked through #after_build on the subform elment
+ */
+function nodeprofile_integration_adapt_node_form($form_element, &$form_values) {
+  foreach (array('preview', 'submit', 'delete', 'author') as $name) {
+    $form_element[$name]['#access'] = FALSE;
+  }
+  return $form_element;
+}
+
+/*
+ * Loads the node, like node_load but caches the results
+ */
+function nodeprofile_load($type, $uid) {
+  static $cache = array();
+
+  if (!isset($cache[$type][$uid])) {
+    $cache[$type][$uid] = node_load(array('type' => $type, 'uid' => $uid));
+  }
+  return $cache[$type][$uid];
+}
+
+/*
+ * Theme function for the nodeprofile display as teaser
+ */
+function theme_nodeprofile_display_teaser(&$element) {
+  if ($node = nodeprofile_load($element['#content_type'], $element['#uid'])) {
+    if (node_access('view', $node)) {
+      $element['#node'] = $node; 
+      return theme('nodeprofile_display_box', $element, node_view($node, TRUE, TRUE, FALSE));
+    }
+  }
+}
+
+/*
+ * Theme function for the nodeprofile display as full node
+ */
+function theme_nodeprofile_display_full(&$element) {
+  if ($node = nodeprofile_load($element['#content_type'], $element['#uid'])) {
+    if (node_access('view', $node)) {
+      $element['#node'] = $node;
+      return theme('nodeprofile_display_box', $element, node_view($node, FALSE, TRUE, FALSE));
+    }
+  }
+}
+
+/*
+ * Theme function for the nodeprofile display as link
+ */
+function theme_nodeprofile_display_link(&$element) {
+  if ($node = nodeprofile_load($element['#content_type'], $element['#uid'])) {
+    if (node_access('view', $node)) {
+      $output = l(node_get_types('name', $node->type), 'node/'. $node->nid);
+      if (in_array('edit', $element['#tabs']) && node_access('update', $node)) {
+        $output .= ' '. l('['. t('edit') .']', nodeprofile_get_edit_path($node), array(), drupal_get_destination());
+      }
+      return $output;
+    }
+  }
+}
+
+/*
+ * Displays the given content in a nodeprofile box, which may have some tabs, that allow
+ * users to perform some actions on the node
+ */
+function theme_nodeprofile_display_box($element, $content) {
+  $path = drupal_get_path('module', 'nodeprofile') .'/nodeprofile.css';
+  drupal_add_css($path, 'module', 'all', FALSE);
+
+  $head = isset($element['#title']) ? '<h2 class="nodeprofile-title">'. check_plain($element['#title']) .'</h2>' : '';
+  $output = '';
+  if (isset($element['#tabs']) && count($element['#tabs']) > 0) {
+    $output .= "<ul class=\"tabs nodeprofile\">\n";
+    foreach ($element['#tabs'] as $tab_name) {
+      if ($tab = theme('nodeprofile_display_tab_'. $tab_name, $element['#node'])) {
+        $output .= '<li>'. $tab .'</li>';
+      }
+    }
+    $output .= "</ul>\n";
+  }
+  return $head .'<div class="nodeprofile-display">'. $output . $content. '</div>';
+}
+
+/**
+ * Themes the add link.
+ */
+function theme_nodeprofile_display_add_link($type, $type_name) {
+  return l(t("Create your @profile_node.", array('@profile_node' => $type_name)), nodeprofile_get_add_path($type), array(), drupal_get_destination());
+}
+
+/*
+ * Themes the view tab
+ */
+function theme_nodeprofile_display_tab_view($node) {
+  return l(t('View'), 'node/'. $node->nid);
+}
+
+/*
+ * Themes the edit tab
+ */
+function theme_nodeprofile_display_tab_edit($node) {
+  if (node_access('update', $node)) {
+    return l(t('Edit'), nodeprofile_get_edit_path($node), array(), drupal_get_destination());
+  }
+}
+
+/*
+ * Gets the edit path for a nodeprofile
+ */
+function nodeprofile_get_edit_path($node) {
+  if (nodeprofile_get_settings('user_edit', $node->type)) {
+    return 'user/'. $node->uid .'/edit/'. $node->type;
+  }
+  return 'node/'. $node->nid .'/edit';
+}
+
+/*
+ * Gets the add path for a nodeprofile of the active user
+ */
+function nodeprofile_get_add_path($type) {
+  global $user;
+  if (nodeprofile_get_settings('user_edit', $type)) {
+    return 'user/'. $user->uid .'/edit/'. $type;
+  }
+  return 'node/add/'. $type;
+}
+
+/*
+ * Returns an array suitable for use with drupal_render,
+ * that shows all nodperofiles as configured by the admin
+ */
+function nodeprofile_show_profiles($uid) {
+  $fields = array();
+  foreach (nodeprofile_get_types('names') as $type => $type_name) {
+    if ($style = nodeprofile_get_settings('user_display', $type)) {
+      $fields[$type] = array(
+        '#type' => 'nodeprofile_display_'. $style,
+        '#tabs' => nodeprofile_get_settings('edit_link', $type) ? array('view', 'edit') : ($style == 'teaser' ? array('view') : array()),
+        '#title' => $type_name,      
+        '#uid' => $uid,
+        '#content_type' => $type,
+        '#weight' => nodeprofile_get_settings('weight', $type),
+        '#suffix' => '<br />',
+      );
+    }
+  }
+  return $fields;
+}

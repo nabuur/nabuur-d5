@@ -1,0 +1,9 @@
+name = BBCode
+description = Allow the use of BBCode in your posts.
+; core = 6.x
+
+; Information added by drupal.org packaging script on 2008-01-14
+version = "5.x-2.1"
+project = "bbcode"
+datestamp = "1200288002"
+

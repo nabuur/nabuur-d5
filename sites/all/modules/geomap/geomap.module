@@ -1,0 +1,112 @@
+<?php
+
+/**
+ * @file
+ * Render a google map based on locations defined in page by geo microformats.  
+ * 
+ * GEOMAP creates a simple google map block that will display a map using geo microformat information
+ * embedded in the current page. If no geo information exists, no map will be displayed. 
+ * 
+ * This module has been designed to work with the Geonames_cck module, which renders locations in GEO microformat.  
+ * 
+ * More information on GEO Microformats: http://microformats.org/wiki/geo
+ * 
+ * Our implementation of the geo microformat may need a little tweaking. The Operator module in Firefox
+ * complains about our default geo tags because we dont actually display the lat and long. Since this 
+ * module was developed, the geo microformat has evolved a bit, and there are now more human friendly vesions
+ * of the format. 
+ * 
+ * TODO: Update geo microformat rendering 
+ * 
+ * 
+ */
+
+
+/**
+ * Create a map div. 
+ * 
+ * The Javascript will use this div to render tha map. 
+ * This will be empty if no geo microformats exist on the current page.
+ * 
+ * @param $delta If more than one map needs to be displayed add an identifier
+ * @ingroup themeable
+ * @return Map div
+ */
+function theme_geomap($delta='') {
+  if ($google_key = variable_get('googlemaps_key', '')) {
+    drupal_set_html_head('<script type="text/javascript" src="http://maps.google.com/maps?file=api&amp;v=2&amp;key='. $google_key .'" ></script>');
+    drupal_add_js(drupal_get_path('module', 'geomap') .'/jquery.googlemaps.js', 'module'); 
+    drupal_add_css(drupal_get_path('module', 'geomap') .'/geomap.css', 'module');
+    //TODO: Allow a different ID one day (use delta)
+    $mapid = 'map';
+    $output .= '<div id="'. $mapid .'" class="googlemap googlemap-'. $delta .'"></div>';
+    $GLOBALS['geomap'] = true;     
+  } 
+  else {
+    if (user_access('administer site configuration')) $output = l(t('No geomap googleapi key'), 'admin/settings/geomap'); 
+  }  
+  return $output;
+}
+
+/**
+ * Determine whether or not the geomap has been rendered on this page. 
+ *
+ * @return boolean True if map has been rendered. 
+ */
+function geomap_rendered(){
+  return $GLOBALS['geomap'];
+}
+
+/**
+ * implementation of hook_menu()
+ *
+ */
+function geomap_menu($may_cache) {
+  if ($may_cache) {
+    $items[]=array(
+      'path' => 'admin/settings/geomap',
+      'title' => t('Geomap settings'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'geomap_admin_form',
+      'access' => user_access('administer site configuration'),
+      'type' => MENU_NORMAL_ITEM, // optional
+    );
+  }
+  return $items;
+}
+
+/**
+ * Admin form
+ * 
+ * @ingroup forms
+ */
+function geomap_admin_form() {
+  $form['googlemaps_key'] = array(
+    '#type' => 'textfield',        
+    '#default_value' => variable_get('googlemaps_key', ''),
+    '#title' => t('Google key'),    
+  );
+  return system_settings_form($form);
+}
+
+/**
+ * implementaion of hook_block()
+ *
+ */
+function geomap_block($op = 'list', $delta = 0, $edit = array()) {
+  switch ($op) {
+    case "list":
+      $blocks['map']=array('info' => t('Geo Microformat Googlemap'));
+      return $blocks;
+    case "configure":
+      break;
+    case "save":
+      break;
+    case "view":
+      $block = array('subject' => t('geo map'), 'content' => theme('geomap', $delta)); 
+      return $block;          
+  } 
+} 
+
+
+// Thats it!. The rest of the magic is in the Javascript 

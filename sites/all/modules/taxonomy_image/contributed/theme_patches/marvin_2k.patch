@@ -1,0 +1,46 @@
+# $Id: marvin_2k.patch,v 1.2.8.1 2008/02/07 22:19:44 nancyw Exp $
+#
+# Sample patch for 4.4.x version of marvin_2k.theme.
+# Adds configuration option (only visible when taxonomy_image is installed)
+# and displays images wrapped in <div class="taxonomy-images"></div>
+#
+# Apply patch from top level Drupal directory as follows
+#  patch -p0 < marvin_2k.theme.patch
+#
+--- themes/marvin_2k/marvin_2k.theme.orig	2004-05-30 22:06:28.903828784 -0400
++++ themes/marvin_2k/marvin_2k.theme	2004-05-30 22:37:18.160933996 -0400
+@@ -18,6 +18,9 @@ function marvin_2k_settings() {
+   $output .= form_radios(t("Display mission statement on front page"), "marvin_2k_display_mission", variable_get("marvin_2k_display_mission", "yes"), array("yes" => t("Yes."), "no" => t("No."), "custom" => t("Custom. Display the message defined below instead.")));
+   $output .= form_textarea(t("Alternative front page message"), "marvin_2k_message", variable_get("marvin_2k_message", "edit custom message"), 70, 6, t("if you have selected the custom option above, then this text will be displayed on the front page. It can be used to display a mission statement, announcement or site description."));
+   $output .= form_radios(t("Search box"), "marvin_2k_search_box", variable_get("marvin_2k_search_box", 1), array(t("Disabled"), t("Enabled")));
++  if (module_exist("taxonomy_image")) {
++    $output .= form_radios(t("Taxonomy images"), "marvin_2k_taxonomy_images", variable_get("marvin_2k_taxonomy_images", 0), array(t("Disabled"), t("Enabled")));
++  }
+   return $output;
+ }
+ 
+@@ -137,9 +140,15 @@ function marvin_2k_node($node, $main = 0
+   
+   if (module_exist("taxonomy") && ($taxonomy = taxonomy_link("taxonomy terms", $node))) {
+     $terms = "<span class=\"taxonomy\"> :: ". theme("links", $taxonomy) ."</span>\n";
++    if (module_exist("taxonomy_image") && variable_get('marvin_2k_taxonomy_images', 0)) {
++      foreach (taxonomy_node_get_terms($node->nid) as $term) {
++        $images[] = taxonomy_image_display($term->tid, "alt='$term->name'");
++      }
++    }
+   } 
+ 
+   $links = link_node($node, $main);
++
+   
+   $template->set_vars( array(
+       "title"          => $node->title,
+@@ -148,7 +157,7 @@ function marvin_2k_node($node, $main = 0
+       "name"           => format_name($node),
+       "date"           => format_date($node->created),
+       "sticky"         => $node->sticky,
+-      "content"        => ($main && $node->teaser) ? $node->teaser : $node->body,
++      "content"        => ($images ? "<div class=\"taxonomy-image\">". implode(' ', $images) ."</div>" : '') . (($main && $node->teaser) ? $node->teaser : $node->body),
+       "links"          => ($links != "") ? theme("links", $links) : "",
+       "layout"         => $layout,
+       "mission"        => $mission,

@@ -1,0 +1,11 @@
+; $Id: tagadelic_views.info,v 1.1.2.2 2007/06/18 23:07:07 dww Exp $
+name = Tagadelic Views
+description = Adds a Tagadelic View to the Views module
+dependencies = views tagadelic
+package = "Views"
+
+; Information added by drupal.org packaging script on 2008-02-19
+version = "5.x-1.0"
+project = "tagadelic_views"
+datestamp = "1203429013"
+

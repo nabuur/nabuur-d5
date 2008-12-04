@@ -1,0 +1,12 @@
+; $Id: og_notify.info,v 1.1 2007/12/04 23:19:56 amanuel Exp $
+name = "OG Notify"
+description = "Allows group administrators to receive notification when new subscribers join."
+dependencies = og
+package = "Organic groups"
+version = "5.x-0.1"
+project = "og_notify"
+; Information added by drupal.org packaging script on 2008-04-05
+version = "5.x-1.x-dev"
+project = "og_notify"
+datestamp = "1207354143"
+

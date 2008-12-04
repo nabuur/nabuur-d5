@@ -1,0 +1,11 @@
+; $Id: faceted_search.info,v 1.3 2007/06/18 22:53:42 dww Exp $
+name = Faceted Search
+description = "API for performing faceted searches."
+dependencies = search
+package = Faceted Search
+
+; Information added by drupal.org packaging script on 2008-06-23
+version = "5.x-1.0-beta4"
+project = "faceted_search"
+datestamp = "1214182208"
+

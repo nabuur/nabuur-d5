@@ -1,0 +1,11 @@
+; $id$
+name = children
+description = Place Hierarchy - Find the children for a given location by latitude and longitude. The children are the administrative divisions within an other administrative division.
+package = Geonames
+dependencies = geonames
+version = "$Name: DRUPAL-5 $"
+; Information added by drupal.org packaging script on 2007-10-10
+version = "5.x-1.x-dev"
+project = "geonames"
+datestamp = "1192017839"
+

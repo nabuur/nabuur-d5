@@ -1,0 +1,166 @@
+<?php
+// $Id: taxonomy_image.install,v 1.1.4.10 2008/06/02 20:11:27 nancyw Exp $
+
+/**
+ * @file
+ *  taxonomy_image.install
+ *  Simple module for providing an association between taxonomy terms and images.
+ *  Written by Jeremy Andrews <jeremy@kerneltrap.org>, May 2004.
+ */
+
+/**
+ * Implementation of hook_requirements().
+ */
+function taxonomy_image_requirements($phase) {
+  $requirements = array();
+  // Ensure translations don't break at install time
+  $t = get_t();
+  
+  // Check for GD support.
+  $requirements['gd'] = array('title' => $t('GD Library'));
+  if (extension_loaded('gd')) {
+    $gd = gd_info();
+    $requirements['gd']['value'] = $gd['GD Version'];
+    unset($gd['GD Version']);
+    if ($gd['FreeType Support']) {
+      $gd['FreeType Support'.' '. $gd['FreeType Linkage']] = 1;
+      unset($gd['FreeType Support'], $gd['FreeType Linkage']);
+    }
+    $requirements['gd']['description'] = '<small>'. implode(', ', array_keys(array_filter($gd))) .'</small>';
+    $requirements['gd']['severity'] = REQUIREMENT_OK;
+  }
+  else {
+    $requirements['gd']['value'] = $t('Disabled');
+    $requirements['gd']['description'] = $t('The Taxonomy Image module requires that you configure PHP with GD support.');
+    $requirements['gd']['severity'] = REQUIREMENT_ERROR;
+  }
+
+  return $requirements;
+}
+
+/**
+ * Implementation of hook_schema().
+ */
+function taxonomy_image_schema() {
+  $schema['term_image'] = array(
+    'module' => 'Taxonomy Image',
+    'description' => t('Mapping of term to image.'),
+    'fields' => array(
+      'tid' => array(
+        'description' => t('Term identifier.'),
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'disp-width' => '10',
+        ),
+      'path' => array(
+        'description' => t('File system path to the image.'),
+        'type' => 'varchar',
+        'length' => '255',
+        'not null' => TRUE),
+      ),
+    'primary key' => array('tid'),
+    );
+
+  $schema['cache_tax_image'] = array(
+    'module' => 'Taxonomy Image',
+    'fields' => array(
+      'cid' => array('type' => 'varchar', 'length' => '255', 'not null' => TRUE, 'default' => ''),
+      'data' => array('type' => 'blob', 'size' => 'big', 'not null' => FALSE),
+      'expire' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+      'created' => array('type' => 'int', 'not null' => TRUE, 'default' => 0, 'disp-width' => '11'),
+      'headers' => array('type' => 'text', 'not null' => FALSE)),
+    'primary key' => array('cid'),
+    'indexes' => array(
+      'expire' => array('expire')),
+    );
+  
+  return $schema;
+}
+
+/**
+ * Implementation of hook_install().
+ */
+function taxonomy_image_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {term_image} (
+        tid int(10) unsigned NOT NULL,
+        path varchar(255) NOT NULL,
+        PRIMARY KEY (tid)
+        ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+      db_query("CREATE TABLE {cache_tax_image} (
+        cid varchar(255) NOT NULL default '',
+        data longblob,
+        expire int NOT NULL default '0',
+        created int NOT NULL default '0',
+        headers text,
+        PRIMARY KEY (cid),
+        INDEX expire (expire)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+      break;
+    case 'pgsql':
+      db_query("CREATE TABLE {term_image} (
+        tid integer CHECK (VALUE >= 0) NOT NULL default '0',
+        path varchar(255) NOT NULL,
+	      PRIMARY KEY (tid)
+        )");
+
+      db_query("CREATE TABLE {cache_tax_image} (
+        cid varchar(255) NOT NULL default '',
+        data bytea,
+        expire int NOT NULL default '0',
+        created int NOT NULL default '0',
+        headers text,
+        PRIMARY KEY (cid)
+      )");
+      break;
+  }
+  drupal_set_message(t('The Taxonomy Image module was installed. You may want to go to the <a href="!settings">settings page now</a>.', array('!settings' => url('admin/settings/taxonomy_image'))));
+}
+
+/**
+ * Implementation of hook_update_N().
+ */
+function taxonomy_image_update_5100() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+    $ret[] = update_sql("CREATE TABLE {cache_tax_image} (
+        cid varchar(255) NOT NULL default '',
+        data longblob,
+        expire int NOT NULL default '0',
+        created int NOT NULL default '0',
+        headers text,
+        PRIMARY KEY (cid),
+        INDEX expire (expire)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */");
+      break;
+    case 'pgsql':
+      $ret[] = update_sql("CREATE TABLE {cache_tax_image} (
+        cid varchar(255) NOT NULL default '',
+        data bytea,
+        expire int NOT NULL default '0',
+        created int NOT NULL default '0',
+        headers text,
+        PRIMARY KEY (cid))");
+      break;
+  }
+  return $ret;
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function taxonomy_image_uninstall() {
+  db_query('DROP TABLE {term_image}');
+  db_query('DROP TABLE {cache_tax_image}');
+  variable_del('taxonomy_image_height');
+  variable_del('taxonomy_image_path');
+  variable_del('taxonomy_image_recursive');
+  variable_del('taxonomy_image_resize');
+  variable_del('taxonomy_image_width');
+  variable_del('taxonomy_image_imagecache_preset');
+  variable_del('taxonomy_image_link_types');
+}

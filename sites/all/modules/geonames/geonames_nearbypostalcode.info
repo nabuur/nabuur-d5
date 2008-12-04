@@ -1,0 +1,11 @@
+; $id$
+name = nearbypostalcodes
+description = Geonames nearbypostalcodes API - findNearbyPostalcodes - finds psotalcodes based on latitude/longitude or postalcode/country in a given radius
+dependencies = geonames
+package = Geonames
+version = "$Name: DRUPAL-5 $"
+; Information added by drupal.org packaging script on 2007-10-10
+version = "5.x-1.x-dev"
+project = "geonames"
+datestamp = "1192017839"
+

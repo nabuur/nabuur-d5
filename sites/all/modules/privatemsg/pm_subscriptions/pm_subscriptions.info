@@ -1,0 +1,11 @@
+; $Id: pm_subscriptions.info,v 1.1.1.1 2008/05/23 12:23:44 kester Exp $
+name = Private messages subscriptions
+description = Allow users to subscribe to private messages.
+dependencies = subscriptions mail_edit privatemsg
+package = Mail
+
+; Information added by drupal.org packaging script on 2008-05-09
+version = "5.x-2.x-dev"
+project = "privatemsg"
+datestamp = "1210291880"
+

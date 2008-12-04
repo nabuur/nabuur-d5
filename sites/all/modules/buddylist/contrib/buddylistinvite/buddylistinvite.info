@@ -1,0 +1,11 @@
+; $Id: buddylistinvite.info,v 1.1.2.3 2007/06/24 17:25:30 robertDouglass Exp $
+name = Buddylist Invite
+description = Integrates the buddylist and invite modules.
+package = Social networking
+dependencies = buddylist invite
+
+; Information added by drupal.org packaging script on 2007-11-19
+version = "5.x-1.1-beta"
+project = "buddylist"
+datestamp = "1195498807"
+

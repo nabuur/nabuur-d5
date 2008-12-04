@@ -1,0 +1,36 @@
+<?php
+// $Id: geonames_postalcodecountryinfo.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames postalcodecountryinfo API / by Erlend Eide, erlend(|)edesign.no
+ *
+ * http://www.geonames.org/
+ *
+ */
+ 
+/**
+ * Service configuration
+ */ 
+function geonames_postalcodecountryinfo_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'postalcodecountryinfo',
+    'service_full_name'   => 'Postal Code Country Info',
+    'description'         => 'Find countries for which postal code geocoding is available.',
+	  'service_path'        => 'postalCodeCountryInfo',
+	  'credit_cost'         => 1,
+	  'result_cache_prefix' => 'pccires:',
+	  'data_cache_prefix'   => 'pccidat:',
+    'allowed_parameters'  => array(
+		  'country',
+		),
+	  'columns' => array(
+      'countrycode',
+      'countryname',
+      'numpostalcodes',
+      'minpostalcode',
+      'maxpostalcode',
+		),
+  );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

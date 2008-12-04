@@ -1,0 +1,37 @@
+<?php
+// $Id: geonames_srtm3.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames nearbyplace API / by Erlend Eide, erlend(|)edesign.no
+ */
+
+/**
+ * Service configuration
+ */ 
+function geonames_srtm3_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array( 
+    'service_name'             => 'srtm3',
+    'service_full_name'        => 'Elevation - SRTM3',
+    'description'              => t('Shuttle Radar Topography Mission (SRTM) elevation data. The dataset covers land areas between 60 degrees north and 56 degrees south. This web service is using SRTM3 data with data points located every 3-arc-second (approximately 90 meters) on a latitude/longitude grid. Result: a single number giving the elevation in meters according to srtm3, ocean areas have been masked as "no data" and have been assigned a value of -32768'),
+    'service_path'             => 'srtm3',
+    'credit_cost'              => 1,
+    'result_cache_prefix'      => 'strmres:',
+    'data_cache_prefix'        => 'strmdat:',
+    'allowed_parameters'       => array(
+       //our style  geonames style
+  		 'lat'      => 'lat',
+  	   'lng'      => 'lng',
+			 'type'     => 'type',
+	   ),
+	   'required_parameters'      => array( // If you have set query_defaults you should not include the parameter here
+		    'lat', 
+		    'lng'
+    ),
+    'required_parameters_type' => 'all',
+		'query_defaults' => array(
+		  'type' => 'xml'
+		),
+	 );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

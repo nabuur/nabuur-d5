@@ -1,0 +1,88 @@
+<?php
+// $Id: nodefamily.install,v 1.4.2.5 2007/04/28 17:44:30 fago Exp $
+
+function nodefamily_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysqli':
+    case 'mysql':
+      db_query("CREATE TABLE if not exists {nodefamily} (
+        parent_nid int(10) unsigned NOT NULL,
+        child_nid int(10) unsigned NOT NULL,
+        PRIMARY KEY(parent_nid,child_nid)
+      ) TYPE=MyISAM /*!40100 DEFAULT CHARACTER SET utf8 */;");
+      break;
+    case 'pgsql':
+      db_query("CREATE TABLE {nodefamily} (
+        parent_nid integer NOT NULL,
+        child_nid integer NOT NULL,
+        PRIMARY KEY(parent_nid,child_nid)
+      )");
+    default:
+      break;
+  }
+  // Set the module weight to -2, so that the hook_form_alter() implementation
+  // get's called before nodeprofile's implementation
+  db_query("UPDATE {system} SET weight = -2 WHERE name = 'nodefamily'");
+}
+
+function nodefamily_uninstall() {
+  include_once('nodefamily.module');
+
+  // relations
+  variable_del('nodefamily_relations');
+  db_query("DROP TABLE {nodefamily}");
+
+  // maximum population
+  foreach (node_get_types('names') as $typename => $visiblename) {
+    _nodefamily_content_type_del_max($typename);
+  }
+}
+
+
+/**
+ * Rename variables: nodefamily_typename_max -> nodefamily_max_typename.
+ */
+function nodefamily_update_1() {
+  foreach (node_get_types('names') as $typename => $visiblename) {
+    $type_max_population = variable_get('nodefamily_'. $typename .'_max', -1);
+    if ($type_max_population != -1) {
+      variable_del('nodefamily_'. $typename .'_max');
+      variable_set('nodefamily_max_'. $typename, $type_max_population);
+    }
+  }
+
+  return array(
+    array(
+      'success' => TRUE,
+      'query' => 'Renamed variables: nodefamily_typename_max -> nodefamily_max_typename.',
+    ),
+  );
+}
+
+
+/*
+ * Update existing views fusion to use the new table name
+ */
+function nodefamily_update_2() {
+  $ret = array();
+  if (module_exists('views_fusion')) {  
+    $ret[] = update_sql("UPDATE {views_fusion} SET uses = 'nodefamily_parent' WHERE uses = 'nodefamily'");
+  }
+  return $ret;
+}
+
+/*
+ * Call update 1 again, so that people upgrading from 4.7.x get it too
+ */
+function nodefamily_update_3() {
+  return nodefamily_update_1();
+}
+
+/**
+ * Set module weight to -2, as explained in nodefamily_install().
+ */
+function nodefamily_update_4() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {system} SET weight = -2 WHERE name = 'nodefamily'");
+  return $ret;
+}

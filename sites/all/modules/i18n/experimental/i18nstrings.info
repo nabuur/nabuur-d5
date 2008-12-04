@@ -1,0 +1,10 @@
+name = Strings
+description = Translatable strings.
+dependencies = i18n
+package = Multilanguage - i18n - experimental
+
+; Information added by drupal.org packaging script on 2008-04-23
+version = "5.x-2.3"
+project = "i18n"
+datestamp = "1208979020"
+

@@ -1,0 +1,35 @@
+<?php
+// $Id: og_notify.install,v 1.2 2008/01/22 03:08:54 amanuel Exp $
+
+function og_notify_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+
+      db_query("CREATE TABLE {og_notify} (
+        nid int(10) unsigned NOT NULL DEFAULT '0',
+        notify int(1) unsigned NOT NULL DEFAULT '0',
+        PRIMARY KEY  (nid)
+      ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+
+      break;
+    case 'pgsql':
+
+      db_query("CREATE TABLE {og_notify} (
+        nid int(10) unsigned NOT NULL DEFAULT '0',
+        notify int(1) unsigned NOT NULL DEFAULT '0',
+        PRIMARY KEY  (nid)
+      );");
+
+      break;
+  }
+
+  drupal_set_message(t('OG Notify module enabled. To setup OG Notify please visit the "Group Details" Section of the ' . l('Organic groups configuration', 'admin/og/og') . ' page.'));
+
+}
+
+function og_notify_uninstall() {
+  db_query('DROP TABLE {og_notify}');
+  variable_del('og_notify');
+  drupal_set_message(t('OG Notify module has been uninstalled.'));
+}

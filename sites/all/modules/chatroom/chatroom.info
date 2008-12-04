@@ -1,0 +1,9 @@
+; $Id: chatroom.info,v 1.1.2.4 2007/06/28 12:09:20 darrenoh Exp $
+name = Chat Room
+description = Enables the creation of rooms that provide access to chats and chat archives.
+
+; Information added by drupal.org packaging script on 2007-10-12
+version = "5.x-1.9"
+project = "chatroom"
+datestamp = "1192194602"
+

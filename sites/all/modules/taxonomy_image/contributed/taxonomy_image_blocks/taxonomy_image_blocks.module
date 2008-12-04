@@ -1,0 +1,139 @@
+<?php
+// $Id: taxonomy_image_blocks.module,v 1.1.4.7 2008/04/12 16:23:57 nancyw Exp $
+
+/**
+ * Implementation of hook_block().
+ */
+function taxonomy_image_block($op = 'list', $delta = 0, $edit = array()) {
+  global $user;
+  switch ($op) {
+    case 'list':
+      $blocks[0]['info'] = t('Node Images');
+      return $blocks;
+
+    case 'view':
+      switch ($delta) {
+        case 0:
+          // Node Images.
+          if (arg(0) != 'node' || !is_numeric(arg(1))) {
+            return array();
+          }
+          $nid = (int)arg(1);
+          $rows = array();
+          $count = 0;
+          $max = variable_get('taxonomy_image_block_max_images', 3);
+          $suppress = variable_get('taxonomy_image_block_suppress', false);
+          $size = variable_get('taxonomy_image_block_max_size', 32);
+          if ($node = node_load($nid)) {
+            foreach ($node->taxonomy as $term) {
+              $img = taxonomy_image_display($term->tid, array(), 'ORIGINAL', array('resize' => 1, 'width' => $size, 'height' => $size));
+              if ($img || !$suppress) {
+                $term_path = drupal_get_path_alias(taxonomy_term_path($term));
+                $name_link = l($term->name, $term_path);
+                if (user_access('administer taxonomy')) {
+                  $name_link .= '<br/>'. l('edit term', 'admin/content/taxonomy/edit/term/'. $term->tid, array('class' => 'links inline'));
+                }
+                $rows[] = array(
+                  l($img, $term_path, array(), null, null, false, true),
+                  $name_link,
+                  );
+                ++$count;
+              }
+              // Have we hit the limit?
+              if ($count == $max) {
+                break;
+              }
+            }
+          }          
+          if ($rows) {
+            $subs = array(
+              '@title' => check_plain($node->title),
+              '!nid' => $node->nid, 
+              '!vid' => $node->vid, 
+              '!type' => $node->type,
+              );
+            $block = array(
+              'subject' => strtr(variable_get('taxonomy_image_block_title', 'Term Images for "@title"'), $subs),
+              'content' => theme('table', array() , $rows, array('id' => 'taxonomy_image_terms')),
+              );
+          }
+          break;
+
+      } // end switch($delta).
+      return $block;
+
+    case 'configure':
+      switch ($delta) {
+        case 0:
+          $form['ti'] = array(
+            '#type' => 'fieldset',
+            '#title' => t('Taxonomy Image '),
+            '#collapsible' => true,
+            );
+          $form['ti']['taxonomy_image_block_max_images'] = array(
+            '#type' => 'textfield',
+            '#size' => 6,
+            '#title' => t('Number of images to show'),
+            '#description' => t('This controls the number of images that appear in the "Node Images" block.'),
+            '#default_value' => variable_get('taxonomy_image_block_max_images', 3),
+            );
+ 
+          $form['ti']['taxonomy_image_block_suppress'] = array(
+            '#type' => 'checkbox',
+            '#title' => t('Suppress term if no image'),
+            '#description' => t('Do not show the term if it has no image.'),
+            '#default_value' => variable_get('taxonomy_image_block_suppress', false),
+            );
+
+          $form['ti']['taxonomy_image_block_max_size'] = array(
+            '#type' => 'radios',
+            '#options' => drupal_map_assoc(array(16, 24, 32, 48, 64, 80, 96)),
+            '#title' => t('Maximum size'),
+            '#description' => t('This limits the size of images that appear in the "Node Images" block. This is the size, in pixels, of the longer side of the image.'),
+            '#default_value' => variable_get('taxonomy_image_block_max_size', 32),
+            '#prefix' => '<div class="taxonomy_image_radios">',
+            '#suffix' => '</div>',
+            );
+
+          break;
+      } // end switch($delta)
+
+      return $form;
+
+    case 'save':
+      switch ($delta) {
+        case 0:
+          // Node Images.
+          variable_set('taxonomy_image_block_max_images', $edit['taxonomy_image_block_max_images']);
+          variable_set('taxonomy_image_block_suppress', $edit['taxonomy_image_block_suppress']);
+          variable_set('taxonomy_image_block_max_size', $edit['taxonomy_image_block_max_size']);
+          variable_set('taxonomy_image_block_title', $edit['title']);
+          // Don't let blocks.module have the real title.
+          db_query("UPDATE {blocks} SET title='' WHERE module='taxonomy_image' AND delta=0");
+          break;
+
+      } // end switch($delta)
+      return;
+  } // end switch($op)
+}
+
+/**
+ * Implementation of hook_form_alter().
+ *  This modifies the title field for the "node images" block.
+ */
+function taxonomy_image_blocks_form_alter($form_id, &$form) {
+  if ($form_id == 'block_admin_configure') {
+    if ($form['module']['#value'] == 'taxonomy_image' && $form['delta']['#value'] == 0) {
+//      $form['block_settings']['title']['#maxlength'] = 255;
+      $form['block_settings']['title']['#description'] = t('Use <em>&lt;none&gt;</em> to display no title.
+        You may use the following placeholders for a dynamic title: 
+        <em>@title</em> (node title), 
+        <em>!nid</em> (node id), 
+        <em>!vid</em> (node version id), 
+        <em>!type</em> (node type)');
+      if (empty($form['block_settings']['title']['#default_value'])) {
+        $form['block_settings']['title']['#default_value'] = variable_get('taxonomy_image_block_title', 'Term Images for "@title"');
+      }
+    }
+  }
+}

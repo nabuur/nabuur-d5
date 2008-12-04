@@ -1,0 +1,121 @@
+<?php
+// $Id: og_notify.module,v 1.3 2008/04/04 17:46:28 amanuel Exp $
+/**
+ * @file
+ * Enables group creators to choose if they want notifications when new registrants join their group.
+  * 
+ * @author Amanuel Tewolde 
+ * @contact at http://ticklespace.com  & http://drupal.org/user/18769
+ * 
+ * Some code borrowed from og_user_roles module http://drupal.org/project/og_user_roles which does many things beyond the notification done here.
+ * 
+ * TODO: would be nice to have customizable email 
+ */
+
+/**
+ * using hook form_alter
+ * 
+ * We do 2 things in here.
+ * 
+ * 1. we insert our settings in to the actual OG admin settings from. (under group details section)
+ * 2. We insert a checkbox in to node edit form for the group page
+ *  
+ */
+function og_notify_form_alter($form_id, &$form) {
+  if (isset($form['#node']) && $form_id == $form['#node']->type .'_node_form') {
+    $node = $form['#node'];
+    if (og_is_group_type($node->type)) {
+      if ($node->nid) {
+        $notify = $node->og_notify;
+      }
+      else {
+        $notify = variable_get('og_notify', 0);
+      }
+      
+      $og_notify_defaultsetting = variable_get('og_notify', 0);
+      $og_notify = 0;
+      if($og_notify_defaultsetting == 1 || $og_notify_defaultsetting == 2) {
+        $og_notify = 1;
+      }
+      if($og_notify_defaultsetting >= 2) {
+        $form['og_notify'] = array('#type' => 'checkbox', 
+          '#title' => t('Get notification for new registrants'), 
+          '#default_value' => $node->nid ? $node->og_notify : $og_notify, 
+          '#weight' => 1,
+          '#description' =>t('Check this to get notification when new registrants join this group.'));
+      }
+      else {
+        $form['og_notify'] = array('#type' => 'hidden', '#value' => $og_notify);
+      }
+    }
+  }
+  elseif($form_id == 'og_admin_settings') {    
+    $options = array(t('Disable notification when new registrants join their group.'),
+        t('Always notify when new registrants join their group.'),
+        t('Group creator chooses if they want notification when new registrants join their group. Defaults to %in.', array('%in' => t('Get Notification'))),
+        t('Group creator chooses if they want notification when new registrants join their group. Defaults to %out.', array('%out' => t('NO Notification'))),
+    );
+    
+    $form['og_settings']['group_details']['og_notify'] = array('#type' => 'radios', 
+      '#title' => t('Group Creator Notifications (og_notify)'), 
+      '#default_value' => variable_get('og_notify', 0), 
+      '#description' =>t('Note that changing this setting has no effect on existing posts. Re-save those posts to acquire this new setting.'),
+      '#options' => $options
+    );
+  }
+}  
+
+/**
+ * Implementation of hook_nodeapi().
+ * 
+ * Manage our little flag's state in our table when a group is added, saved and deleted
+ *
+*/
+function og_notify_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  if (og_is_group_type($node->type)) {
+    switch ($op) {
+      case 'insert':
+          db_query("INSERT INTO {og_notify} (nid, notify) VALUES ('%d', '%d')", $node->og_notify);
+        break;
+      case 'update':
+        db_query("UPDATE {og_notify} SET notify = '%d' WHERE nid = '%d'", $node->og_notify, $node->nid);
+        break;
+      case 'delete':
+        db_query('DELETE FROM {og_notify} WHERE nid = %d', $node->nid);
+        break;
+    }
+  }
+}
+/**
+ * using the og hook to find out when a 'user insert' is in progress
+ *
+ * upon finding out we send out our basic little email to all admins of the group
+ * 
+ * This code comes directly from og_user_roles which does a lot more stuff.
+ * 
+ */
+function og_notify_og($op, $nid, $uid, $args = array()) {
+
+  switch ($op) {
+    case 'user insert':
+      global $base_url;
+      if (variable_get('og_notify', 0)) {
+        $user = user_load(array('uid' => $uid));
+        $node = node_load($nid);
+        $group = check_plain($node->title);
+        $sender = variable_get('site_mail', '');
+        $subject = t('User @user added to group: @group', array('@user' => $user->name, '@group' => $group));
+        $view_user = "user/$user->uid";
+        
+        $message = "User " . l($user->name, $view_user, array(), "gids[]=$nid", NULL, TRUE) . " added to group: " . l($group, "node/$nid", array(), NULL, NULL, TRUE);
+        $result = db_query("SELECT uid FROM {og_uid} WHERE is_admin = 1 AND nid = %d", $nid);
+      
+        while ($obj = db_fetch_object($result)) {
+          $recipient_user = user_load(array('uid' => $obj->uid));
+          $recipient = $recipient_user->mail;
+          drupal_mail('og_notify_new_subscription', $recipient, $subject, $message, $sender);
+        } // end while
+               
+      }
+  }
+}

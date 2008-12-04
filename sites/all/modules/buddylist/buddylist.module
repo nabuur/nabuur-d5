@@ -1,0 +1,1714 @@
+<?php
+// $Id: buddylist.module,v 1.68.2.37 2007/10/15 16:57:06 dldege Exp $
+
+if (module_exists('views')) {
+  include_once(drupal_get_path('module', 'buddylist'). '/buddylist_views.inc');
+}
+
+
+define('BUDDYLIST_ADD_SUBJECT', variable_get('buddylist_add_subject', "[@site] You are @adder_name's newest @buddy"));
+define('BUDDYLIST_REMOVE_SUBJECT', variable_get('buddylist_remove_subject', "[@site] You have been removed from @adder_name's @buddylist"));
+define('BUDDYLIST_REQUEST_SUBJECT', variable_get('buddylist_request_subject', "[@site] @adder_name has requested to add you to his/her @buddylist"));
+define('BUDDYLIST_APPROVAL_SUBJECT', variable_get('buddylist_approval_subject', "[@site] @addee_name has approved your @buddylist add request"));
+
+/**
+ * returns an array of common translation placeholders
+ */
+function buddylist_translation() {
+  $translations = array(
+    '@buddy' => t('buddy'),
+    '@Buddy' => t('Buddy'),
+
+    '@buddylist' => t('buddylist'),
+    '@Buddylist' => t('Buddylist'),
+
+    '@buddies' => t('buddies'),
+    '@Buddies' => t('Buddies'),
+
+    '@buddyof' => t('buddy of'),
+    '@Buddyof' => t('Buddy of'),
+  );
+  return variable_get('buddylist_translation', $translations);
+}
+
+
+/**
+ * Implementation of hook_help
+ */
+function buddylist_help($section) {
+  switch ($section) {
+    case 'admin/help#buddylist':
+      $output = t("
+<p>@Buddy list enables users to keep a list of @buddies from their social network in their user account.
+Users can also track what their @buddies are posting to the site.
+Furthermore, they can track their <i>@buddies'</i> @buddies and thereby explore their social network.</p>
+<p>If the administrator has enabled the profile module, users can add @buddies via their @buddies' user profiles.
+On the \"View\" tab of each user's profile, there is a \"@Buddylist\" section.  Select the 'add @buddy' action to add the user to your @buddylist.
+If a user is already in your @buddylist, the 'delete' action will remove the @buddy. Administrators can also enable the @buddylist block.
+This block allows you to see a list of your @buddies. If the <a href=\"http://drupal.org/project/foaf\">Friends Of A Friend (FOAF)</a> module is enabled, it will be possible to share @buddylists with other FOAF-aware social networking applications.</p>
+<p>You can:</p>
+<ul>
+<li>add a @buddy by looking at their profile: <a href=\"@userprofiles\" title=\"View user profiles\">view user profiles</a></li>
+<li>allow users to view profiles in <a href=\"@setaccesspermissions\" title=\"set access permissions\">administer &raquo; access control</a></li>
+<li>enable the @buddylist block at <a href=\"@blockadministration\" title=\"block administration\">administer &raquo; block</a></li>
+<li>administer the @buddylist block at <a href=\"@buddylistsettings\" title=\"@buddylist settings\">administer &raquo; settings &raquo; @buddylist</a></li>
+</ul>
+
+<p>For more information, read the configuration and customization handbook <a href=\"http://drupal.org/handbook/modules/Buddylist\" title=\"Buddylist page\">Buddylist page</a></p>",
+array('@userprofiles' => url('profile'),
+      '@setaccesspermissions' => url('admin/user/access'),
+      '@blockadministration' => url('admin/build/block'),
+      '@buddylistsettings' => url('admin/settings/buddylist')
+      ) + buddylist_translation());
+      return $output;
+  }
+}
+
+
+/**
+ * Implementation of hook_perm
+ */
+function buddylist_perm() {
+  return array('maintain buddy list', 'view buddy lists');
+}
+
+/**
+ * Implementation of hook_menu
+ */
+function buddylist_menu($may_cache) {
+  global $user;
+
+  $items = array();
+  $id = is_numeric(arg(1)) ? arg(1) : $user->uid;
+
+  if ($may_cache) {
+    // buddylist settings page
+    $items[] = array(
+      'path' => 'admin/settings/buddylist',
+      'title' => t('Buddylist'), // Note that this isn't translated on purpose since it is for the admin
+      'description' => t('Buddylist configuration options for blocks, email, etc.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'buddylist_admin_settings',
+      'access' => user_access('administer site configuration'),
+   );
+    // my buddylist menu item
+    $items[] = array(
+      'path' => 'buddylist',
+      'title' => t('My @buddylist', buddylist_translation()),
+      'access' => (user_access('maintain buddy list') && $id),
+      'callback' => 'buddylist_buddylisting_page',
+      'callback arguments' => array($user->uid, 'buddies'),
+    );
+  }
+  else {
+    // 'edit access' only granted to user's own buddy list or to administrative users
+    $editAccess = (
+      ($id == $user->uid && user_access('maintain buddy list') && $user->uid)
+      || user_access('administer users'));
+
+    $approval_required = variable_get('buddylist_require_approval', 0);
+
+    $items[] = array(
+      'path' => 'buddy/add',
+      'title' => t('Add to @buddylist', buddylist_translation()),
+      'access' => $editAccess,
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('buddylist_addbuddy', arg(2)),
+      'type' => MENU_CALLBACK,
+    );
+    $items[] = array(
+      'path' => 'buddy/delete',
+      'title' => t('Delete from @buddylist', buddylist_translation()),
+      'access' => $editAccess,
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('buddylist_deletebuddy', arg(2)),
+      'type' => MENU_CALLBACK,
+    );
+
+    // 'view only' tabs
+    $viewAccess = (($id == $user->uid && user_access('maintain buddy list')) || user_access('view buddy lists'));
+
+    // If buddylist approval is required, then upon approval, both parties become buddies of each other.
+    // So, in effect, idea 'buddyof' becomes redundant.
+    if (!$approval_required) {
+      $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies',
+        'title' => t('@Buddies', buddylist_translation()),
+        'access' => $viewAccess,
+        'callback' => 'buddylist_buddylisting_page',
+        'type' => MENU_DEFAULT_LOCAL_TASK,
+        'weight' => -1,
+        'callback arguments' => array($id)
+      );
+      $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddyof',
+        'title' => t('@Buddyof', buddylist_translation()),
+        'access' => $viewAccess,
+        'callback' => 'buddylist_buddylisting_page',
+        'type' => MENU_LOCAL_TASK,
+        'weight' => 1,
+        'callback arguments' => array($id, 'buddyof')
+      );
+    }
+
+    // subtabs
+    $items[] = array(
+      'path' => 'buddylist/'. $id .'/buddies/list',
+      'title' => t('@Buddylist', buddylist_translation()),
+      'access' => $viewAccess,
+      'callback' => 'buddylist_buddylisting_page',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => -1,
+      'callback arguments' => array($id),
+    );
+    $items[] = array(
+      'path' => 'buddylist/'. $id .'/buddies/recent',
+      'title' => t('Recent posts'),
+      'access' => ($viewAccess && module_exists('tracker')),
+      'callback' => 'buddylist_buddiesrecent_page',
+      'type' => MENU_LOCAL_TASK,
+      'weight' => 3,
+      'callback arguments' => array($id),
+    );
+    if (variable_get('buddylist_buddygroups', FALSE)) {
+      $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies/groups/view',
+        'title' => t('View groups'),
+        'access' => $viewAccess,
+        'callback' => 'buddylist_buddiesgroups_page',
+        'type' => MENU_LOCAL_TASK,
+        'weight' => 5,
+        'callback arguments' => array($id),
+      );
+      $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies/groups/edit',
+        'title' => t('Edit groups'),
+        'access' => $editAccess,
+        'callback' => 'buddylist_buddiesgroups_edit',
+        'type' => MENU_LOCAL_TASK,
+        'weight' => 6,
+        'callback arguments' => array($id),
+      );
+    }
+
+    // sub-subtabs
+    if ($approval_required && $editAccess) {
+      $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies/requests',
+        'title' => t('Pending requests'),
+        'access' => $editAccess,
+        'callback' => 'theme',
+        'type' => MENU_LOCAL_TASK,
+        'weight' => 0,
+        'callback arguments' => array('buddylist_pending_requests', $id)
+      );
+
+      $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies/requested/accept',
+        'title' => t('Accept Request'),
+        'access' => $editAccess,
+        'type' => MENU_CALLBACK,
+        'callback' => 'drupal_get_form',
+        'callback arguments' => array('buddylist_pending_requested_accept',$id),
+      );
+
+	  $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies/requested/deny',
+        'title' => t('Deny Request'),
+        'access' => $editAccess,
+        'type' => MENU_CALLBACK,
+        'callback' => 'drupal_get_form',
+        'callback arguments' => array('buddylist_pending_requested_deny',$id),
+      );
+
+       $items[] = array(
+        'path' => 'buddylist/'. $id .'/buddies/request/cancel',
+        'title' => t('Cancel Request'),
+        'access' => $editAccess,
+        'type' => MENU_CALLBACK,
+        'callback' => 'drupal_get_form',
+        'callback arguments' => array('buddylist_cancel_request',$id),
+      );
+
+    }
+
+    // other callbacks
+    if ($id != $user->uid) {
+      // This callback can interfere with the 'my buddylist' menu item,
+      // so we only load it if the user is viewing another user's list.
+      $items[] = array(
+        'path' => 'buddylist/'. $id,
+        'title' => t('@Buddylist', buddylist_translation()),
+        'access' => (($viewAccess || $editAccess) && $id),
+        'callback' => 'buddylist_buddylisting_page',
+        'type' => MENU_CALLBACK,
+        'callback arguments' => array($id),
+      );
+    }
+    $items[] = array(
+      'path' => 'buddylist/'. $id .'/buddies/recent/feed',
+      'title' => t('Xml feed'),
+      'access' => $viewAccess,
+      'callback' => 'buddylist_buddyfeed',
+      'type' => MENU_CALLBACK,
+      'callback arguments' => array($id),
+    );
+  }
+
+  return $items;
+}
+
+/**
+ * Buddylist administration settings page
+ */
+function buddylist_admin_settings() {
+  $form['general'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('General settings'),
+  );
+
+  $form['general']['buddylist_require_approval'] = array(
+    '#type' => 'radios',
+    '#title' => t('Require approval'),
+    '#default_value' => variable_get('buddylist_require_approval', 0),
+    '#description' => t("Select 'Yes' if a user's request to be someone's @buddy should be approved by the other user first.  Upon approval, both parties will be @buddies of each other.", buddylist_translation()),
+    '#options' => array(1 => t('Yes'), 0 => t('No'))
+  );
+  $form['general']['buddylist_buddygroups'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Enable @buddy groups', buddylist_translation()),
+    '#description' => t('Enables @buddylist @buddy groups. Users will be able to create @buddy groups to manage their @buddies.', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_buddygroups', FALSE),
+  );
+
+  // User profile page settings
+  $form['profile_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Profile page options'),
+  );
+  $form['profile_settings']['buddylist_prof_buddies'] = array(
+    '#type' => 'select',
+    '#title' => t('Number of @buddies and users who\'ve added me', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_prof_buddies', 5),
+    '#options' => drupal_map_assoc(range(0, 10)),
+    '#description' => t('The default maximum number of @buddies and users who\'ve added me as a @buddy to display on a user\'s profile page.', buddylist_translation()),
+  );
+
+  // TODO: move these to block settings
+  $form['block_settings'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('@Buddylist block options', buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_blocklisting_size'] = array(
+    '#type' => 'select',
+    '#title' => t("Number of @buddies to list in the user's @buddy block", buddylist_translation()),
+    '#default_value' => variable_get('buddylist_blocklisting_size', 5),
+    '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30)),
+    '#description' => t('This setting controls the maximum number of @buddies displayed in a user\'s "@buddylist block" given that the "@buddylist block" is enabled in the !link.', array('!link' => l(t('block settings'), 'admin/build/block')) + buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_posts_block'] = array(
+    '#type' => 'select',
+    '#title' => t("Number of posts to list in the @buddies' recent posts block", buddylist_translation()),
+    '#default_value' => variable_get('buddylist_posts_block', 7),
+    '#options' => drupal_map_assoc(array(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 15, 20, 25, 30)),
+    '#description' => t('This setting controls the maximum number of posts to display in a user\'s "@buddy recent posts" block given that the "@buddies\' recent posts" block is enabled in the !link.', array('!link' => l(t('block settings'), 'admin/build/block')) + buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_block_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('"My @buddies\' recent posts" block title', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_block_title', t("My @buddies' recent posts", buddylist_translation())),
+    '#size' => 70,
+    '#maxlength' => 128,
+    '#description' => t('This will be the title for the recent @buddies post block. If none is specified, "My @buddies\' recent posts" will be used.', buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_status_block_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('"My @buddylist status" block title', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_status_block_title', t("My @buddylist status", buddylist_translation())),
+    '#size' => 70,
+    '#maxlength' => 128,
+    '#description' => t('This will be the title for the @buddylist status block. If none is specified, "My @buddylist status" will be used.', buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_list_block_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('"My @buddies list" block title', buddylist_translation()),
+    '#weight' => 1,
+    '#default_value' => variable_get('buddylist_list_block_title', t('My @buddylist', buddylist_translation())),
+    '#size' => 70,
+    '#maxlength' => 128,
+    '#description' => t('This will be the title for the "My @buddylist" block. If none is specified, "My @buddylist" will be used.', buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_block_if_no_buddies'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Show "My @buddies list" block even if @buddylist is empty', buddylist_translation()),
+    '#weight' => 2,
+    '#default_value' => variable_get('buddylist_block_if_no_buddies', FALSE),
+    '#description' => t('If a user has no @buddies, the @buddy block can show a message.', buddylist_translation()),
+  );
+  $form['block_settings']['buddylist_empty_text'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Show this text in "My @buddies list" if @buddylist is empty', buddylist_translation()),
+    '#weight' => 3,
+    '#default_value' => variable_get('buddylist_empty_text', buddylist_empty_text_default()),
+    '#description' => t('If a user has no @buddies and the above checkbox is checked, this message is shown instead of a list.', buddylist_translation()),
+  );
+
+   $form['mail'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('email'),
+  );
+
+  global $user;
+  $macros = implode(', ', array_keys(buddylist_mail_replacements($user, $user)));
+  $approval_macros = implode(', ', array_keys(buddylist_approval_mail_replacements($user, $user)));
+
+  $form['mail']['buddylist_user_mail'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Allow users to turn off buddylist messages'),
+    '#default_value' => variable_get('buddylist_user_mail', FALSE),
+    '#description' => t('If you check this, users will have a new setting on their account edit page.'),
+  );
+
+  $form['mail']['buddylist_send_add'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Send add messages'),
+    '#default_value' => variable_get('buddylist_send_add', FALSE),
+  );
+
+  $form['mail']['buddylist_add_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Added @buddy email subject', buddylist_translation()),
+    '#default_value' => BUDDYLIST_ADD_SUBJECT,
+  );
+
+  $form['mail']['buddylist_add_message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Added @buddy email message', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_add_message', buddylist_mail_add_default()),
+    '#description' => t('Replacement strings are: %macros', array('%macros' => $macros)),
+  );
+
+  $form['mail']['buddylist_send_remove'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Send remove messages'),
+    '#default_value' => variable_get('buddylist_send_remove', FALSE),
+  );
+
+  $form['mail']['buddylist_remove_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Removed @buddy email subject', buddylist_translation()),
+    '#default_value' => BUDDYLIST_REMOVE_SUBJECT,
+  );
+
+  $form['mail']['buddylist_remove_message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Removed @buddy email message', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_remove_message', buddylist_mail_remove_default()),
+    '#description' => t('Replacement strings are: %macros', array('%macros' => $macros)),
+  );
+
+  $form['mail']['buddylist_send_request'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Send request messages.'),
+    '#description' => t('Check this box if you want users to receive an email when someone requests to be their buddy.  This setting only has effect if approval is required to be on someone\'s buddylist.'),
+    '#default_value' => variable_get('buddylist_send_request', FALSE)
+  );
+
+  $form['mail']['buddylist_request_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('@buddy request email subject', buddylist_translation()),
+    '#default_value' => BUDDYLIST_REQUEST_SUBJECT,
+  );
+
+  $form['mail']['buddylist_request_message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('@buddy request email message', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_request_message', buddylist_mail_request_default()),
+    '#description' => t('Replacement strings are: %macros', array('%macros' => $macros)),
+  );
+
+  $form['mail']['buddylist_send_approval'] = array(
+    '#type' => 'checkbox',
+    '#title' => t('Send approval messages'),
+    '#default_value' => variable_get('buddylist_send_approval', FALSE),
+    '#description' => t('Check this box if you want users to receive an email to the requester when someone approves an add request.  This setting only has effect if approval is required to be on someone\'s @buddylist.', buddylist_translation())
+  );
+
+  $form['mail']['buddylist_approval_subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('@buddy request email subject', buddylist_translation()),
+    '#default_value' => BUDDYLIST_APPROVAL_SUBJECT,
+  );
+
+  $form['mail']['buddylist_approval_message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('@buddy approval email message', buddylist_translation()),
+    '#default_value' => variable_get('buddylist_approval_message', buddylist_mail_approval_default()),
+    '#description' => t('Replacement strings are: %macros', array('%macros' => $approval_macros)),
+  );
+
+  return system_settings_form($form);
+}
+
+
+/**
+ * Implementation of hook_user
+ */
+function buddylist_user($type, &$edit, &$thisuser, $category = NULL) {
+  global $user;
+
+  $output = array();
+  if ($type == 'view') {
+    buddylist_setmsg_received($thisuser);
+    
+    if ($list = buddylist_get_buddylist($thisuser)) {
+      $output[] = array('title' => t('@Buddies', buddylist_translation()), 'value' => $list, 'class' => 'buddylist');
+    }
+    if ($list = buddylist_get_buddylist($thisuser, TRUE)) {
+      $output[] = array('title' => t('@buddy of', buddylist_translation()), 'value' => $list, 'class' => 'buddyoflist');
+    }
+    if ($actions = buddylist_get_buddy_actions($user, $thisuser)) {
+      $output[] = array('title' => t('@Buddy actions', buddylist_translation()), 'value' => theme('item_list', $actions), 'class' => 'buddylist_actions');
+    }
+    if(count($output) > 0) {
+      return array(t('@Buddy List', buddylist_translation()) => $output);
+    }
+  }
+  else if ($type == 'delete') {
+    db_query("DELETE FROM {buddylist} WHERE uid = %d OR buddy = %d", $thisuser->uid, $thisuser->uid);
+    db_query("DELETE FROM {buddylist_buddy_group} WHERE uid = %d OR buddy = %d", $thisuser->uid, $thisuser->uid);
+    db_query("DELETE FROM {buddylist_groups} WHERE uid = %d", $thisuser->uid);
+    db_query("DELETE FROM {buddylist_pending_requests} WHERE requester_uid = %d OR requestee_uid = %d", $thisuser->uid, $thisuser->uid);
+  }
+  else if ($type == 'load') {
+    $thisuser->buddies = buddylist_get_buddies($thisuser->uid);
+  }
+  else if ($type == 'form' && $category == 'account' && variable_get('buddylist_user_mail', FALSE) && user_access('maintain buddy list', $thisuser)) {
+    // when user tries to edit his own data
+    $form['buddylist_settings'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Buddylist settings'),
+      '#weight' => 5);
+    $form['buddylist_settings']['buddylist_mail'] = array(
+      '#type' => 'checkbox',
+      '#title' => t('Receive @buddylist notification mails', buddylist_translation()),
+      '#default_value' => isset($edit['buddylist_mail']) ? $edit['buddylist_mail'] : 1,
+      '#description' => t('If you check this, you will be notified about important actions regarding your @Buddylist.', buddylist_translation()));
+    return $form;
+  }
+  else if ($type == 'login') {
+    buddylist_setmsg_received($thisuser);
+  }
+}
+
+/*
+ * Return a formatted list of buddies for the given user
+ * @param $buddy_of If set to TRUE, a formatted list of users is returned, for whom this user is a buddy.
+ */
+function buddylist_get_buddylist($user, $buddy_of = FALSE) {
+
+	if (user_access('view buddy lists') && !$buddy_of) {
+    $i = 0;
+    if ($buddies = buddylist_get_buddies($user->uid)) {
+      foreach(array_keys($buddies) as $buddy) {
+        $account = user_load(array('uid' => $buddy));
+        $listbuddies[] = $account;
+        $i++;
+        if ($i > variable_get('buddylist_prof_buddies', 5)) {
+          break;
+        }
+      }
+      return theme('buddylist', $listbuddies);
+    }
+	}
+  else if (user_access('view buddy lists') && !variable_get('buddylist_require_approval', 0)) {
+    // This portion of code is used to see if this $thisuser is a buddy of others and, if s/he is, returns a list
+    // of people s/he is a buddy of.
+    // Note the distinction between having a buddy and being someone else's buddy (i.e., 'buddyof')
+    // Of course, this distinction doesn't exist if approval is required to add a buddy (in which case, buddy relationships are symmetric)
+    $sql = 'SELECT b.uid, u.name FROM {buddylist} b INNER JOIN {users} u ON b.uid = u.uid WHERE b.buddy = %d ORDER BY u.access DESC';
+    $result = db_query_range($sql, $user->uid, 0, variable_get('buddylist_prof_buddies', 5));
+    while ($row = db_fetch_object($result)) {
+      $listbuddyof[$row->uid] = $row;
+    }
+    if ($listbuddyof) {
+      return theme('buddylist', $listbuddyof);
+    }
+  }
+}
+
+
+/*
+ * Returns an array of posible actions (html) for the viewing user,
+ * e.g. a link to make the viewed user a buddy
+ */
+function buddylist_get_buddy_actions(&$viewing_user, &$viewed_user) {
+
+  $actions = array();
+  if (!user_access('maintain buddy list') || $viewing_user->uid == $viewed_user->uid) {
+    return $actions;
+  }
+
+  if (variable_get('buddylist_require_approval', FALSE) && in_array($viewed_user->uid, array_keys(buddylist_get_requestees($viewing_user->uid)))) {
+    $actions[] = theme('buddylist_cancel_action', $viewing_user, $viewed_user);
+  }
+  else if (in_array($viewed_user->uid, array_keys(buddylist_get_buddies($viewing_user->uid)))) {
+    $actions[] = theme('remove_from_buddylist_link', $viewed_user);
+  }
+  else if (in_array($viewing_user->uid, array_keys(buddylist_get_requestees($viewed_user->uid)))) {
+    $actions[] = theme('buddylist_accept_action', $viewing_user, $viewed_user);
+  }
+  else if (!variable_get('buddylist_require_approval', 0) || (variable_get('buddylist_require_approval', 0) && user_access('maintain buddy list', $viewed_user))) {
+    $actions[] = theme('add_to_buddylist_link', $viewed_user);
+  }
+
+  return $actions;
+}
+
+
+/**
+ * Implementation for hook_block
+ */
+function buddylist_block($op = 'list', $delta = 0) {
+  global $user;
+
+  if ($op == 'list') {
+    $block[0]['info'] = variable_get('buddylist_list_block_title', t('My @buddylist', buddylist_translation()));
+    $block[1]['info'] = variable_get('buddylist_block_title', t('My @buddies\' recent posts', buddylist_translation()));
+    if (variable_get('buddylist_require_approval', 0)) {
+      $block[2]['info'] = variable_get('buddylist_status_block_title', t('My @buddy status', buddylist_translation()));
+    }
+    return $block;
+  }
+  else if ($op == 'view' && user_access('access content') && user_access('maintain buddy list') && $user->uid > 0) {
+    switch ($delta) {
+      case 0 : // Shows buddylist block
+        if ($buddies = buddylist_get_buddies()) {
+          // we have buddies defined and generate the list
+          $i = 0;
+          foreach (array_keys($buddies) as $buddy) {
+            $users[] = user_load(array('uid' => $buddy));
+            $i++;
+            if ($i == variable_get('buddylist_blocklisting_size', 5)) {
+              break;
+            }
+          }
+          $block['content'] = theme('buddylist', $users);
+        } else {
+          // buddylist is empty
+          if(variable_get('buddylist_block_if_no_buddies', FALSE)) {
+            // Show a message that we have no buddies yet
+            $block['content'] = t(variable_get('buddylist_empty_text', buddylist_empty_text_default()), buddylist_translation());
+          } else {
+            // If no buddies defined and no message available, end 'case' without returning block.
+            break;
+          }
+        }
+        // this is the same output whether buddylist or not
+        $block['subject'] = variable_get('buddylist_list_block_title', t('My @buddylist', buddylist_translation()));
+
+        // check if a "more" link should generated by seeing if there are more buddies than the specified $upperlimit
+        if (count($buddies) > variable_get('buddylist_blocklisting_size', 5)) {
+            $block['content'] .=  '<div class="more-link">' . l(t('more'), 'buddylist', array('title' => t('View more.'))) . '</div>';
+        }
+        return $block;
+      break;
+
+      case 1: // Shows my buddies recent posts block
+        $buddies = buddylist_get_buddies();
+        $keys = array_keys($buddies);
+        if (count($keys) > 0) {
+          $str_buddies = implode(',', $keys);
+          $result = db_query_range(db_rewrite_sql("SELECT n.nid, n.status, n.type, u.uid, u.name, n.created, n.title FROM {node} n INNER JOIN {users} u ON n.uid = u.uid WHERE n.status = 1 AND n.uid IN ($str_buddies) ORDER BY n.nid DESC"), 0, variable_get('buddylist_posts_block', 7));
+
+          if (db_num_rows($result)) {
+            $block['subject'] = variable_get('buddylist_block_title', t('My @buddies\' recent posts', buddylist_translation()));
+            $block['content'] = node_title_list($result);
+
+            // check if a "more" link should generated by seeing if there are more buddies than the specified $upperlimit
+            $result = db_query(db_rewrite_sql('SELECT COUNT(n.nid) AS node_count FROM {buddylist} b LEFT JOIN {node} n ON n.uid=b.buddy LEFT JOIN {users} u ON n.uid = u.uid WHERE n.status = 1 AND b.uid=%d'), $user->uid);
+            $countresult = db_fetch_object($result);
+
+            if (module_exists('tracker') && variable_get('buddylist_posts_block', 7) < $countresult->node_count) {
+              $block['content'] .= '<div class="more-link">'. l(t('more'), 'buddylist/'. $user->uid .'/buddies/recent', array('title' => t('View more.'))) .'</div>';
+            }
+            return $block;
+          }
+        }
+        break;
+
+        case 2: // Buddylist status
+          $block['subject'] = variable_get('buddylist_status_block_title', t('My @buddy status', buddylist_translation()));
+
+          $count = db_result(db_query("SELECT COUNT(uid) FROM {buddylist} WHERE uid = %d", $user->uid));
+          $sent = db_result(db_query("SELECT COUNT(requester_uid) FROM {buddylist_pending_requests} WHERE requester_uid = %d", $user->uid));
+          $received = db_result(db_query("SELECT COUNT(requestee_uid) FROM {buddylist_pending_requests} WHERE requestee_uid = %d", $user->uid));
+
+          $block['content'] = theme('buddylist_status_block', $count, $received, $sent);
+          return $block;
+        break;
+    }
+  }
+}
+
+/**
+ * Public API for retrieving buddies. Feel free to use this from other
+ * modules.
+ * $key can be 'uid' or 'label'.
+*/
+function buddylist_get_buddies($uid = NULL, $key = 'uid') {
+  static $buddies;
+
+  if (!$uid) {
+    global $user;
+    $uid = $user->uid;
+  }
+  if (!isset($buddies[$key][$uid])) {
+    $buddies[$key][$uid] = array();
+    $sql = 'SELECT b.buddy, u.name, u.mail, u.uid FROM {buddylist} b
+            INNER JOIN {users} u ON b.buddy = u.uid
+            WHERE b.uid = %d';
+    $result = db_query($sql, $uid);
+    while ($row = db_fetch_object($result)) {
+      $buddies[$key][$uid][$row->buddy]['uid'] = $row->uid;
+      $buddies[$key][$uid][$row->buddy]['name'] = $row->name;
+      $buddies[$key][$uid][$row->buddy]['mail'] = $row->mail;
+      if (variable_get('buddylist_buddygroups', FALSE)) {
+        $buddies[$key][$uid][$row->buddy]['groups'] = buddylist_get_buddy_groups($uid, $row->buddy);
+      }
+      $buddies[$key][$uid][$row->buddy]['online'] = 0;
+      $selectlist .= $row->buddy.",";
+    }
+    // Add the online flag
+    if (db_num_rows($result)) {
+      $sql = 'SELECT uid FROM {sessions} WHERE uid IN (%s) AND timestamp > %d';
+      $result = db_query($sql, substr($selectlist,0,-1), time()-1800);
+      while ($row = db_fetch_object($result)) {
+        $buddies[$key][$uid][$row->uid]['online'] = 1;
+      }
+    }
+  }
+
+  return $buddies[$key][$uid];
+}
+
+/**
+ * Returns an array of uid => name of people that user with param $uid has made a buddy request to
+ */
+function buddylist_get_requestees($uid) {
+  $buddies = array();
+
+  $result = db_query('SELECT bpr.requestee_uid, u.name FROM {buddylist_pending_requests} bpr INNER JOIN {users} u ON bpr.requestee_uid = u.uid WHERE requester_uid = %d', $uid);
+
+  while ($row = db_fetch_object($result)) {
+    $buddies[$row->requestee_uid] = $row->name;
+  }
+
+  return $buddies;
+}
+
+function buddylist_setmsg_received($thisuser) {
+  global $user;
+
+  if ($thisuser->uid != $user->uid || !user_access('maintain buddy list'))
+    return;
+    
+  if (variable_get('buddylist_require_approval', 0)) {
+    // Go through and find new buddylist add-requests, (i.e., the ones in {buddylist_pending_requests} w/ received column == 0
+    $result = db_query('SELECT bpr.requester_uid as uid, u.name FROM {buddylist_pending_requests} bpr INNER JOIN {users} u ON bpr.requester_uid = u.uid WHERE bpr.requestee_uid = %d AND bpr.received = 0', $user->uid);
+    $acknowledged_uids = array();
+    while ($row = db_fetch_object($result)) {
+      drupal_set_message(t('!linktouser has requested to add you to his/her @buddylist.  Please view your !pending_buddy_requests to approve/deny.', array('!linktouser' => theme('username', $row), '!pending_buddy_requests' => l(t('pending @buddy requests', buddylist_translation()), 'buddylist/'. $user->uid .'/buddies/requests')) + buddylist_translation()));
+      $acknowledged_uids[] = $row->uid;
+    }
+    if (count($acknowledged_uids)) {
+      db_query('UPDATE {buddylist_pending_requests} SET received = 1 WHERE requestee_uid = %d AND requester_uid IN (%s)', $user->uid, implode(',', $acknowledged_uids));
+    }
+  }
+  else {
+    $check_received = db_query('SELECT received, b.uid as uid, u.name FROM {buddylist} b LEFT JOIN {users} u ON u.uid = b.uid WHERE buddy = %d AND received = 1', $thisuser->uid);
+    while ($rec = db_fetch_object($check_received)) {
+      if (($rec->received) and ($thisuser->uid == $user->uid)) {
+        // TODO: This is where integration with Privatemsg could happen. If enabled, send a private message instead.
+        drupal_set_message(t('!linktouser has added you to his/her @buddylist.', array('!linktouser' => theme('username', $rec)) + buddylist_translation()));
+        db_query('UPDATE {buddylist} SET received = 0 WHERE buddy = %d', $user->uid);
+      }
+    }
+  }
+}
+
+/**
+ * expose add and remove links to theming.
+ */
+function theme_buddylist_accept_action($viewing_user, $viewed_user) {
+  return t('This user has requested to add you to their @buddylist.&nbsp;', buddylist_translation()) .
+    theme('buddylist_accept_request_link', $viewing_user->uid, $viewed_user->uid) . " | " . 
+    theme('buddylist_deny_request_link', $viewing_user->uid, $viewed_user->uid);  
+}
+
+function theme_buddylist_cancel_action($viewing_user, $viewed_user) {
+  return t('You have requested to add this user to your @buddylist. (See !your_pending_requests)', array('!your_pending_requests' => l(t('your pending requests'), 'buddylist/'. $viewing_user->uid .'/buddies/requests')) + buddylist_translation());
+}
+
+function theme_remove_from_buddylist_link($buddyuser) {
+  return l(t('Remove'), 'buddy/delete/' . $buddyuser->uid, array('title' => t('Remove User')), drupal_get_destination(), NULL, FALSE, TRUE);
+}
+
+function theme_add_to_buddylist_link($buddyuser) {
+  return l(t('Add'), 'buddy/add/' . $buddyuser->uid, array('title' => t('Add User')), drupal_get_destination(), NULL, FALSE, TRUE);
+}
+
+function theme_buddylist_accept_request_link($requestee_uid, $requester_uid) {
+  return l(t('Accept'), 'buddylist/' . $requestee_uid . '/buddies/requested/accept/' . $requester_uid, array('title' => t('Accept')), drupal_get_destination(), NULL, FALSE, TRUE);
+}
+
+function theme_buddylist_deny_request_link($requestee_uid, $requester_uid) {
+  return l(t('Deny'), 'buddylist/' . $requestee_uid . '/buddies/requested/deny/' . $requester_uid, array('title' => t('Deny')), drupal_get_destination(), NULL, FALSE, TRUE);
+}
+
+function theme_buddylist_sent_requests_cancel_link($requestee_uid, $requester_uid) {
+  return l(t('Cancel'), 'buddylist/' . $requestee_uid . '/buddies/request/cancel/' . $requester_uid, array('title' => t('Cancel')), drupal_get_destination(), NULL, FALSE, TRUE);
+}
+
+/**
+ * Displays a list of a given user's buddies.
+ */
+function buddylist_buddylisting_page($uid = NULL, $mode = 'buddies') {
+  global $user;
+
+  if (empty($uid)) {
+    $uid = $user->uid;
+  }
+  // Check that the uid is valid, not the anonymous user, and the user exists
+  if (!(is_numeric($uid) && ($uid > 0) && $thisuser = user_load(array('uid' => $uid)))) {
+    drupal_not_found();
+    exit();
+  }
+
+  $viewing_own_account = ($user->uid == $uid);
+  
+  buddylist_setmsg_received($thisuser);
+
+  $buddies_per_page = 20;
+
+  if ($mode == 'buddies') {
+    $sql = "SELECT DISTINCT(b.buddy), u.access FROM {buddylist} b INNER JOIN {users} u ON b.buddy = u.uid WHERE b.uid = %d ORDER BY u.access DESC";
+  }
+  else {
+    $sql = "SELECT DISTINCT(u.uid) as buddy, u.access FROM {buddylist} b INNER JOIN {users} u ON b.uid = u.uid WHERE b.buddy = %d ORDER BY u.access DESC";
+  }
+  $result = pager_query($sql, $buddies_per_page, 0 , NULL, $uid);
+
+  $online_interval = time() - variable_get('user_block_seconds_online', 180);
+  $buddies = array();
+  while ($account = db_fetch_object($result)) {
+    $online = $account->access > $online_interval;
+    $buddies[] = array('uid' => $account->buddy, 'online' => $online);
+  }
+  
+  return theme('buddylisting', $thisuser, $buddies, $buddies_per_page);
+}
+
+function theme_buddylisting($account, $buddies, $buddies_per_page) {
+  drupal_set_title(t('%username\'s @buddylist', array('%username' => $account->name) + buddylist_translation()));
+
+  $header = array(t('@buddy', buddylist_translation()), t('online'));
+
+  if (count($buddies)) {
+    foreach ($buddies as $buddy) {
+      $rows[] = array(theme('username', user_load(array('uid' => $buddy['uid']))), theme('buddylist_online', $buddy['online']));
+    }
+    $output .= theme('table', $header, $rows);
+  }
+  else {
+    $output .= t(variable_get('buddylist_empty_text', buddylist_empty_text_default()), buddylist_translation());
+  }
+
+  $output .= theme('pager', NULL, $buddies_per_page);
+  
+  return $output;
+}
+
+/**
+ * Returns a list of people who've requested to be added to the given user's buddylist
+ * and a list of people who this given user has requested to be buddies with.
+ */
+function theme_buddylist_pending_requests($id) {
+
+  $thisuser = user_load(array('uid' => $id));
+  drupal_set_title(t('@username\'s @buddylist', array('@username' => $thisuser->name) + buddylist_translation()));
+
+  return theme('box', t('Received requests'), buddylist_pending_requester_list($thisuser)) .
+         theme('box', t('Sent requests'), buddylist_pending_requested_list($thisuser));
+}
+
+/**
+ * Returns a list of people who've requested to be added to the given user's buddylist
+ */
+function buddylist_pending_requester_list(&$account) {
+  global $user;
+
+  $viewing_own_account = ($user->uid == $account->uid);
+  $result = db_query('SELECT bpr.requester_uid as uid, u.name FROM {buddylist_pending_requests} bpr INNER JOIN {users} u ON bpr.requester_uid = u.uid WHERE requestee_uid = %d', $account->uid);
+
+  if (!db_num_rows($result)) {
+    $output = '<p>'. t("!someone currently !does_or_do not have any pending @buddy requests from other users.", array('!someone' => ($viewing_own_account ? t('You') : $account->name), '!does_or_do' => $viewing_own_account ? t('do') : t('does')) + buddylist_translation()) .'</p>';
+  }
+  else {
+    $output = '<p>'. t("The following people have requested to be !someones @buddy.", array('!someones' => ($viewing_own_account ? t('your') : $account->name ."'s ")) + buddylist_translation()) .'</p>';
+
+    $html_rows = array();
+    while ($row = db_fetch_object($result)) {
+      $html_row = array();
+      $html_row[] = theme('username', $row);
+      $html_row[] = theme('buddylist_accept_request_link', $account->uid, $row->uid) . " | " . theme('buddylist_deny_request_link', $account->uid, $row->uid);
+      $html_rows[] = $html_row;
+    }
+
+    $output .= theme('table', NULL, $html_rows);
+  }
+
+  return $output;
+}
+
+/**
+ * Returns a list of user's who this given user has requested to be buddies with.
+ */
+function buddylist_pending_requested_list(&$account) {
+  global $user;
+
+  $viewing_own_account = ($user->uid == $account->uid);
+  $result = db_query('SELECT bpr.requestee_uid as uid, u.name FROM {buddylist_pending_requests} bpr INNER JOIN {users} u ON bpr.requestee_uid = u.uid WHERE requester_uid = %d', $account->uid);
+
+  if (!db_num_rows($result)) {
+    $output = t('!Person !do_or_does not have any pending @buddy requests that !person !have_or_has made.',
+                array(
+                  '!Person' => ($viewing_own_account ? t('You') : $account->name),
+                  '!do_or_does' => ($viewing_own_account ? t('do') : t('does')),
+                  '!have_or_has' => ($viewing_own_account ? t('have') : t('has')),
+                  '!person' => ($viewing_own_account ? t('you') : $account->name) ) + buddylist_translation());
+  }
+  else {
+    $output = t('!person !have_or_has requested to be added to the @buddylist of the following users.', array('!person' => ($viewing_own_account ? t('You') : $account->name), '!have_or_has' => ($viewing_own_account ? t('have') : t('has'))) + buddylist_translation());
+
+    $html_rows = array();
+    while ($row = db_fetch_object($result)) {
+      $html_row = array();
+      $html_row[] = theme('username', $row);
+      $html_row[] = theme('buddylist_sent_requests_cancel_link', $account->uid, $row->uid);
+      $html_rows[] = $html_row;
+    }
+
+    $output .= theme('table', NULL, $html_rows);
+  }
+
+  return $output;
+}
+
+function buddylist_pending_requested_accept($requestee_uid, $requester_uid) {
+  $requestee_account = user_load(array('uid' => $requestee_uid));
+  $requester_account = user_load(array('uid' => $requester_uid));
+  $output = confirm_form(
+    buddylist_confirm_form($requester_account, $requestee_account),
+    t('Accept Request'),
+    'buddylist/'.$requestee_uid.'/buddies/requests',
+    t("Are you sure you want to accept the request from !name?", array('!name' => theme('username', $requester_account))),
+    t('Yes'), t('No'),
+    'buddylist_request_accept_confirm');
+
+  return $output;
+}
+
+function buddylist_cancel_request($requestee_uid, $requester_uid){
+  $requestee_account = user_load(array('uid' => $requestee_uid));
+  $requester_account = user_load(array('uid' => $requester_uid));
+  $output = confirm_form(
+    buddylist_request_cancel_form($requestee_uid, $requester_uid),
+    t('Cancel Request'),
+    'buddylist/'.$requestee_uid.'/buddies/requests',
+    t("Are you sure you want to cancel the request to !name?", array('!name' => theme('username', $requester_account))),
+    t('Yes'), t('No'),
+    'buddylist_cancel_request_confirm');
+
+  return $output;
+
+}
+
+function buddylist_cancel_request_submit($form_id, $form_values){
+	  db_query('DELETE FROM {buddylist_pending_requests} WHERE requestee_uid = %d AND requester_uid = %d', $form_values['requester_uid'], $form_values['requestee_uid']);
+
+    $former_potential_buddy = user_load(array('uid' => $form_values['requester_uid']));
+    drupal_set_message(t('The request to add !user_name has been cancelled.', array('!user_name' => theme('username', $former_potential_buddy))));
+
+    module_invoke_all('buddylist', 'cancel', $former_potential_buddy, user_load(array('uid' => $form_values['requestee_uid'])), false);
+    
+    return 'buddylist/'. $form_values['requester_uid'] .'/buddies/requests';
+}
+
+function buddylist_pending_requested_deny($requestee_uid, $requester_uid) {
+  $requestee_account = user_load(array('uid' => $requestee_uid));
+  $requester_account = user_load(array('uid' => $requester_uid));
+  $output = confirm_form(
+    buddylist_confirm_form($requester_account, $requestee_account),
+    t('Deny Request'),
+    'buddylist/'.$requestee_uid.'/buddies/requests',
+    t("Are you sure you want to deny the request from !name?", array('!name' => theme('username', $requester_account))),
+    t('Yes'), t('No'),
+    'buddylist_request_deny_confirm');
+
+  return $output;
+}
+
+function buddylist_pending_requested_accept_submit($form_id, $form_values) {
+  $requestee_account = $form_values['requestee_account']; // most likely global user, unless admin looking
+  $requester_account = $form_values['requester_account'];
+
+  // Delete pending request from {buddylist_penging_requests}
+  $result = db_query('SELECT * FROM {buddylist_pending_requests} WHERE requestee_uid = %d AND requester_uid = %d', $requestee_account->uid, $requester_account->uid);
+
+  if (db_num_rows($result) == 0) {
+    // The other user cancelled since viewing this page
+    drupal_set_message(t('!linktouser has cancelled the request to join your @buddylist.', array('!linktouser' => theme('username', $requester_account)) + buddylist_translation()));
+    return  'buddylist/'. $requestee_account->uid .'/buddies/requests';
+  }
+
+  db_query('DELETE FROM {buddylist_pending_requests} WHERE requestee_uid = %d AND requester_uid = %d', $requestee_account->uid, $requester_account->uid);
+
+  // Make sure, for some weird reason, we don't already have these guys marked as buddies of each other in the database
+  $result = db_query('SELECT * FROM {buddylist} WHERE uid = %d AND buddy = %d', $requestee_account->uid, $requester_account->uid);
+
+  $time = time();
+
+  if (!db_num_rows($result)) {
+    db_query('INSERT INTO {buddylist} (uid, buddy, timestamp, received) VALUES (%d, %d, %d, %d)', $requestee_account->uid, $requester_account->uid, $time, 1);
+  }
+
+  $result = db_query('SELECT * FROM {buddylist} WHERE uid = %d AND buddy = %d', $requester_account->uid, $requestee_account->uid);
+  if (!db_num_rows($result)) {
+    db_query('INSERT INTO {buddylist} (uid, buddy, timestamp, received) VALUES (%d, %d, %d, %d)', $requester_account->uid, $requestee_account->uid, $time, 1);
+  }
+
+  if (variable_get('buddylist_send_approval', FALSE)) {
+    buddylist_mail_user('approval', $requester_account, $requestee_account);
+  }
+
+  drupal_set_message(t('Congratulations! !linktouser is now in your @buddylist.', array('!linktouser' => theme('username', $requester_account)) + buddylist_translation()));
+
+  module_invoke_all('buddylist', 'add', $requester_account, $requestee_account, false);
+
+  return  'buddylist/'. $requestee_account->uid .'/buddies/requests';
+}
+
+function buddylist_pending_requested_deny_submit($form_id, $form_values) {
+  $requestee_account = $form_values['requestee_account']; // most likely global user, unless admin looking
+  $requester_account = $form_values['requester_account'];
+
+  // Delete pending request from {buddylist_penging_requests}
+  db_query('DELETE FROM {buddylist_pending_requests} WHERE requestee_uid = %d AND requester_uid = %d', $requestee_account->uid, $requester_account->uid);
+
+  drupal_set_message(t("The request from !user has been denied.", array('!user' => theme('username', $requester_account)) + buddylist_translation()));
+
+  module_invoke_all('buddylist', 'deny', $requester_account, $requestee_account, false);
+
+  return  'buddylist/'. $requestee_account->uid .'/buddies/requests';
+}
+
+function buddylist_confirm_form($requester_account, $requestee_account) {
+  $form = array();
+
+  $form['requester_account'] = array(
+    '#type' => 'value',
+    '#value' => $requester_account
+  );
+
+  $form['requestee_account'] = array(
+  	'#type' => 'value',
+  	'#value' => $requestee_account
+  );
+
+  return $form;
+}
+
+function buddylist_request_cancel_form($requestee_uid, $requester_uid) {
+  $form['requestee_uid'] = array(
+    '#type' => 'hidden',
+    '#value' => $requestee_uid,
+  );
+
+  $form['requester_uid'] = array(
+    '#type' => 'hidden',
+    '#value' => $requester_uid
+  );
+
+  return $form;
+}
+
+function buddylist_request_cancel_form_submit($form_id, $form_values) {
+  db_query('DELETE FROM {buddylist_pending_requests} WHERE requester_uid = %d AND requestee_uid = %d', $form_values['requester_uid'], $form_values['requestee_uid']);
+
+  $former_potential_buddy = user_load(array('uid' => $form_values['requestee_uid']));
+  drupal_set_message(t('The request to add !user_name has been cancelled.', array('!user_name' => theme('username', $former_potential_buddy))));
+
+  return 'buddylist/'. $form_values['requester_uid'] .'/buddies/requests';
+}
+
+function buddylist_form_buddiesrecent_page($buddies) {
+  foreach ($buddies as $user_id => $buddy) {
+    $form[] = array('#type' => 'fieldset',
+      '#title' => $buddy['name'],
+      '#collapsible' => 'true',
+      '#value' => tracker_page($user_id),
+    );
+  }
+  return $form;
+}
+
+function buddylist_buddiesrecent_page($uid) {
+  global $user;
+
+  $thisuser = user_load(array('uid' => $uid));
+  drupal_set_title(t('%username\'s @buddylist', array('%username' => $thisuser->name) + buddylist_translation()));
+
+  $buddies = buddylist_get_buddies($uid);
+  $output .= drupal_get_form('buddylist_form_buddiesrecent_page', $buddies);
+  $output .= theme('xml_icon', url('buddylist/'. $uid .'/buddies/recent/feed'));
+  drupal_set_html_head('<link rel="alternate" type="application/rss+xml" title="'. t('RSS - @buddies posts', buddylist_translation()). '" href="'. url('buddylist/'. $user->uid .'/buddies/recent/feed') .'" />');
+
+  return $output;
+}
+
+function buddylist_buddiesgroups_page($uid) {
+  global $user;
+  $thisuser = user_load(array('uid' => $uid));
+  drupal_set_title(t('%username\'s @buddy groups', array('%username' => $thisuser->name) + buddylist_translation()));
+
+  $headers = array(t('@buddy', buddylist_translation()), t('online'), t('# of @buddies', buddylist_translation()), t("@buddy's posts", buddylist_translation()));
+
+  $result = db_query('SELECT label, label_id FROM {buddylist_groups} WHERE uid = %d ORDER BY label ASC', $thisuser->uid);
+  $groups = array();
+  while ($row = db_fetch_object($result)) {
+    $groups[$row->label_id] = $row->label;
+  }
+
+  if (count($groups) == 0) {
+    if ($thisuser->uid == $user->uid) {
+      drupal_set_message(
+        t("To organize your @buddies into groups, visit the !edit_groups page",
+          array('!edit_groups' =>
+                l(t('edit groups'), "buddylist/$uid/buddies/groups/edit")) + buddylist_translation())
+      );
+    }
+    return t('No groups found.');
+  }
+
+  $online_interval = time() - variable_get('user_block_seconds_online', 180);
+  $buddies = buddylist_get_buddies($thisuser->uid);
+
+  foreach ($groups as $label_id => $label) {
+    $result = pager_query('SELECT bg.buddy, u.access FROM {buddylist_buddy_group} bg INNER JOIN {users} u ON bg.buddy = u.uid WHERE bg.uid = %d and bg.label_id = %d', 10, 0, NULL, $thisuser->uid, $label_id);
+    $rows = array();
+    while ($row = db_fetch_object($result)) {
+      $online = $row->access > $online_interval;
+      $rows[] = array(
+        theme('username', (object)$buddies[$row->buddy]),
+        theme('buddylist_online', $online),
+        buddylist_count_buddies($row->buddy),
+        l(t('view posts'), 'user/'. $row->buddy. '/track')
+      );
+    }
+    $output .= theme('box', check_plain($label), $rows ? theme('table', $headers, $rows) : t('Group is empty.'));
+  }
+  return $output;
+}
+
+function buddylist_count_buddies($uid) {
+  $result = db_query("SELECT count(DISTINCT buddy) AS buddies FROM {buddylist} WHERE uid = %d", $uid);
+  return db_result($result);
+}
+
+
+function buddylist_get_buddy_groups($uid, $buddy = NULL) {
+  if (isset($buddy)) {
+    $result = db_query("SELECT bg.label_id, bg.label, bg.visible FROM {buddylist_groups} bg INNER JOIN {buddylist_buddy_group} bbg ON bbg.uid = bg.uid WHERE bbg.uid = %d AND bg.label_id = bbg.label_id AND bbg.buddy = %d ", $uid, $buddy);
+  }
+  else {
+    $result = db_query("SELECT * FROM {buddylist_groups} WHERE uid=%d", $uid);
+  }
+  $buddy_groups = array();
+  while ($row = db_fetch_array($result)) {
+    $buddy_groups[$row['label_id']] = $buddy ? $row : $row['label'];
+  }
+  return $buddy_groups;
+}
+
+
+function buddylist_form_edit_groups_add() {
+  // Add group form
+  $form['add_group'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Add new group'),
+    '#description' => t('Groups are a way to keep your @buddies organized. Groups can be named whatever you like.', buddylist_translation()),
+  );
+
+  $form['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Add'),
+  );
+
+  return $form;
+}
+
+function buddylist_form_edit_groups_remove($all_groups) {
+  // Make a form to remove groups
+  $form['remove']['groups'] = array(
+    '#type' => 'checkboxes',
+    '#return_value' => 1,
+    '#title' => '',
+    '#default_value' => null,
+    '#options' => array_map('check_plain', $all_groups),
+  );
+
+  $form['remove']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Remove'),
+  );
+
+  return $form;
+}
+
+function buddylist_form_edit_groups_table($buddies, $all_groups, $thisuser) {
+  // Build the table with buddies and their groups
+  $form['table']['groups'] = array ('#tree' => true);
+  foreach ($buddies as $uid => $buddy) {
+    $items = array();
+    foreach ($buddy['groups'] as $group) {
+      $items[] = $group['label_id'];
+    }
+
+    if (count($all_groups) > 0) {
+      $form['table']['groups'][$uid] = array(
+        '#type' => 'checkboxes',
+        '#title' => '',
+        '#default_value' => $items,
+        '#options' => array_map('check_plain', $all_groups),
+      );
+    }
+  }
+
+  $form['table']['user'] = array(
+    '#type' => 'value',
+    '#value' => $thisuser->uid,
+  );
+
+  if (count($form['table']['groups']) > 0) {
+    $form['table']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Submit'),
+    );
+  }
+
+  return $form;
+}
+
+/**
+ * Callback for the buddygroup editing page
+ */
+function buddylist_buddiesgroups_edit($uid) {
+  $thisuser = user_load(array('uid' => $uid));
+  drupal_set_title(t('%username\'s @buddy groups', array('%username' => $thisuser->name) + buddylist_translation()));
+
+  if ($buddies = buddylist_get_buddies($thisuser->uid)) {
+    $output['add'] = drupal_get_form('buddylist_form_edit_groups_add');
+
+    $groups = buddylist_get_buddy_groups($uid);
+
+    if (count($groups) > 0) {
+      $output['remove'] = drupal_get_form('buddylist_form_edit_groups_remove', $groups);
+      $output['table'] = drupal_get_form('buddylist_form_edit_groups_table', $buddies, $groups, $thisuser);
+    }
+    else {
+      drupal_set_message(t("You don't have any groups defined."));
+    }
+
+    return theme('buddylist_edit_groups', $output);
+  }
+  else {
+    drupal_set_message(t('Unable to edit @buddy groups. Add @buddies to your @buddylist before making groups.', buddylist_translation()));
+    return t('No @buddies found.', buddylist_translation());
+  }
+}
+
+function theme_buddylist_edit_groups($forms) {
+ $output = '<span id="buddylist-group-add-form">'.
+              $forms['add'].
+            '</span>'.
+            '<span id="buddylist-group-remove-form">'.
+              $forms['remove'].
+            '</span>'.
+            '<span id="buddlist-groups-form">'.
+              $forms['table'].
+            '</span>';
+  return $output;
+}
+
+function theme_buddylist_form_edit_groups_table($form) {
+  $rows = array();
+
+  foreach ($form['table']['groups'] as $key => $value) {
+    if(is_numeric($key)) {
+      $rows[] = array(theme('username', user_load(array('uid' => $key))), drupal_render($form['table']['groups'][$key]));
+    }
+  }
+
+  $headers = array(t('buddy'), t('@buddy groups', buddylist_translation()));
+  $output .= theme('table', $headers, $rows);
+
+  $output .= drupal_render($form);
+
+  return $output;
+}
+
+function theme_buddylist_status_block($count, $received_count, $sent_count) {
+  global $user;
+
+  $stats .= "<div class='buddylist-status'>";
+  $stats .= "<div class='total'>" . l(format_plural($count, '@count buddy', '@count buddies'), 'buddylist') . "</div>";
+  $stats .= "<div class='pending_received'>" . l(format_plural($received_count, '@count pending received request', '@count pending received requests'), 'buddylist/'. $user->uid .'/buddies/requests') . "</div>";
+  $stats .= "<div class='pending_sent'>" . l(format_plural($sent_count, '@count pending sent request', '@count pending sent requests'), 'buddylist/'. $user->uid .'/buddies/requests') . "</div>";
+  $stats .= "</div>";
+
+  return $stats;
+}
+
+function theme_buddylist($buddies) {
+  return theme('user_list', $buddies);
+}
+
+function buddylist_form_edit_groups_add_submit($form_id, $form_values) {
+  global $user;
+  $label_id = buddylist_buddygroup_new($user->uid, $form_values['add_group']);
+}
+
+function buddylist_form_edit_groups_remove_submit($form_id, $form_values) {
+  global $user;
+  foreach ($form_values['groups'] as $label_id => $remove) {
+    if ($remove > 0) {
+      buddylist_buddygroup_remove($user->uid, $label_id);
+    }
+  }
+}
+
+function buddylist_form_edit_groups_table_submit($form_id, $form_values) {
+  $userid = $form_values['user'];
+  foreach ($form_values['groups'] as $buddy => $groups) {
+    foreach ($groups as $label_id => $checked) {
+      if ($checked == 0) {
+        buddylist_buddygroup_remove_buddy($userid, $buddy, $label_id);
+      }
+      else {
+        buddylist_buddygroup_add_buddy($userid, $buddy, $label_id);
+      }
+    }
+  }
+
+  drupal_set_message(t('@buddy groups saved.', buddylist_translation()));
+}
+
+/**
+ * Creates a new buddy group for a user
+ *
+ * @param $uid user id of the user to whom the group will belong.
+ * @param $group string; name of the group
+ * @param $visible determines whether the user's buddies can see which groups they've been put in.
+ *
+ * @return $label_id the existing or newly created id for the name of this group.
+ */
+function buddylist_buddygroup_new($uid, $group, $visible = TRUE) {
+  $label_id = db_result(db_query("SELECT label_id FROM {buddylist_groups} WHERE uid = %d AND label = '%s'", $uid, $group));
+  if ($label_id === FALSE) {
+    $new_label_id = db_next_id('buddygroup');
+    db_query("INSERT INTO {buddylist_groups} VALUES (%d, %d, '%s', %d)", $uid, $new_label_id, $group, $visible);
+    return $new_label_id;
+  }
+  else {
+    return $label_id;
+  }
+}
+
+/**
+ * Removes a buddy group for a user
+ *
+ * @param $uid user id of the user to whom the group belongs.
+ * @param $label_id id of the group
+ */
+function buddylist_buddygroup_remove($uid, $label_id) {
+  db_query("DELETE FROM {buddylist_groups} WHERE uid = %d AND label_id = %d", $uid, $label_id);
+  db_query("DELETE FROM {buddylist_buddy_group} WHERE uid = %d AND label_id = %d", $uid, $label_id);
+}
+
+function buddylist_buddygroup_remove_buddy($uid, $buddy, $label_id) {
+  db_query("DELETE FROM {buddylist_buddy_group} WHERE uid = %d AND buddy = %d AND label_id = %d", $uid, $buddy, $label_id);
+}
+
+function buddylist_buddygroup_add_buddy($uid, $buddy, $label_id) {
+  db_lock_table('buddylist_buddy_group');
+  buddylist_buddygroup_remove_buddy($uid, $buddy, $label_id);
+  db_query('INSERT INTO {buddylist_buddy_group} VALUES (%d, %d, %d)', $uid, $buddy, $label_id);
+  db_unlock_tables();
+}
+
+/**
+ * Feed for buddies recent posts
+ */
+function buddylist_buddyfeed($uid) {
+  if (!(is_numeric($uid) && $uid > 0)) {
+    return drupal_not_found();
+    exit();
+  }
+
+  $buddy_ids = array_keys(buddylist_get_buddies($uid));
+
+  // false query to be used if no posts from buddies are available (as in this user has no buddies).
+  $result = db_query('SELECT nid FROM {node} WHERE 0');
+  if (count($buddy_ids)) {
+    $buddy_ids_str = '('. implode(',', $buddy_ids). ')';
+    $result = db_query(db_rewrite_sql('SELECT nid FROM {node} WHERE status = 1 AND uid IN %s ORDER BY nid DESC'), $buddy_ids_str);
+  }
+  $channel['title'] = t('@buddies recent posts on %site', array('%site' => variable_get('site_name', 'drupal')) + buddylist_translation());
+  $channel['link'] = url('buddylist/'. $uid .'/buddies/recent', NULL, NULL, TRUE);
+
+  node_feed($result, $channel);
+}
+
+function buddylist_addbuddy($uid) {
+  global $user;
+  $buddy = user_load(array('uid' => $uid));
+
+  //If the user is blocked or approval is required but this user does not have maintain buddylist permission then deny
+  if ($buddy->status == 0 || (variable_get('buddylist_require_approval', 0) && !user_access('maintain buddy list', $buddy))) {
+    drupal_set_message(t('This user is not available'));
+  }
+  else if (empty($buddy->name)) {
+    drupal_set_message(t('This user does not exist'));
+  }
+  elseif (in_array($uid, array_keys(buddylist_get_buddies($user->uid)))) {
+    drupal_set_message(t('This user is already on your @buddylist', buddylist_translation()));
+  }
+  elseif ($user->uid == $uid) {
+    drupal_set_message(t('Cannot add yourself to @buddylist', buddylist_translation()));
+  }
+  else {
+    $form['uid'] = array('#type' => 'hidden', '#value' => $uid);
+    $form['name'] = array('#type' => 'hidden', '#value' => $buddy->name);
+    $output = confirm_form(
+      $form,
+      t('Add user !name to your @buddylist?', array('!name' => theme('username', $buddy)) + buddylist_translation()),
+      $_GET['destination'],
+      '',
+      t('Add'), t('Cancel'),
+      'buddylist_addbuddy_confirm');
+    return $output;
+  }
+  drupal_goto();
+}
+//function buddylist_form_alter($a, $b) {dprint_r($a); dprint_r($b);}
+
+/**
+ * Confirm and add a buddy.
+ */
+function buddylist_addbuddy_submit($form_id, $form_values) {
+  if (variable_get('buddylist_require_approval', 0)) {
+    buddylist_add_request($form_values['uid']);
+  }
+  else {
+    buddylist_add($form_values['uid']);
+    $user = user_load(array('uid' => $form_values['uid']));
+    drupal_set_message(t('!name will be notified the next time s/he logs in.', array('!name' => theme('username', $user))));
+  }
+  return 'user';
+};
+
+/**
+ * Removes the user $uid from the global user's account.
+ * TODO: generalize this so that two uids can be given
+ */
+function buddylist_deletebuddy($uid) {
+  global $user;
+  $buddy = user_load(array('uid' => $uid));
+
+  if (empty($buddy->name)) {
+    drupal_set_message('This user does not exist');
+  }
+  else if (!in_array($uid, array_keys(buddylist_get_buddies($user->uid)))) {
+    drupal_set_message('This user is not on your @buddylist', buddylist_translation());
+  }
+  else {
+    $form['uid'] = array('#type' => 'hidden', '#value' => $uid);
+    $form['name'] = array('#type' => 'hidden', '#value' => $buddy->name);
+    $output = confirm_form(
+      $form,
+      t('Remove user !name from your @buddylist?', array('!name' => theme('username', $buddy)) + buddylist_translation()),
+      $_GET['destination'],
+      '',
+      t('Remove'), t('Cancel'),
+      'buddylist_deletebuddy_confirm');
+    return $output;
+  }
+  drupal_goto();
+}
+
+/**
+ * Confirm and add a buddy.
+ */
+function buddylist_deletebuddy_submit($form_id, $form_values) {
+  $removeuser = user_load(array('uid' => $form_values['uid']));
+  buddylist_remove($form_values['uid']);
+  if (variable_get('buddylist_send_remove', FALSE))
+    drupal_set_message(t('!username will be be notified of being removed.', array('!username' => theme('username', $removeuser))));
+  else
+    drupal_set_message(t('!username has been removed from your @buddylist', array('!username' => theme('username', $removeuser)) + buddylist_translation()));
+  return 'user';
+};
+
+function buddylist_add($id) {
+  global $user;
+  $user_to_add = user_load(array('uid' => $id));
+
+  if (!in_array($id, array_keys(buddylist_get_buddies($user->uid)))) {
+    db_query('INSERT INTO {buddylist} (received, uid, buddy, timestamp) VALUES (1, %d, %d, %d)' , $user->uid , $id , time());
+    // DB value buddylist.received set to 1, meaning buddy has a message waiting
+    // letting them know you added them as a buddy
+    // buddylist.received set back to 0 when user logs in along with being informed of new buddy
+    if (variable_get('buddylist_send_add', FALSE)) {
+      buddylist_mail_user('add', $user_to_add);
+    }
+    drupal_set_message(t('!username has been added to your @buddylist', array('!username' => theme('username', $user_to_add)) + buddylist_translation()));
+    module_invoke_all('buddylist', 'add', $user_to_add, $user, true);
+  }
+  else {
+    drupal_set_message(t('!username is already on your @buddylist', array('!username' => theme('username', $user_to_add)) + buddylist_translation()));
+  }
+}
+
+function buddylist_add_request($id) {
+  global $user;
+  $user_to_add = user_load(array('uid' => $id));
+
+  $already_requested = in_array($id, array_keys(buddylist_get_requestees($user->uid)));
+  $already_buddies = in_array($id, array_keys(buddylist_get_buddies($user->uid)));
+
+  if (!$already_requested && !$already_buddies) {
+    db_query('INSERT INTO {buddylist_pending_requests} (requester_uid, requestee_uid, received) VALUES (%d, %d, %d)', $user->uid, $id, 0);
+
+    if (variable_get('buddylist_send_request', FALSE)) {
+      buddylist_mail_user('request', $user_to_add);
+    }
+    drupal_set_message(t('Your request to add !username to your @buddylist has been submitted.  !username will be notified.', array('!username' => theme('username', $user_to_add)) + buddylist_translation()));
+
+    module_invoke_all('buddylist', 'request', $user_to_add, $user, false);
+  }
+  else {
+    if ($already_requested) {
+      drupal_set_message(t('You have already requested to add !username to your @buddylist', array('!username' => theme('username', $user_to_add)) + buddylist_translation()));
+    }
+
+    if ($already_buddies) {
+      drupal_set_message(t('!username is already on your @buddylist', array('!username' => theme('username', $user_to_add)) + buddylist_translation()));
+    }
+  }
+}
+
+function buddylist_remove($id) {
+  global $user;
+  db_query('DELETE FROM {buddylist} WHERE uid = %d AND buddy = %d' , $user->uid , $id);
+  db_query('DELETE FROM {buddylist_buddy_group} WHERE uid = %d AND buddy = %d' , $user->uid , $id);
+  $removeuser = user_load(array('uid' => $id));
+  if (variable_get('buddylist_send_remove', FALSE)) {
+    buddylist_mail_user('remove', $removeuser);
+  }
+
+  if (variable_get('buddylist_require_approval', 0)) {
+    db_query('DELETE FROM {buddylist} WHERE uid = %d AND buddy = %d', $id, $user->uid);
+    db_query('DELETE FROM {buddylist_buddy_group} WHERE uid = %d AND buddy = %d', $id, $user->uid);
+  }
+  module_invoke_all('buddylist', 'remove', $removeuser, $user, !variable_get('buddylist_require_approval', 0));
+}
+
+function theme_buddylist_online($online) {
+  return $online ? t('yes') : t('no');
+}
+
+/*
+ * Sends mail to a buddy, which is added/removed/deleted/requested by $user
+ */
+function buddylist_mail_user($op, $buddy, $user = NULL) {
+
+  if (variable_get('buddylist_user_mail', FALSE) && isset($buddy->buddylist_mail) && !$buddy->buddylist_mail) {
+    return; //the user has turned mails off
+  }
+
+  if (is_null($user)){
+    global $user;
+  }
+  switch($op) {
+    case 'add':
+      $subject = BUDDYLIST_ADD_SUBJECT;
+      $message = variable_get('buddylist_add_message', buddylist_mail_add_default());
+      break;
+    case 'remove':
+      $subject = BUDDYLIST_REMOVE_SUBJECT;
+      $message = variable_get('buddylist_remove_message', buddylist_mail_remove_default());
+      break;
+    case 'request':
+      $subject = BUDDYLIST_REQUEST_SUBJECT;
+      $message = variable_get('buddylist_request_message', buddylist_mail_request_default());
+      break;
+    case 'approval':
+      $subject = BUDDYLIST_APPROVAL_SUBJECT;
+      $message = variable_get('buddylist_approval_message', buddylist_mail_approval_default());
+      break;
+  }
+
+  $replacements = buddylist_translation() + (($op == 'approval') ? buddylist_approval_mail_replacements($user, $buddy) : buddylist_mail_replacements($buddy, $user));
+  $subject = t($subject, $replacements);
+  $message = t($message, $replacements);
+
+  $site_mail = variable_get('site_mail', "");
+  if (!strlen($site_mail)) {
+    if (user_access('administer site configuration')){
+      drupal_set_message(t('You should create an !link for your site.', array('!link' => l(t('an administrator mail address'), 'admin/settings/site-information'))), 'warning');
+    }
+    $site_mail = 'nobody@localhost';
+  }
+
+  // send the email
+  if ($op != 'approval') {
+    if (drupal_mail("buddylist_mail_user_$op", $buddy->mail, $subject, $message, $site_mail)) {
+      $message = t('%type message was sent to %username', array('%type' => $op, '%username' => $buddy->name));
+      watchdog('buddylist', $message);
+    }
+    else {
+      $message = t('There was a problem sending the %type message to %username', array('%type' => $op, '%username' => $buddy->name));
+      watchdog('buddylist', $message, WATCHDOG_WARNING);
+    }
+  }
+  else {
+    if (drupal_mail("buddylist_mail_user_$op", $buddy->mail, $subject, $message, $site_mail)) {
+      $message = t('%type message was sent to %username', array('%type' => $op, '%username' => $buddy->name));
+      watchdog('buddylist', $message);
+    }
+    else {
+      $message = t('There was a problem sending the %type message to %username', array('%type' => $op, '%username' => $buddy->name));
+      watchdog('buddylist', $message, WATCHDOG_WARNING);
+    }
+  }
+}
+
+function buddylist_mail_add_default() {
+  return <<<MESSAGE
+Hi @addee_name,
+
+You are @adder_name's newest @buddy.
+
+Here's a link to @adder_name's profile. If you'd like, you can add them as one of your @buddies:
+
+  @adder_link
+
+Regards,
+The @site team
+MESSAGE;
+}
+
+function buddylist_mail_remove_default() {
+  return <<<MESSAGE
+Hi @addee_name,
+
+You have been removed from  @adder_name's  @buddylist.
+
+Here's a link to @adder_name's profile:
+
+  @adder_link
+
+Enjoy your new freedom!
+
+Regards,
+The @site team
+MESSAGE;
+}
+
+function buddylist_mail_request_default() {
+  return <<<MESSAGE
+Hi @addee_name,
+
+@adder_name has requested to add you to his/her @buddylist.
+
+Here's a link to @adder_name's profile:
+
+  @adder_link
+
+To approve/deny this request, log in to @siteurl and see your pending @buddy requests
+at @pending_requests_link.
+
+Enjoy your new freedom!
+
+Regards,
+The @site team
+MESSAGE;
+}
+
+function buddylist_mail_approval_default() {
+  return <<<MESSAGE
+Hi @adder_name,
+
+@addee_name has approved your request to join his/her @buddylist.
+
+Here's a link to your @buddylist:
+
+  @adder_list_link
+
+Enjoy your new freedom!
+
+Regards,
+The @site team
+
+MESSAGE;
+}
+
+function buddylist_mail_replacements(&$buddy, &$user){
+  return array(
+    '@adder_name' => $user->name,
+    '@adder_link' => url("user/". $user->uid, NULL, NULL, TRUE),
+    '@adder_uid' => $user->uid,
+    '@addee_name' => $buddy->name,
+    '@addee_link' => url("user/". $buddy->uid, NULL, NULL, TRUE),
+    '@addee_uid' => $buddy->uid,
+    '@site' => variable_get("site_name", "Drupal"),
+    '@siteurl' => $GLOBALS["base_url"],
+    '@adder_list_link' => url("buddylist/". $user->uid ."/buddies/list", NULL, NULL, TRUE),
+    '@pending_requests_link' => url("buddylist/". $buddy->uid ."/buddies/requests", NULL, NULL, TRUE),
+  );
+}
+
+
+
+function buddylist_approval_mail_replacements(&$buddy, &$user) {
+  return array(
+    '@adder_name' => $user->name,
+    '@adder_link' => url("user/". $user->uid, NULL, NULL, TRUE),
+    '@adder_uid' => $user->uid,
+    '@addee_name' => $buddy->name,
+    '@addee_link' => url("user/". $buddy->uid, NULL, NULL, TRUE),
+    '@addee_uid' => $buddy->uid,
+    '@site' => variable_get("site_name", "Drupal"),
+    '@siteurl' => $GLOBALS["base_url"],
+    '@adder_list_link' => url("buddylist/". $user->uid ."/buddies/list", NULL, NULL, TRUE),
+  );
+}
+
+function buddylist_empty_text_default() {
+  return <<<MESSAGE
+<p>You haven't made any @buddies, yet.</p>
+
+<p>You can add a @buddy by visiting a user's profile page.</p>
+MESSAGE;
+}

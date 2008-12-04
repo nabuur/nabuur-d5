@@ -1,0 +1,34 @@
+<?php
+// $Id: date_authored_facet.install,v 1.4 2008/04/23 14:14:25 davidlesieur Exp $
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function date_authored_facet_uninstall() {
+  variable_del('date_authored_facet_format_y');
+  variable_del('date_authored_facet_format_ym');
+  variable_del('date_authored_facet_format_ymd');
+  if (db_table_exists('faceted_search_filters')) {
+    db_query("DELETE FROM {faceted_search_filters} WHERE filter_key = 'date_authored'");
+  }
+}
+
+/**
+ * Rename date format variable, and enable the Date Facets Format module to
+ * handle it.
+ */
+function date_authored_facet_update_1() {
+  if ($format = variable_get('date_authored_facet_format_y', '')) {
+    variable_set('date_facets_format_y', $format);
+    variable_del('date_authored_facet_format_y');
+  }
+  if ($format = variable_get('date_authored_facet_format_ym', '')) {
+    variable_set('date_facets_format_ym', $format);
+    variable_del('date_authored_facet_format_ym');
+  }
+  if ($format = variable_get('date_authored_facet_format_ymd', '')) {
+    variable_set('date_facets_format_ymd', $format);
+    variable_del('date_authored_facet_format_ymd');
+  }
+  return array();
+}

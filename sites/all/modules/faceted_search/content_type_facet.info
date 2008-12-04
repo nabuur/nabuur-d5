@@ -1,0 +1,12 @@
+; $Id: content_type_facet.info,v 1.5 2007/11/15 23:32:19 davidlesieur Exp $
+name = Content Type Facet
+description = "Provides a facet for content types."
+dependencies = faceted_search search
+package = Faceted Search
+
+
+; Information added by drupal.org packaging script on 2008-06-23
+version = "5.x-1.0-beta4"
+project = "faceted_search"
+datestamp = "1214182208"
+

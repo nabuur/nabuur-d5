@@ -1,0 +1,19 @@
+<?php
+
+function similarnodes_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("
+      CREATE TABLE {similarnodes} (
+        `nid` INT NOT NULL ,
+        `tid` INT NOT NULL ,
+        `weight` FLOAT NOT NULL DEFAULT '1',
+      PRIMARY KEY ( `nid` , `tid` )
+      ) ENGINE = MYISAM ;");
+  }
+  
+  
+}
+
+?>

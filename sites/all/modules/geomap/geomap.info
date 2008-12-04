@@ -1,0 +1,9 @@
+name = geomap
+description = Generate a googlemap from embedded geo microformats
+
+
+; Information added by drupal.org packaging script on 2008-03-25
+version = "5.x-1.0"
+project = "geomap"
+datestamp = "1206445209"
+

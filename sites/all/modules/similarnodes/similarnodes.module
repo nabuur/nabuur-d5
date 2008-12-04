@@ -1,0 +1,297 @@
+<?php
+
+include_once ('similarnodes_example.view.inc');
+/**Drupal Hooks **/
+
+/**
+ * Implemenation of hook_menu
+ *
+ * @param unknown_type $may_cache
+ * @return unknown
+ */
+function similarnodes_menu($may_cache = 0) {
+  
+  $items = array();
+  
+  if ($may_cache) {
+    $items[] = array (
+      'path' => 'similarnodes/build_cache',
+      'callback' => 'similarnodes_build_cache',
+      'access' => true,
+    );
+    
+    $items[] = array (
+      'path' => 'admin/settings/similarnodes',
+      'title' => 'Similar Node Settings',
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('similarnodes_settings_form'),
+    );
+  }
+  return $items;
+}
+
+/**
+ * Implementation of hook_help()
+ */
+function similarnodes_help($section) {
+  switch ($section) {
+    case 'admin/help#similarnodes':
+      return t('The Similar Nodes module has views integration and weighting.  Here you can set the weighting by taxonomy');
+  }
+}
+
+/**
+ * Implementation of hook_cron
+ */
+
+function similarnodes_cron() {
+  similarnodes_build_cache();
+}
+
+
+function similarnodes_nodeapi($node,$op) {
+  if ($op == 'insert' || $op == 'update') {
+    if (variable_get('similarnodes_refresh_cache_on_node_save',1) ) {
+      similarnodes_build_cache();
+    }
+  }
+}
+
+/*
+ * Handle the node type argument.
+ */
+function views_handler_arg_similarnode($op, &$query, $argtype, $arg = '') {
+  switch($op) {
+    case 'filter':
+      $where = db_escape_string($arg);      
+      if ($n = node_load(array('nid' => $where)) ) {
+        if (count($n->taxonomy)) {        
+        //$query->add_select('similarnode.nid')
+        
+        
+          $query->add_where("similarnodes.tid IN(%s)",implode(',',array_keys($n->taxonomy)));        
+          $query->add_where("node.nid != %d",$where);
+          //Problem here is where do we add the group and join hackery?
+        //It should be created in the field handler, but that's not always used...
+        //I guess we'll do it here because the argument is required... but this is really hacky..
+        
+          similarnode_add_groups_and_hack($query);
+          
+        } else {
+          $query->add_where('1 = 0');
+        }
+      } else {
+        //sucks, no validation allowed here really...
+        $query->add_where('1 = 0');
+      }
+      break;
+    case 'title':
+      $title = "Similar nodes to " . $arg;
+      return $title ? $title : check_plain($query);
+  }
+}
+
+
+function similarnodes_views_arguments() {
+  
+  $arguments = array(
+      'similarnode' => array(
+        'name' => t('SimilarNodes: Source Node Id'),
+        'handler' => 'views_handler_arg_similarnode',
+        'help' => t('Node to find similar nodes for (note: this node is filtered out of the results)'),
+      ),
+  );
+
+  return $arguments;
+
+}
+
+function similarnodes_views_tables() {
+  $tables=array();
+  $tables['similarnodes']=
+    array('name' => 'similarnodes',
+          'join' => array('type' => 'inner',
+                          'left' => array('table' => 'node',
+                                          'field' => 'nid'),
+                          'right' => array('field' => 'nid')
+                          ),
+          'fields' => array('similar_weight' => array('name' => t('SimlarNodes: Weight'),
+                                              'query_handler' => 'similarnodes_sum',                                              
+                                              'help' => t('The similarity weight to the provided nid'),
+                                              'sortable' => TRUE)),
+          'sorts' => array('similar_weight' => array('name' => t('SimlarNodes: Weight'),
+                                             'handler' => 'similarnode_weight_sort',
+                                             'help' => t('Sort by node similarity weight'))),
+          /*'filters' => array('similar_weight' => array('name' => t('SimilarNodes: Weight'),
+                                               'handler' => 'views_handler_filter_weight',
+                                               'help' => t('Filter by node weight'),
+                                               'operator' => 'views_handler_operator_gtlt',
+                                               'option' => 'string'))*/
+          );
+  return $tables;
+}
+
+function similarnodes_build_cache() {
+  $weights = variable_get('similarnodes_taxonomy_weight',array());
+  db_query("DELETE FROM {similarnodes}");
+  $build_q = 'INSERT INTO {similarnodes} (nid,tid,weight) SELECT n.nid, tn.tid, "%d" as weight FROM node n , term_node tn , term_data dt WHERE n.nid = tn.nid AND tn.tid = dt.tid AND dt.vid = %d';  
+  foreach ($weights as $vid => $weight) {
+    if ($weight != 0) {
+      db_query($build_q,$weight,$vid);
+    }
+  }
+}
+
+
+function similarnode_weight_sort($op, &$query, &$sortinfo, &$sort) {
+  //$query->add_orderby('similarnodes','similar_weight',$sort['sortorder']);
+  $query->orderby[] = 'similarnodes_similar_weight ' . $sort['sortorder'];
+  //Hack Hack Hack
+  
+  array_pop($query->groupby);
+}
+
+function similarnode_add_groups_and_hack(&$query) {
+  static $i_did_it;
+  
+  if ($i_did_it) {
+    dpr("I did it already!");
+    return;
+  }
+  
+  $i_did_it = true;
+  
+  /**
+   * Earl: Why do we not group on count queries?  This hack hurts us all
+   */
+  $query->add_where('"similarnodes" = "%s"','similarnodes');
+  $query->add_groupby("similarnodes.nid");
+  
+  $query->ensure_table('similarnodes');
+  $query->fields[] = 'SUM(similarnodes.weight) as similarnodes_similar_weight';  
+  
+}
+
+function similarnodes_sum(&$field, &$fieldinfo, &$query) {   
+  
+  $fieldinfo['notafield'] = true;  
+  /**
+   * We used to do all of this, but stopped because the arg is required... It really belongs here, but if someone doesn't add the field, it won't work... and we don't want to do it twice...
+   * 
+   * Sigh
+   */
+  
+  //similarnode_add_groups_and_hack($query);
+  
+}
+
+function views_handler_filter_weight($op,$field, &$fieldinfo, &$query) {
+  return;
+}
+
+function similarnodes_views_query_substitutions($view) {
+  
+  $replacements = array();
+  
+  foreach ($view->field as $field) {    
+    if ($field['tablename'] == 'similarnodes') {      
+      $replacements['AND ("similarnodes" = "similarnodes") GROUP BY similarnodes.nid'] = "GROUP BY similarnodes.nid";
+      //Now for the count query:
+      $replacements['AND ("similarnodes" = "similarnodes")'] = ' GROUP BY similarnodes.nid';
+    }
+  }
+  foreach ($view->filter as $key => $filter) {
+    if ($filter['field'] == 'similarnodes.similar_weight') {
+      $key = (string)$key;     
+      $filter_name = 'filter' . $key;     
+      if ($view->used_filters[$filter_name]) {        
+        $statement = sprintf(' %s %d', $view->used_filters['op' . $key], $view->used_filters['filter' . $key]);
+      } else {
+        $statement = sprintf(' %s %d', $filter['operator'], $filter['value']);
+      }
+    }
+  }
+  
+  if ($statement) {
+    $src = 'GROUP BY similarnodes.nid';
+    $replacements[$src] = $src. ' HAVING similarnodes_similar_weight '. $statement;
+  }
+  
+  
+  return $replacements;
+}
+
+
+/**
+ * Settings
+ * 
+ */
+
+function get_similarnodes_taxonomy_weight() {
+  if ($weight = variable_get('similarnodes_taxonomy_weight',array())) {
+    return $weight;
+  }
+}
+
+function set_similarnodes_taxonomy_weight($weights) {
+  variable_set('similarnodes_taxonomy_weight',$weights);
+}
+
+function similarnodes_settings_form() {
+  $form = array();
+  
+  $taxonomy_weights = get_similarnodes_taxonomy_weight();
+  
+  $vocabs = taxonomy_get_vocabularies();
+  
+  $options = array_combine(range(0,20),range(0,20));
+  //dpr($options);
+  
+   $form['rebuild_cache'] = array(
+      '#type'   => 'submit',
+      '#value'  => t('Rebuild Cache'),
+      '#description' => t('This wil not save your settings, will just rebuild from current ones'),
+    );
+  foreach ($vocabs as $vid => $vocab) {
+    $form['vocabs'][$vid] = array (
+      "#type" => "select",
+      '#title' => t('Weight for @vocab_name',array('@vocab_name' => $vocab->name)),
+      '#description' => t('Enter in the relative weight of this vocab'),
+      "#multiple" => 0,
+      "#size" => 1,      
+      '#options' => $options,
+      "#default_value" => ($taxonomy_weights[$vid]) ? $taxonomy_weights[$vid] : 1,    
+    );
+  }
+  
+  
+  $form['refresh_cache_on_node_save'] = array (
+    '#type' => 'radios',
+    '#title' => t('Refresh cache on node save?'),    
+    '#options' => array(0 => "No",1 => "Yes"),
+    '#default_value' => variable_get('similarnodes_refresh_cache_on_node_save',1),
+  );
+  
+  $form['#tree'] = true;
+  
+  $form['submit'] = array(
+      '#type'   => 'submit',
+      '#value'  => t('Submit and rebuilt cache'),
+    );
+    
+  return $form;
+}
+
+function similarnodes_settings_form_submit($form_id,$form_values) {
+  if ($form_values['op'] == 'Submit and rebuilt cache') {  
+    set_similarnodes_taxonomy_weight($form_values['vocabs']);
+    variable_set('similarnodes_refresh_cache_on_node_save',$form_values['refresh_cache_on_node_save']);
+  }
+  similarnodes_build_cache();
+  drupal_set_message(t('Similar Nodes cache has been rebuilt'));
+    
+}
+
+
+
+?>

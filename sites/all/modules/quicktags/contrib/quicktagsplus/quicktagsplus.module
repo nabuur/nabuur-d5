@@ -1,0 +1,122 @@
+<?php
+// $Id: quicktagsplus.module,v 1.2.4.1 2008/02/12 20:42:42 tcblack Exp $
+/** per the directions on 
+ * http://webschuur.com/node/628
+ * I decided to add as many html tags as I normally use to define my blogposts
+ * to quicktags.  So I started adding them one by one.
+ * quicktagsplus adds Unorderedlists, Orderedlists, ListItem, Underline, Strike,
+ * h1, h2, h3, Superscript, Subscript, Break, Cite, Image, as well as Comment
+ */ 
+
+/** Add additional quicktags buttons to the original
+ *using the quicktags_insert hook provided by quicktags
+ */    
+function quicktagsplus_quicktags_insert() {
+ $path = base_path() . drupal_get_path('module','quicktagsplus') .'/';
+  //we need the path because of the icons.
+/** the first item is the image insert tag.
+ * The button was included but unused in the original quicktags
+ * so I put it first in the order so it will match the first few icons.
+   */   
+  $items = array(
+    'ed_imageinsert' => array(
+      'name' => 'Image',
+      'prefix' => '<img src="',
+      'suffix' => '" />',
+      'weight' => 70,
+      'icon' => $path .'ed_image.png'
+    ),
+    'ed_heading1' => array( 
+      'name' => 'Heading 1',
+      'prefix' => '<h1>',
+      'suffix' => '</h1>',
+      'weight' => 75,
+      'icon' => $path .'ed_h1.png',
+    ),
+    'ed_heading2' => array( 
+      'name' => 'Heading 2',
+      'prefix' => '<h2>',
+      'suffix' => '</h2>',
+      'weight' => 76,
+      'icon' => $path .'ed_h2.png',
+    ),
+    'ed_heading3' => array( 
+      'name' => 'Heading 3',
+      'prefix' => '<h3>',
+      'suffix' => '</h3>',
+      'weight' => 77,
+      'icon' => $path .'ed_h3.png',
+    ),
+    'ed_cite' => array( 
+      'name' => 'Citation Text',
+      'prefix' => '<cite>',
+      'suffix' => '</cite>',
+      'weight' => 80,
+      'icon' => $path .'ed_cite.png',
+    ),
+    'ed_comment' => array( 
+      'name' => 'Insert a comment which will not be visible',
+      'prefix' => '<!--',
+      'suffix' => '-->',
+      'weight' => 81,
+      'icon' => $path .'ed_comment.png',
+    ),
+    'ed_unorderedlist' => array( 
+      'name' => 'Unordered List',
+      'prefix' => '<ul><li>',
+      'suffix' => '</li></ul>',
+      'weight' => 82,
+      'icon' => $path .'ed_ul.png',
+    ),
+    'ed_orderedlist' => array( 
+      'name' => 'Ordered List',
+      'prefix' => '<ol><li>',
+      'suffix' => '</li></ol>',
+      'weight' => 83,
+      'icon' => $path .'ed_ol.png',
+    ),
+    'ed_listitem' => array( 
+      'name' => 'List Item',
+      'prefix' => '<li>',
+      'suffix' => '</li>',
+      'weight' => 84,
+      'icon' => $path .'ed_li.png',
+    ),
+    'ed_underline' => array( 
+      'name' => 'Underline',
+      'prefix' => '<ins>',
+      'suffix' => '</ins>',
+      'weight' => 85,
+      'icon' => $path .'ed_ins.png',
+    ),
+    'ed_strike' => array( 
+      'name' => 'Strikethrough',
+      'prefix' => '<del>',
+      'suffix' => '</del>',
+      'weight' => 86,
+      'icon' => $path .'ed_del.png',
+    ),
+    'ed_superscript' => array( 
+      'name' => 'Superscript',
+      'prefix' => '<sup>',
+      'suffix' => '</sup>',
+      'weight' => 87,
+      'icon' => $path .'ed_super.png',
+    ),
+    'ed_subscript' => array( 
+      'name' => 'Subscript',
+      'prefix' => '<sub>',
+      'suffix' => '</sub>',
+      'weight' => 88,
+      'icon' => $path .'ed_sub.png',
+    ),
+    'ed_break' => array( 
+      'name' => 'Force a Line Break',
+      'prefix' => '<br />',
+      'close' => FALSE,
+      'weight' => 89,
+      'icon' => $path .'ed_break.png',
+    ),    
+  );
+  return $items;
+}

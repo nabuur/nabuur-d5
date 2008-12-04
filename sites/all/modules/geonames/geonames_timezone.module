@@ -1,0 +1,37 @@
+<?php
+// $Id: geonames_timezone.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames nearbyplace API / by Erlend Eide, erlend(|)edesign.no
+ */
+
+/**
+ * Service configuration
+ */ 
+function geonames_timezone_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array( 
+    'service_name'             => 'timezone',
+    'service_full_name'        => 'Timezone',
+    'description'              => t('Find the timezone for a given lat/lng with gmt offset (1. January) and dst offset (1. July)'),
+    'service_path'             => 'timezone',
+    'credit_cost'              => 1,
+    'result_cache_prefix'      => 'tzres:',
+    'data_cache_prefix'        => 'tzdat:',
+    'allowed_parameters'       => array(
+       //our style  geonames style
+  		 'lat'      => 'lat',
+  	   'lng'      => 'lng',
+	   ),
+	   'required_parameters'      => array( // If you have set query_defaults you should not include the parameter here
+		    'lat', 
+		    'lng'
+    ),
+    'required_parameters_type' => 'all',
+		'query_defaults' => array(
+		  'type' => 'xml'
+		),
+		'columns' => array('countrycode','countryname','lat','lng','timezoneid','dstoffset','gmtoffset'),
+	 );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

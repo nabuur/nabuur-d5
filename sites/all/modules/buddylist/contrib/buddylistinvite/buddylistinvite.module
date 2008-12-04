@@ -1,0 +1,40 @@
+<?php
+// $Id: buddylistinvite.module,v 1.3.2.4 2007/09/06 21:29:19 dldege Exp $
+
+/**
+ * Implementation of hook_help(). 
+ */
+function buddylistinvite_help($section) {
+  if (!module_exists('buddylist')) {
+    return;
+  }
+  switch ($section) {
+    case 'admin/settings/userpoints':
+      return t('Integrates the @buddylist and invite modules.', buddylist_translation());
+    case 'admin/help#buddylistinvite':
+      return '<p>'. t("Whenever a person responds to an invitation from the invite module and joins the site, the inviter and invitee are added to each other's @buddylist.", buddylist_translation()) .'</p>';
+    case 'invite':
+      if (user_access('maintain buddy list')) {
+        return '<p>'. t("The people you invite will be automatically added to your @buddylist when they accept the invitation.", buddylist_translation()) .'</p>';
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_invite().
+ * @see invite.module
+ */
+function buddylistinvite_invite($op, $args) {
+  if (!module_exists('buddylist')) {
+    return;
+  }
+
+  if ($op == 'escalate' && user_access('maintain buddy list', $args['invitee']) && user_access('maintain buddy list', $args['inviter'])) {
+    $time = time();
+    watchdog('buddylistinvite', t("Users %user1 and %user2 are becoming @buddies", array('%user1' => theme('username', $args['invitee']), '%user2' => theme('username', $args['inviter'])) + buddylist_translation()));
+    db_query('INSERT INTO {buddylist} (received, uid, buddy, timestamp) VALUES (1, %d, %d, %d)', $args['invitee']->uid, $args['inviter']->uid, $time);
+    db_query('INSERT INTO {buddylist} (received, uid, buddy, timestamp) VALUES (1, %d, %d, %d)', $args['inviter']->uid, $args['invitee']->uid, $time);
+    module_invoke_all('buddylist', 'add', $args['inviter'], $args['invitee'], false);
+  }
+}

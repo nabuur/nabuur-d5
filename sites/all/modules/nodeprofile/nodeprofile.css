@@ -1,0 +1,21 @@
+@CHARSET "UTF-8";
+
+div.nodeprofile-display {
+  border: 1px solid #DDD;
+  margin: 1em 0em;
+  padding: 0em 1em 1em 1em;
+}
+
+ul.nodeprofile {
+  border-bottom: 1px solid #bbb;
+  padding: 0.5em 1em;
+}
+
+ul.nodeprofile li {
+  display: inline;
+  padding: 0 2em;
+  border-right: 1px solid #ccc;
+  position: relative;
+  left: -1em;
+  background: none;
+}

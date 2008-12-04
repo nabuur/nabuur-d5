@@ -1,0 +1,12 @@
+; $Id: xmlsitemap_engines.info,v 1.1 2007/11/09 17:56:05 darrenoh Exp $
+name = XML Sitemap: Engines
+description = Submits site map to search engines.
+package = XML Sitemap
+dependencies = xmlsitemap
+
+
+; Information added by drupal.org packaging script on 2008-05-21
+version = "5.x-1.6"
+project = "xmlsitemap"
+datestamp = "1211408714"
+

@@ -1,0 +1,65 @@
+<?php
+// $Id: nodecomment.install,v 1.1.1.2 2008/06/13 14:56:17 kester Exp $
+
+function nodecomment_install() {
+  db_query("CREATE TABLE {node_comments} (
+    cid int NOT NULL default 0,
+    pid int NOT NULL default 0,
+    nid int NOT NULL default 0,
+    hostname varchar(128) NOT NULL default '',
+    thread varchar(255) NOT NULL,
+    name varchar(60) default NULL,
+    mail varchar(64) default NULL,
+    homepage varchar(255) default NULL,
+    PRIMARY KEY (cid),
+    KEY lid (nid)
+  ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+
+  // During install profiles, node and user modules aren't yet loaded.
+  // Ensure they're loaded before calling node_get_types().
+  include_once './'. drupal_get_path('module', 'node') .'/node.module';
+  include_once './'. drupal_get_path('module', 'user') .'/user.module';
+  $types = node_get_types();
+  $types = array_change_key_case($types, CASE_LOWER);
+
+  if (!in_array('comment', array_keys($types))) {
+    // Create the comment content type.
+    include_once './'. drupal_get_path('module', 'node') .'/content_types.inc';
+
+    $type  = array(
+      'name' => 'Comment',
+      'type' => 'comment',
+      'description' => 'A comment for use with the nodecomment module.',
+      'title_label' => 'Subject',
+      'body_label' => 'Body',
+      'min_word_count' => '0',
+      'help' => '',
+      'node_options' => array(
+        'status' => true,
+        'promote' => false,
+        'sticky' => false,
+        'revision' => false,
+        ),
+      'old_type' => 'comment',
+      'orig_type' => '',
+      'module' => 'node',
+      'custom' => '1',
+      'modified' => '1',
+      'locked' => '0',
+    );
+    drupal_execute('node_type_form', $type, (object)$type);
+
+    cache_clear_all();
+    system_modules();
+    menu_rebuild();
+    node_types_rebuild();
+  }
+}
+
+function nodecomment_uninstall() {
+  if (db_table_exists('node_comments')) {
+    // The uninstall hook should do more than this and clean up the node
+    // and node_comment_statistics table as well.
+    db_query("DROP TABLE {node_comments}");
+  }
+}

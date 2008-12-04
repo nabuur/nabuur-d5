@@ -1,0 +1,11 @@
+; $id$
+name = nearbyplace
+description = Finds Nearby Places to a single point by latitude and longitude
+dependencies = geonames
+package = Geonames
+version = "$Name: DRUPAL-5 $"
+; Information added by drupal.org packaging script on 2007-10-10
+version = "5.x-1.x-dev"
+project = "geonames"
+datestamp = "1192017839"
+

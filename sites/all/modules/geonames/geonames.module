@@ -1,0 +1,1335 @@
+<?php
+// $Id: geonames.module,v 1.1.2.4 2007/09/28 23:40:45 serosero Exp $
+
+/**
+ * @file
+ * GeoNames API / by Erlend Eide, erlend(|)edesign.no
+ *
+ * The GeoNames API provides a framework for the GeoNames Services. 
+ * This module does nothing unless you also install at least one of the 
+ * services.
+ * 
+ * Commercial Services credit cost: http://www.geonames.org/professional-webservices.html
+ */
+		
+/*
+  TODO:
+   - Rewrite logics handling the columns option, and the cache-logics (which currently uses
+     the columns variable to make somewhat ineffective decisions)
+   - Customise Theming, create hook that is implemented in each service-module?
+   - Move/Remove Google Maps functions from the core module, must be improved...
+   - Improve handling of exeptions, verboseness, errmessages etc..
+   - Countries, admin-names, feature codes/classes etc could be cached and made available in a function so
+     we can run fill($resultobject) or something, and then convert all keys to names...
+
+   GEONAMES ISSUE:
+   - countryinfo module does not return all countries because they are missing border information
+     use http://ws.geonames.org/countryInfoCSV? for a full list of all countries...s
+*/		
+		
+		
+/**
+ * Constants
+ */
+DEFINE('GEONAMES_COMMERCIAL',      variable_get('geonames_commercial_active', FALSE));
+DEFINE('GEONAMES_FREE_SERVER_URL', 'http://ws.geonames.org');
+DEFINE('GEONAMES_CACHE',           variable_get('geonames_cache', TRUE));
+DEFINE('GEONAMES_CACHE_TABLE',     variable_get('geonames_cache_table', 'cache'));    
+DEFINE('GEONAMES_CACHE_LIMIT',     86400 * variable_get('geonames_cache_limit', 90));
+
+/**
+ * GeoNames API function
+ *
+ * See http://www.geonames.org/export/geonames-search.html for full docs.
+ * NOTE: q (in GeoNames docs) = query (API), all other parameters are
+ * equivalently named
+ *
+ * @param $service
+ *   string: name of service
+ * @param $query
+ *   associative array with query - optional for some services, mandatory for others
+ * @param $columns
+ *   optional array: returns only the specified columns, ordered
+ * @return
+ *	 result object (or FALSE on failure) 
+ */
+function geonames_query($service, $query = array(), $options = NULL) {
+//function geonames_query($service, $query = array(), $columns = FALSE) {
+
+  if ($query == NULL || $query == FALSE || $query == '') {
+    $query = array();
+  }
+  else if (!is_array($query)) {
+    return FALSE;
+  }
+	
+  $time_start = microtime(TRUE);						   
+
+  if (!in_array($service, geonames_services())) {
+    drupal_set_message(t('Service').' "<i>'.$service.'</i>" '.t(' is not installed! ;('));
+    return false;
+  };
+
+  // make search case insensitive 
+  $query = array_change_key_case($query); 	   // lowercase all query keys
+  if (is_array($options)) {
+    $options = array_change_key_case($options);  // lowercase all options
+  }
+	
+  // remove empty-value parameters from query
+  foreach ($query as $key => $val) {
+    if (empty($val)) {
+      unset($query[$key]);
+    }
+  }
+	
+  // add default query parameters to query
+  $query_defaults = geonames_variable($service, 'query_defaults');
+  if (is_array($query_defaults)) {
+    $query = array_merge($query_defaults, $query);
+  }
+	
+  // check if the query contains the required parameteres
+  if (!geonames_query_required_parameters_set($service, $query, geonames_variable($service, 'required_parameters_type'))) {
+    return FALSE;
+  }
+
+  if (NULL != $options) {
+    if (!is_array($options)) {
+      // options must be an array
+      return false;
+    }
+    if (gettype($options[0]) === string) {
+      // Backwards compatibility -- $options was $columns
+      $columns = $options;
+    }
+    if ($options['columns']) {
+      $columns = $options['columns'];
+      array_walk($columns, '_aw_val_to_lower'); // lowercase all column values
+    }
+    if ($options['sortby']) {
+      $sortby = $options['sortby'];
+    }
+    if ($options['sortorder']) {
+      $sortorder = $options['sortorder'];
+    }
+  }
+
+  if ($columns == FALSE) {
+    // load service defined columns
+    $columns = geonames_variable($service, 'columns');
+  }
+  else{
+    // If a set of fieldnames is passed, we check that the fieldnames are valid
+    if (!$defined_columns = geonames_variable($service, 'columns')) {
+      // Load full style 
+      $defined_columns = geonames_fields('full', TRUE); 
+//      $defined_columns = isset($query['style']) ? geonames_fields($query['style'], TRUE) : geonames_fields('short', TRUE); 
+    }
+    foreach ($columns as $key => $val) {
+      if (!in_array($val, $defined_columns)) {
+        // exclude unknown fieldnames
+        unset($columns[$key]);
+        drupal_set_message(t('Field').' <i>'.$val.'</i> '.t('is not available for this service, ignoring.'));
+      }
+    }
+  }
+  if ($columns) {	
+    if (geonames_variable($service, 'detect_style')) {
+      $query['style'] = geonames_query_detect_style($columns);
+    }
+    $fields = $columns;
+  }
+  else {
+    // if columns are not specified, use $query['style'], and if that isn't specified - default to short ;)
+    $fields = isset($query['style']) ? geonames_fields($query['style'], TRUE) : geonames_fields('short', TRUE); 
+  }
+
+  // sort query, so cached queries are more likely to get hit
+  asort($query);
+  // convert our Query Array to a GeoNames Encoded URL
+  if (!$querystring = geonames_prepare_query_string($service, $query)) {
+    return FALSE;
+  }
+
+  // retrieve results from Cache, or from GeoNames Server
+  $cache_geores = geonames_variable($service, 'result_cache_prefix') . $querystring;
+  $cache_geodat = geonames_variable($service, 'data_cache_prefix') . $querystring;
+  if (GEONAMES_CACHE) {
+    // if columns are passed, get DATA from cache
+    if (($columns) && ($cache = cache_get($cache_geodat, GEONAMES_CACHE_TABLE)) && (!empty($cache->data))) { 
+      $data = unserialize($cache->data);
+      $datacache = TRUE;
+    }
+    // if columns are not passed, get RESULT from cache (fastest) - Don't mess with the parenthesises
+    else if ((!$columns) && ($cache = cache_get($cache_geores, GEONAMES_CACHE_TABLE)) && (!empty($cache->data))) { 
+      $result = unserialize($cache->data);
+      if (variable_get('geonames_reveal_cache', TRUE)) {
+        $result->request['cached'] = 'result';
+      }
+    }
+  }
+	
+  // if nothing has been loaded from cache (new query, or cache is disabled) get data from GeoNames
+  if (!$result && !$data) {
+    $data = file_get_contents(geonames_service_url($service) . $querystring . '&app=drupal');
+    if ($data == FALSE) {
+      drupal_set_message(t('Fetching data from GeoNames failed... please try again later.', 'error'));
+      return FALSE;
+    }
+    else {
+      // increase credit counter if commercial server is used
+      if (GEONAMES_COMMERCIAL) {
+        geonames_credits_pay($service);
+      }
+      if (GEONAMES_CACHE && $columns) {
+        cache_set($cache_geodat, GEONAMES_CACHE_TABLE, serialize($data), time() + GEONAMES_CACHE_LIMIT);
+      }
+    }
+  }
+
+  if (!is_object($result) && $data) {
+    // parse the XML data we have received, and add some more properties to the object
+    $result = geonames_parse_xml($data, $fields);
+    $result->service            = $service;
+    $result->request['url']     = geonames_service_url($service) . $querystring;
+    $result->request['bytes']   = strlen($data); 
+    $result->query              = $query;
+    if (variable_get('geonames_reveal_cache', TRUE) && $datacache) {
+      $result->request['cached']= 'data';
+    }
+    if (geonames_variable($service, 'pager')) {
+      $result->pager            = _prepare_pager_data($query['maxrows'], $query['startrow'], $result->total_results_count);
+    }
+    if (GEONAMES_CACHE && !$columns) {
+      cache_set($cache_geores, GEONAMES_CACHE_TABLE, serialize($result), time() + GEONAMES_CACHE_LIMIT);
+    }
+		
+    // If sorting parameters are passed
+    if ($sortby || $sortorder) {
+      _geonames_sort($result->results, $sortby, $sortorder);
+    }
+  }  
+
+  $result->request['seconds'] = microtime(TRUE) - $time_start; 
+  	
+  return $result;
+}
+
+/**
+ * Returns the defined variable for the specified service
+ */
+function geonames_variable($service, $variable) {
+  $results = module_invoke_all('geoconfig', $variable);
+  return $results[$service];
+}
+
+/**
+ * Returns a list of the GeoNames Services that are available
+ *
+ * @param $keys 
+ *   return keys or full configuration array 
+ * @return $keys = true   
+ *   array of service keys (service_names)
+ * @return $keys = false  
+ *   associative array with entire service configurations
+ */
+function geonames_services($keys = true) {
+  $results = module_invoke_all('geoconfig');
+  return ($keys) ? array_keys($results) : $results;
+}
+ 
+/**
+ * Returns the Service URL for the specified service
+ *
+ * @param $service
+ *   string, i.e. 'search' for the search service
+ * @return url (string)
+ */
+function geonames_service_url($service) {
+  $service_path = geonames_variable($service, 'service_path');
+  if ($service_path) {
+    return (GEONAMES_COMMERCIAL) 
+      ?  variable_get('geonames_commercial_server', '') .'/'. $service_path .'?username='. variable_get('geonames_commercial_username', '') .'&'
+      : GEONAMES_FREE_SERVER_URL .'/'. $service_path . '?';
+  }
+  return false;
+}
+
+/**
+ * Prepare the Query String
+ * 
+ * This function verifies the integrity of the query array, and builds the parts 
+ * using geonames_prepare_query_string_element
+ *
+ * @param $query
+ *   array with query properties
+ *
+ * @return 
+ *   URL Query String
+ *
+ * @see
+ *   geonames_prepare_query_string_element
+ */
+function geonames_prepare_query_string($service, $query) {
+  foreach ($query as $key => $val) {
+    if (is_array($val)) { 
+      // Verify that the parameter is allowed to be an array;
+      if ($arrpar = geonames_variable($service, 'array_parameters')) {
+        if (!in_array($key, $arrpar)) {
+          return FALSE;
+        }
+      }
+    }
+    else {
+      $val = array($val); // for convenience in the upcoming foreach loop ;)
+    }
+    // build query string for all elements
+    foreach ($val as $value) {
+      $querystring .= geonames_prepare_query_string_element($service, $key, $value);	
+    }		
+  }
+  return ($querystring ? substr($querystring, 1, strlen($querystring)) : '&'); // Remove presceding & -- for empty queries, add a harmless & ;)
+}
+
+/**
+ * Build Query String Elements
+ *
+ * The function changes keys and values from lowercase and 
+ * mixed, to the GeoNames format. The function also filters
+ * out unwanted/disallowed elements from the query.
+ *
+ * @param $service
+ *   string (ex: 'search' or 'nearbyplace')
+ *
+ * @see
+ *   geonames_prepare_query_string 
+ */
+function geonames_prepare_query_string_element($service, $key, $val) { 
+  $parameters = geonames_variable($service, 'allowed_parameters');
+  $keys = array_keys($parameters); 
+
+  // is the parameter allowed for this service? else just skip it
+  if (in_array($key, $keys)) {
+    // radius is always Maximum 300 km
+    if ($key == 'radius' && $val > 300) {
+      $val = 300;
+    }	
+    // uppercase values
+    if ($key == 'style' || $key == 'featureclass' || $key == 'featurecode') {
+      $val = strtoupper($val);
+    }
+    // lowercase values
+    if ($key == 'lang') {
+      $val = strtolower($val);
+    }
+    // url encode string parameters that may contain special characters or spaces
+    if ($key == 'name' || $key == 'query') {
+      $val = urlencode($val); 
+    }
+    // switch to GeoNames style parameter names
+    $key = $parameters[$key]; 
+    if ($val != '') {
+      $qs_element = "&$key=$val";
+    }
+  }
+  return $qs_element;
+}
+
+/**
+ * Checks if Required Parameters are Set for $service/$query
+ *
+ * @param $service
+ *   string, (for example search or nearbyplace)
+ * @param $query
+ *   array (query array)
+ * @param $single
+ *	 true = one of the paramters required
+ *   false = all of the parameters required
+ * @return
+ *   boolean TRUE/FALSE
+ */ 
+function geonames_query_required_parameters_set($service, $query, $single = 'single') {	
+  $required_parameters = geonames_variable($service, 'required_parameters'); 
+  if (!is_array($required_parameters)) {
+    return TRUE; // There are no required parameters ;)
+  }
+  // If the required parameters consists of a set of arrays (several combinations)
+  // one of the sets must return true 
+  if (!is_array($required_parameters[0])) {
+    // Convert to array of array
+    $required_parameters = array($required_parameters);
+  }
+  
+  $set = false;
+  foreach ($required_parameters as $rp) {
+    if ($set) {
+      return $set; // no need to keep working if we have a confirmed configuration
+    }
+    $count = 0;
+    switch ($single) {
+      case 'single':
+        // One of the defined parameters are required
+        foreach ($rp as $param) {
+          if (!$set) {
+            $set = ($query[$param]) ? TRUE : FALSE;
+          }
+        }
+        break; 
+		
+      case 'all':
+        // All of the defined parameters required
+        foreach ($rp as $param) {
+          if ($query[$param]) {
+            $count = $count + 1;
+          }
+        }
+        $set = (count($rp) == $count) ? TRUE : FALSE;
+        break;
+    } // end switch ($single)		
+  } // end foreach required parameter
+  return $set;
+}
+
+/**
+ * Parser for the GeoNames Search Service XML Response
+ * 
+ *   If fields is specified, the return object will only return the fields
+ *   you ask for, in the specified order.
+ *
+ * @param $data 
+ *   geonames XML document
+ * @param $fields
+ *   optional array of fields that the returned object must contain
+ * @return
+ *   $result object 
+ */
+function geonames_parse_xml($data, $columns = FALSE) {
+  // temporary solution; get stuff from XML tag to distinguish between pay-service and free service
+  preg_match('/<\?xml version="(.*)" encoding="([a-zA-Z\-0-9]*)"(.*)\?>/', $data, $regs);
+  if ($regs[3]) {
+    $subreg = explode('"', $regs[3]);
+    $result->standalone = $subreg[1];
+  }
+
+  $xml = new SimpleXMLElement($data);
+  if ($xml->status) {
+    $result->status['message'] = (string) $xml->status['message'];
+    $result->status['value']   = (string) $xml->status['value'];
+  } 
+  else {  
+    $field_template = array();
+    $field_actual = array();
+    foreach ($xml->children() as $entry) {
+      $fields = array();
+      $entryhasvalues = FALSE;
+      // create structure template based on the $columns passed, this ensures the order is like specified
+      foreach ($columns as $columnname) {
+        $fields[$columnname] = '';
+      }
+	 if (!$field_template) {
+	   // store template on first loop only
+	   $field_template = array_keys($fields);
+	 }
+      // build a list of all the attributes in the entry
+      foreach ($entry->children() as $field) {
+        $fieldname = strtolower($field->getName());
+        $field_actual[$fieldname] = '';
+// TODO!! Either in_array or $[]... "search" needs in_array...
+        if ((!$columns)  || in_array($fieldname, $columns) || $fieldname = 'timezone') { 
+          $entryhasvalues = TRUE;
+	     $fields[$fieldname] = (string) $field;
+		// if timezone is not requested, don't return it! ;)
+          if ($fieldname == 'timezone' && $columns && !in_array($fieldname, $columns)) {
+		  unset($fields['timezone']);
+		}
+          foreach ($field->attributes() as $attr) { 
+            $attrname = strtolower($attr->getName());
+            $field_actual[$attrname] = '';
+            $fields[$attrname] = (string) $attr;
+            if ($attrname == 'gmtoffset' && $columns && !in_array($attrname, $columns)) {
+              unset($fields['gmtoffset']);
+            }
+            if ($attrname == 'dstoffset' && $columns && !in_array($attrname, $columns)) {
+              unset($fields['dstoffset']);
+            }
+		}
+        }
+      }
+
+	 // clean out field names that weren't in the result set from GeoNames
+      if (!$field_diff) {
+	  $field_diff = array_diff($field_template, array_keys($field_actual));
+       if (is_array($field_diff)) {
+	    $field_clean == true;
+	  }
+	 }
+	 else if ($field_clean) {
+        // Clean out the container elements that are not in the result set from geonames!
+        foreach ($field_diff as $remove_field){
+	     unset($fields[$remove_field]);
+        }
+	 }
+      
+      if ($entryhasvalues) {
+        $result->results[] = $fields;
+      }	
+    }
+    
+    $result->total_results_count = ($xml->totalResultsCount) ? (string) $xml->totalResultsCount : count($result->results);
+  }
+  return $result;		
+}
+
+/**
+ * Commercial Service: Increase the Credits Counter ;)
+ */
+function geonames_credits_pay($service) {
+  $cost =  (is_numeric($service)) ? $service : credit_cost($service);
+  variable_set('geonames_commercial_credits', $cost + variable_get('geonames_commercial_credits', 0));
+}
+
+/**
+ * Returns the Number of credits the specified service costs
+ */
+function credit_cost($service) {
+  $results = module_invoke_all('geoconfig', 'credit_cost');
+  return $results[$service];
+}
+
+/**
+ * Commercial Service: Reset Credits Counter
+ */
+function geonames_credits_reset($adminpage = TRUE) {
+  variable_set('geonames_commercial_credits', 0);
+  variable_set('geonames_commercial_credits_since', time());
+  if ($adminpage) {
+    drupal_set_message('Credits and time reset.');
+    drupal_goto('admin/settings/geonames');
+  }
+}
+
+/**
+ * Clear the Results and Data Cache
+ */
+function geonames_cache_clear($adminpage = TRUE) {
+  $results = module_invoke_all('geoconfig', 'result_cache_prefix');
+  foreach ($results as $result) {
+    $prefixes[] = $result;
+  }
+  $results = module_invoke_all('geoconfig', 'data_cache_prefix');
+  foreach ($results as $result) {
+    $prefixes[] = $result;
+  }
+  foreach ($prefixes as $prefix) {
+    cache_clear_all($prefix, GEONAMES_CACHE_TABLE, TRUE);
+  }
+  if ($adminpage) {
+    drupal_set_message('Cache cleared.');
+    drupal_goto('admin/settings/geonames');
+  }
+}
+
+/**
+ * Return the Number of Items Currently in the Cache
+ */
+function _geonames_cache_items() {
+  $results = module_invoke_all('geoconfig', 'result_cache_prefix');
+  foreach ($results as $result) {
+    $prefixes[] = $result;
+  }
+  $results = module_invoke_all('geoconfig', 'data_cache_prefix');
+  foreach ($results as $result) {
+    $prefixes[] = $result;
+  }
+  foreach ($prefixes as $prefix) {
+    $where .= ($where) ? ' OR ' : '';
+    $where .= " cid LIKE '". $prefix ."%' ";
+  }
+  $cache = db_fetch_object(db_query("SELECT count(*) as items FROM {%s} WHERE $where", GEONAMES_CACHE_TABLE));
+  return $cache->items;
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function geonames_menu($may_cache) {
+  if (!$may_cache) {
+    $items[] = array(
+      'path' => 'admin/settings/geonames',
+      'type' => MENU_NORMAL_ITEM,
+      'title' => t('GeoNames'),
+      'access' => user_access('administer site configuration'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('geonames_admin_settings'),
+      'description' => t('GeoNames Configuration.'),
+    );
+    $items[] = array(
+      'path' => 'admin/settings/geonames/clear_cache',
+      'type' => MENU_CALLBACK,
+      'access' => user_access('administer site configuration'),
+      'callback' => 'geonames_cache_clear',
+      'callback arguments' => TRUE,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/geonames/reset_credits',
+      'type' => MENU_CALLBACK,
+      'access' => user_access('administer site configuration'),
+      'callback' => 'geonames_credits_reset',
+      'callback arguments' => TRUE,
+    );
+    $items[] = array(
+      'path' => variable_get('geonames_documentation_path', 'geonames/docs'),
+      'type' => MENU_CALLBACK,
+      'access' => user_access('geonames docs'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => 'geonames_docs_form',
+    );
+  }
+  return $items;
+} 
+
+/**
+ * Implementation of hook_access().
+ */
+function geonames_access($op, $node) {
+  global $user;
+  if ($op == 'view') {
+    return (user_access('geonames docs'));
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function geonames_perm() {
+  return array(
+    'geonames docs',
+  );
+}
+
+/**
+ * Documentation pages is a form, stupid but it works for now :)) 
+ */
+function geonames_docs_form() {
+  drupal_set_title('GeoNames API and Services Documentation');
+
+  $form['components']['text'][0] = array(		
+	  '#prefix' => '<div>',
+	  '#value' => '<div class="messages">'.t('Syntax: $result = geonames_query($service, $query, $options)').'</div>',
+	  '#suffix' => '</div>',
+  );	  
+	$form['components']['service'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Parameter: $service (string)'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );			
+	$form['components']['service'][0] = array(		
+	  '#prefix' => '<div>',
+    '#value' => 'The "Usage Instructions for Installed Services" below, lists all the currently installed services available on your system. Please look there for details on the various services.',
+    '#suffix' => '</div>',
+	);	  
+	$form['components']['query'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Parameter: $query (associative array)'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );			
+	$form['components']['query'][0] = array(		
+	  '#prefix' => '<div>',
+    '#value' => 'Queries (query parameters) are defined as associative arrays, as the one above. For a list of allowed query parameters, please see the specific service under "Usage Instructions for Installed Services".'.'<div class="messages">'.t('Example: $query = array(\'lat\' => 59.95, \'lng\' => 10.77)').'</div>'.'This query can be used with all services that require the parameters lat and lng, for example Find Nearby Place Name.<br /><br />
+		The query parameters are usually integers (numbers) or strings (text), but for a few services they are allowed to be arrays (multiple values) in order to be able to pass several values of the same type (for instance countries or featurecodes), in the example below we pass on two countries.'.'<div class="messages">'.t('Example: $query = array(\'name\' => \'Holmen\', \'country\' => array(\'NO\',\'SE\'))').'</div>If you use this query with the \'search\' service (GeoNames Fulltext Search), you will find places with the name <i>Holmen</i> in <i>Norway</i> or <i>Sweden</i>',
+    '#suffix' => '</div>',
+	);	  
+	$form['components']['options'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Parameter: $options (associative array) - optional'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );			
+	$form['components']['options'][0] = array(		
+	  '#prefix' => '<div>',
+    '#value' => t('You may use the $option parameter to modify the results. Limit the number of fields returned, order the columns, or sort the rows. The options array has three optional properties: columns, sortby and sortorder (all of them may be used independently).<br /><br /><b>columns</b> is an array of fieldnames ').'<div class="messages">'.t('Example: $options '."= array('columns' => array('countryname', 'countrycode') )").'</div>'.t('By passing this option your results will only contain the two columns specified (countryname and countrycode). The result object will also be arranged with your results in the specified order.').t('<br /><br /><b>sortby</b> is a fieldname (string) ').'<div class="messages">'.t('Example: $options '."= array('sortby' => 'countryname')").'</div>'.t('By passing this option your results will be ordered by the countryname.').t('<br /><br /><b>sortorder</b> is either ASC or DESC (string) ').'<div class="messages">'.t('Example: $options '."= array('sortorder' => 'DESC')").'</div>'.t('By passing this option your results will be returned in a descending order (Your list of Countries would start with the letter Z).').t('<br /><br /><div class="messages">').t('Multiple Options Example: $options '."= array('sortby' => 'countryname', 'sortorder' => 'DESC')").'</div>'.t('This option would return your results ordered by Country Name, descending.'),
+    '#suffix' => '</div>',
+	);
+	$form['components']['result'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Result: $result (object)'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );			
+	$form['components']['result'][0] = array(		
+	  '#prefix' => '<div>',
+    '#value' => 'The results object will look something like this: <br />
+<pre>
+$result->results = array(
+  [0] = array(\'name\' => \'Oslo\', ...)                   
+  [1] = array(\'name\' => \'Nydalen\', ...)
+  ...
+) 
+$result->total_results_count = integer, number of total results
+$result->service = string service name
+$result->request = array (
+  \'url\' = URL sent to GeoNames server
+  \'bytes\' = size of data requested from GeoNames server  
+  \'seconds\' = time used for request to GeoNames server
+  \'cached\' = if the result is loaded from the cache, this variable is set to the cache type (result or data)
+) 
+$result->query = array(
+  \'lat\' = 23
+  \'lng\' = 34
+  \'maxrows\' = 10
+  ...
+)
+$result->pager = array() - associative array, only available for some services
+$result->standalone = if set to <i>no</i>, the GeoNames commercial service is used
+</pre></code>
+',
+    '#suffix' => '</div>',
+	);	  
+	
+  $form['components'][0] = array(		
+	  '#prefix' => '<br /><div>',
+	  '#value' => t(' In the usage instructions below, <b>bold</b> parameters are ').'<b>'.t('mandatory').'</b>'.t('. Parameters that are structured like \'key=value\' are default values for parameters, and may be overridden. Items in ').'<i>'.t('italics').'</i> '.t('are ').'<i>'.t('optional parameters').'</i>. '.t('Services with multiple bold parameters may be one out of two types; single or all - read the instructions carefully. ').'<br /><br /><h2>'.t('Usage Instructions for Installed Services').'</h2>',
+	  '#suffix' => '</div>',
+  );	  
+
+  $services = geonames_services(false);
+
+  foreach ($services as $service => $sc) { // service configuration
+    $usage       = sprintf("<div class=messages>Usage: \$result = geonames_query('%s', \$query, <i>\$options</i>)</div>", $service);
+
+    // Compile the $query part... this is tricky!
+    // First, check if the required parameters is an array of arrays (how many times do we have to loop?)
+
+    // count variations of required parameters combinations
+    $variations = (is_array($sc['required_parameters'][0])) ? count($sc['required_parameters']) : 1;
+		
+    $usage_query = '';
+    $loops = 0;
+    while ($loops < $variations) {
+
+      // Get $rp
+      $rp = ($variations > 1) ? $sc['required_parameters'][$loops] : $sc['required_parameters'];
+
+      $usage_query .= ($usage_query) ? '<b>or</b><div style="height: 8px"></div>' : '';
+      $usage_query .= '$query = array(';
+
+      $numreqpar = 0; // Count number of request parameters -- used for displaying various strings later
+      if ($rp) {
+        foreach ($rp as $pmtr) {
+          $numreqpar++;
+          $usage_query .= '<b>'. $pmtr. '</b>, ';
+        }
+      }
+				
+      if ($sc['query_defaults']) {
+        foreach ($sc['query_defaults'] as $key => $val) {
+          if ($key != 'type') {
+            $usage_query .= $key. '='.$val.', ';						
+          }
+        }
+      }
+
+      if (is_array($sc['allowed_parameters'])) {
+        foreach ($sc['allowed_parameters'] as $key => $val) {
+          if ((!is_array($rp) || (is_array($rp) && !in_array($key, $rp))) && (!is_array($sc['query_defaults'] || (is_array($sc['query_defaults']) && !in_array($key, array_keys($sc['query_defaults'])))))) {
+            if ($key != 'type') {
+              $usage_query .= '<i>'.$key. '</i>, ';			
+            }
+          }
+        }
+      }
+
+      $query_comments = '';
+      if (is_array($sc['array_parameters'])) {
+        // Some of the parameters are allowed to be arrays...
+        foreach ($sc['array_parameters'] as $arrpar) {
+          $query_comments .= sprintf('<li> %s is allowed to be an array of strings</li>', $arrpar);
+        }
+      }
+			
+      // strip the last ', ' from the querystring
+      if (strstr($usage_query, ',')) { 
+        $usage_query = substr($usage_query, 0, strlen($usage_query) - 2);
+      }
+      if ($sc['required_parameters_type'] == 'single') {
+        if ($numreqpar > 1) {
+          $query_comments .= '<li> just one of the bold parameters is required </li>';
+        }
+      }
+      if ($sc['required_parameters_type'] == 'all') {
+        if ($numreqpar == 2) {
+          $query_comments .= '<li> both bold parameters are required </li>';
+        }
+        else if ($numreqpar > 2) {
+          $query_comments .= '<li> all bold parameters are required </li>';		
+        }
+      }
+
+      // If no comments, add some space with br
+      $query_comments = ($query_comments) ? sprintf("<ul>%s</ul>", $query_comments) : '<div style="height: 6px"></div>';
+				
+      $usage_query .= ($usage_query) ? ")".$query_comments : '';	
+
+      $loops++;
+				
+    } // End while loop
+						
+    $resultrows = '<div>$result->results = array(';
+
+    if ($sc['columns']) {
+      // Columns are defined -- use those
+      foreach ($sc['columns'] as $a) {
+        $resultrows .= $a.', ';
+      }
+      $resultrows = substr($resultrows, 0, strlen($resultrows)-2).')';
+    }
+    else {
+      // Probably short/medium/long/full syntax... TODO this does not work... DEBUG
+      $gf = geonames_fields('full', true);
+      foreach ($gf as $f) {
+        $resultrows .= $f.', ';			
+      }
+      $resultrows = substr($resultrows, 0, strlen($resultrows)-2).')';
+      $resultrows .= ' -- FULL style';
+    }
+    $resultrows .= '</div>';
+    $form['components'][$service] = array(
+      '#type' => 'fieldset',
+      '#title' => t($sc['service_full_name']),
+      '#collapsible' => TRUE,
+      '#collapsed' => TRUE,
+    );			
+    $form['components'][$service][0] = array(		
+      '#prefix' => '<div>',
+      '#value' => 'Purpose: '.$sc['description'].$usage.$usage_query.$resultrows,
+      '#suffix' => '</div>',
+    );	  
+  }
+  return $form;
+}
+
+/**
+ * Admin Settings Page
+ */
+function geonames_admin_settings() {
+  $form['geonames_docs_path'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Path to GeoNames Documentation'),
+    '#description' => t('Where do you want the documentation to reside?'),
+    '#default_value' => variable_get('geonames_docs_path', 'geonames/docs'),
+  );	
+  $form['cache'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Cache'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['cache']['clear_cache'] = array(
+    '#prefix' => '<div>',
+    '#value' => t('There are currently '._geonames_cache_items().' items in the cache. ['.l('Clear cache', 'admin/settings/geonames/clear_cache').']'),
+    '#suffix' => '</div>',
+  );
+  $form['cache']['geonames_cache'] = array(
+    '#type' => 'radios',
+    '#title' => t('Caching'),
+    '#description' => t('Enable unless you have a good reason to disable it.'),
+    '#default_value' => variable_get('geonames_cache', TRUE),
+    '#options' => array(1 => 'Enabled', 0 => 'Disabled'),
+  ); 	
+  $form['cache']['geonames_cache_limit'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Cache lifetime'),
+    '#description' => t('Cache items for ... days'),
+    '#default_value' => variable_get('geonames_cache_limit', 14),
+  ); 
+  $form['cache']['geonames_reveal_cache'] = array(
+    '#type' => 'radios',
+    '#title' => t('Reveal Cache'),
+    '#description' => t("If an item is retrieved from the cache, the") ." request['cached'] ". t("property will be available in the result object if this switch is set to Yes."),
+    '#default_value' => variable_get('geonames_reveal_cache', TRUE),
+    '#options' => array(1 => 'Yes', 0 => 'No'),
+  ); 	
+  $form['cache']['advanced'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Database Configuration (Advanced)'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['cache']['advanced']['leadingtext'] = array(
+    '#prefix' => '<div>',
+    '#value'  => t("The GeoNames cache grows pretty rapidly, and a large cache table may slow down other cache requests. The overall performance of your site may be improved by setting up a separate table for caching of GeoNames requests. Create the table manually (structure equivalent to Drupal's cache table), prior to changing the table name here."),
+	   '#suffix' => '</div>'
+  );
+  $form['cache']['advanced']['geonames_cache_table'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Database Cache Table'),
+    '#description' => t("Defaults to drupal's") ." <i>cache</i> ". t("table."),
+    '#default_value' => variable_get('geonames_cache_table', 'cache'),
+  ); 
+		
+  $commercial_collapsed = (variable_get('geonames_commercial_active', FALSE) == TRUE) ? FALSE : TRUE;
+  
+  $form['commercial'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('GeoNames Commercial Webservices'),
+    '#collapsible' => TRUE,
+    '#collapsed' => $commercial_collapsed
+  );
+  $form['commercial']['leadingtext'] = array(
+    '#prefix' => '<div>',
+    '#value' => t('You should always support developers of quality services. Increased performance is cheap, and you should afford it.') .' '. t('Visit the') .' '. l('GeoNames Commercial Webservices', 'http://www.geonames.org/professional-webservices.html') .' '. t('page for more information.'),
+    '#suffix' => '</div>'
+  );
+  if (variable_get('geonames_commercial_active', FALSE) == TRUE) {
+    // Show the Status and Credits Counter
+    if (GEONAMES_COMMERCIAL) {
+      $form['commercial']['counter'] = array(
+        '#prefix' => '<div><p>',
+        '#value' => '<b>'.t('Status'). ':</b><br />'.t('You have used'). ' <i>'. variable_get('geonames_commercial_credits', 0).'</i> '.t('credits since'). ' '. format_date(variable_get('geonames_commercial_credits_since', 'unknown')).'. ['.l('Reset', 'admin/settings/geonames/reset_credits')
+.']',
+        '#suffix' => '</p></div>'
+      );
+    }
+  }
+  $form['commercial']['geonames_commercial_active'] = array(
+    '#type' => 'radios',
+    '#title' => t('GeoNames Commercial Webservices'),
+    '#default_value' => variable_get('geonames_commercial_active', 0),
+    '#options' => array(1 => 'Enabled', 0 => 'Disabled'),
+  ); 	
+  $form['commercial']['geonames_commercial_active_copy'] = array(
+    '#type' => 'value',
+    '#value' => variable_get('geonames_commercial_active', 0),
+  ); 	
+  $form['commercial']['geonames_commercial_server'] = array(
+    '#type' => 'textfield',
+    '#title' => t('URL to Commercial Service Server'),
+    '#description' => 'Example: http://ws.geonames.net - without the trailing slash',
+    '#default_value' => variable_get('geonames_commercial_server', 'http://ws.geonames.net'),
+  ); 
+  $form['commercial']['geonames_commercial_server_copy'] = array(
+    '#type' => 'value',
+    '#value' => variable_get('geonames_commercial_server', 'http://ws.geonames.net'),
+	);
+  $form['commercial']['geonames_commercial_username'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Username'),
+    '#default_value' => variable_get('geonames_commercial_username', ''),
+  ); 
+  $form['commercial']['geonames_commercial_username_copy'] = array(
+    '#type' => 'value',
+    '#value' => variable_get('geonames_commercial_username', ''),
+	);
+	
+  $form['licencing'] = array(
+    '#prefix' => '<ul><li>',
+    '#value' => t('Note: You must give credit to GeoNames if you are not using the commercial services, for example by including a link to their site on your pages. The GeoNames geographical database is released under the').' '.l('Creative Commons Attribution Licence 3.0', 'http://creativecommons.org/licenses/by/3.0/').'.',
+    '#suffix' => '</li></ul>'
+  );
+
+  return system_settings_form($form);
+}
+
+/**
+ * Admin Settings Page : Validation
+ */
+function geonames_admin_settings_validate($form_id, $form_values) {
+  // cache 
+  if ($form_values['geonames_cache']) {
+    if (!db_table_exists($form_values['geonames_cache_table'])) {
+      form_set_error('geonames_cache_table', t('Table') .'<i> '. $form_values['geonames_cache_table'] .'</i> '. t('does not exist in the database, please create it.'));
+    }
+  }
+  
+  // have Commercial Services Changed?
+  $com_changed = ($form_values['geonames_commercial_active_copy'] != $form_values['geonames_commercial_active']) ? TRUE : FALSE;
+  $com_changed = ($com_changed || ($form_values['geonames_commercial_username_copy'] != $form_values['geonames_commercial_username'])) ? TRUE : FALSE;
+  $com_changed = ($com_changed || ($form_values['geonames_commercial_server_copy'] != $form_values['geonames_commercial_server'])) ? TRUE : FALSE;
+
+  // if active and changed, validate
+  if ($form_values['geonames_commercial_active'] == '1' && $com_changed) {
+
+    // verify that a username is set
+    if ($form_values['geonames_commercial_username'] == '') {
+      form_set_error('', t('Commercial Webservices: You must provide a username.'));	
+    }
+    else {
+      // verify if the service works
+      // Test using the search service 
+      $url = $form_values['geonames_commercial_server']. '/search?username='. $form_values['geonames_commercial_username']. '&name=nydalen';
+      $data = drupal_http_request($url);
+      if ($data->code != '200') {
+        form_set_error('', t('There is a problem with the response from the URL you have specified.<br>The server returned errorcode '.$data->code.': '.$data->error));				
+      }
+      else {			
+        $xml = new SimpleXMLElement($data->data);
+        if ($xml->status['message']) {
+          form_set_error('', t('GeoNames Service Response: <i>'). (string)$xml->status['message'].'</i> (code '.(string)$xml->status['value'].')');
+        }
+        else {
+          geonames_credits_pay(1); // use one credit! ;)
+            if ($xml->geoname[0]->name == 'Nydalen') {
+            drupal_set_message(t('Your account has been successfully tested and is properly configured!'));					
+          }
+          else {
+            form_set_error('', t('Unknown Error')); 
+          }
+        }      
+      }
+    }
+  }
+}
+
+/**
+ * Prepare pager data
+ *
+ * Calculates some useful numbers for paging the results
+ *
+ * @param $rowsperpage
+ *   integer, number of rows per page
+ * @param $startrow
+ *   integer, starting row
+ * @param $totalhits
+ *   integer, total number of hits in result set
+ * @return
+ *   array with useful data ;)
+ */
+function _prepare_pager_data($rowsperpage = 15, $startrow, $totalhits) {
+  // $maxrows = rows per page
+  $total_pages  = ceil($totalhits / $rowsperpage);
+  $current_page = ($startrow == 0) ? $current_page = 1 : (floor($startrow / $rowsperpage) + 1);
+  $pages        = array();
+  for ($i = 0; $i < $total_pages; $i++) {
+    $pages[$i + 1] = $rowsperpage * $i;
+  }
+  return array(
+    'current'   => $current_page, 
+    'startrow'  => $startrow,
+    'interval'  => $rowsperpage,
+    'totalpages'=> $total_pages, 
+    'pages'     => $pages
+  );
+}
+
+/**
+ * Returns either a list, or an associative array of elements
+ *
+ * @param $type
+ *   optional string: short, medium, long, full
+ * @param $keys
+ *   optional boolean, default FALSE 
+ *
+ * @return
+ *   array of elements, either keys or values according to $type/$keys parameters
+ */
+function geonames_fields($type = FALSE, $keys = FALSE) {
+  $fields = array(
+    'name'          => array('style' => 's', 'geoname' => 'name',          'name' => t('Place Name')),
+    'lat'           => array('style' => 's', 'geoname' => 'lat',           'name' => t('Latitude')),
+    'lng'           => array('style' => 's', 'geoname' => 'lng',           'name' => t('Longitude')),
+    'geonameid'     => array('style' => 's', 'geoname' => 'geonameId',     'name' => t('Geoname ID')),
+    'countrycode'   => array('style' => 's', 'geoname' => 'countryCode',   'name' => t('Country Code')),
+    'countryname'   => array('style' => 'm', 'geoname' => 'countryName',   'name' => t('Country Name')),
+    'fcl'           => array('style' => 's', 'geoname' => 'fcl',           'name' => t('Feature Class')),
+    'fcode'         => array('style' => 's', 'geoname' => 'fcode',         'name' => t('Feature Code')),
+// Problem with search, distance shows.... :(
+    'distance'      => array('style' => 's', 'geoname' => 'distance',      'name' => t('Distance')),
+    'fcodename'     => array('style' => 'l', 'geoname' => 'fcodeName',     'name' => t('Feature Code Name')),
+    'fclname'       => array('style' => 'l', 'geoname' => 'fclName',       'name' => t('Feature Class Name')),
+    'population'    => array('style' => 'l', 'geoname' => 'population',    'name' => t('Population')),
+    'elevation'     => array('style' => 'f', 'geoname' => 'elevation',     'name' => t('Elevation')),
+    'alternatenames'=> array('style' => 'f', 'geoname' => 'alternateNames','name' => t('Alternate Names')),
+    'admincode1'    => array('style' => 'f', 'geoname' => 'adminCode1',    'name' => t('Admin Code 1')),
+    'admincode2'    => array('style' => 'f', 'geoname' => 'adminCode2',    'name' => t('Admin Code 2')),
+    'adminname1'    => array('style' => 'f', 'geoname' => 'adminName1',    'name' => t('State/Province')),
+    'adminname2'    => array('style' => 'f', 'geoname' => 'adminName2',    'name' => t('Admin Name 2')),
+    'admincode3'    => array('style' => 'o', 'geoname' => 'adminCode3',    'name' => t('Admin Code 3')),
+    'adminname3'    => array('style' => 'o', 'geoname' => 'adminName3',    'name' => t('Admin Name 3')),
+    'timezone'      => array('style' => 'f', 'geoname' => 'timezone',      'name' => t('Time Zone')),
+    'timezoneid'    => array('style' => 'o', 'geoname' => 'timezoneid',    'name' => t('Time Zone ID')),
+    'dstoffset'     => array('style' => 'f', 'geoname' => 'dstOffset',     'name' => t('DST Offset')),
+    'gmtoffset'     => array('style' => 'f', 'geoname' => 'gmtOffset',     'name' => t('GMT Offset')),
+    'feature'       => array('style' => 'o', 'geoname' => 'feature',       'name' => t('Feature')),
+    'lang'          => array('style' => 'o', 'geoname' => 'lang',          'name' => t('Language')),
+    'summary'       => array('style' => 'o', 'geoname' => 'summary',       'name' => t('Summary')),
+    'wikipediaurl'  => array('style' => 'o', 'geoname' => 'wikipediaUrl',  'name' => t('Wikipedia URL')),
+    'thumbnailimg'  => array('style' => 'o', 'geoname' => 'thumbnailImg',  'name' => t('Thumbnail')),
+    'postalcode'    => array('style' => 'o', 'geoname' => 'postalcode',    'name' => t('Postal Code')),
+    'isonumeric'    => array('style' => 'o', 'geoname' => 'isoNumeric',    'name' => t('ISO Numeric')),
+    'isoalpha3'     => array('style' => 'o', 'geoname' => 'isoAlpha3',     'name' => t('ISO Alpha 3')),
+    'fipscode'      => array('style' => 'o', 'geoname' => 'fipsCode',      'name' => t('Fips Code')),
+    'continent'     => array('style' => 'o', 'geoname' => 'continent',     'name' => t('Continent')),
+    'capital'       => array('style' => 'o', 'geoname' => 'capital',       'name' => t('Capital')),
+    'areainaqkm'    => array('style' => 'o', 'geoname' => 'areaInSqKm',    'name' => t('Area (Km2)')),
+    'currencycode'  => array('style' => 'o', 'geoname' => 'currencyCode',  'name' => t('Currency Code')),
+    'languages'     => array('style' => 'o', 'geoname' => 'languages',     'name' => t('Languages')),
+    'bboxwest'      => array('style' => 'o', 'geoname' => 'bBoxWest',      'name' => t('Bound West')),
+    'bboxeast'      => array('style' => 'o', 'geoname' => 'bBoxNorth',     'name' => t('Bound East')),
+    'bboxnorth'     => array('style' => 'o', 'geoname' => 'bBoxEast',      'name' => t('Bound North')),
+    'bboxsouth'     => array('style' => 'o', 'geoname' => 'bBoxSouth',     'name' => t('Bound South')),
+    'numpostalcodes'=> array('style' => 'o', 'geoname' => 'numpostalcodes','name' => t('Number of Postal Codes')),
+    'minpostalcode' => array('style' => 'o', 'geoname' => 'minpostalcode', 'name' => t('Minimum Postal Code')),
+    'maxpostalcode' => array('style' => 'o', 'geoname' => 'maxpostalcode', 'name' => t('Maximum Postal Code')),
+    'children'      => array('style' => 'o', 'geoname' => 'numberOfChildren','name' => t('Number of Children')),
+    'title'         => array('style' => 'o', 'geoname' => 'title',         'name' => t('Title')),
+  );
+
+  switch ($type) {
+    case 'short':
+      foreach ($fields as $key => $val) {
+        if ($fields[$key]['style'] != 's') {
+          unset($fields[$key]);
+        }
+      }  
+      break;
+    case 'medium':
+      foreach ($fields as $key => $val) {
+        if ($fields[$key]['style'] != 's' && $fields[$key]['style'] != 'm' ) {
+          unset($fields[$key]);
+        }
+      }
+      break;
+    case 'long':
+      foreach ($fields as $key => $val) {
+        if ($fields[$key]['style'] != 's' && $fields[$key]['style'] != 'm' && $fields[$key]['style'] != 'l') {
+          unset($fields[$key]);
+        }
+      }
+      break;    
+    case 'full':
+      foreach ($fields as $key => $val) {
+        if ($fields[$key]['style'] != 's' && $fields[$key]['style'] != 'm' && $fields[$key]['style'] != 'l' && $fields[$key]['style'] != 'f') {
+          unset($fields[$key]);
+        }
+      }
+      break;    
+  }
+  
+  if ($keys) {
+    return array_keys($fields);
+  }
+  
+  return $fields;
+}
+
+/** 
+ *  Determine query style, based on an array of columns/fields
+ *
+ *  @return
+ *	  string: short, medium, long, full
+ *  @see
+ *		geonames_fields
+ */
+function geonames_query_detect_style($columns) {
+  $names = geonames_fields();
+  $qs = 'short';
+  foreach ($columns as $column) {
+    if ($qs != 'full') {
+      if ($names[$column]['style'] == 'f') {
+        $qs = 'full';
+      }
+      if ($qs != 'long') {
+        if ($names[$column]['style'] == 'l') {
+          $qs = 'long';
+        }	
+        if ($qs != 'medium') {
+          if ($names[$column]['style'] == 'm') {
+            $qs = 'medium';
+          }	
+        }
+      }
+    }					
+  }
+  return $qs;
+}
+
+/**
+ * Print a nice Result Table
+ *
+ * @param $resultobj
+ *   result object from geonames_query
+ * @see
+ *   geonames_query
+ * @return
+ *   HTML
+ */
+function theme_geonames_table($resultobj) {
+  // if showfields array is passed, only the fields in the array will be displayed
+  if (empty($resultobj)) {
+    return '';
+  }
+  else if ($resultobj->status) {
+    return '<div id="geonames-resultstring">'.'No results, response: '.$resultobj->status['message'].'</div>';
+  }
+  else if ($resultobj->results) {
+    $header = array(''); 						                    
+    $rows = array();
+    $pastfirst = FALSE;
+    foreach ($resultobj->results as $result) {
+      if (strstr($resultobj->service, 'wiki') && $result['wikipediaurl']) {
+        // Remove Wikipedia URL from output, and link the Summary
+        $result['summary'] = ($result['wikipediaurl']) ? l($result['summary'], $result['wikipediaurl']) : $result['summary'];
+        unset($result['wikipediaurl']);
+        // Insert Image! ;)
+      }
+      if ($result['thumbnailimg']) {
+        $result['thumbnailimg'] = '<img src="' .$result['thumbnailimg'] .'">';			
+      }
+      $i = ($i) ? $i + 1 : 1;
+      // add result number first
+      $row = array($i + $resultobj->query['startrow']);	
+      foreach ($result as $key => $val) {
+        if ($key == 'distance') {
+          $val = round($val, 2) . ' km';
+        }
+        array_push($row, $val);
+        // add the field names to the header only on first loop
+        if (!$pastfirst) {                            
+          array_push($header, $key); 
+        }
+      }
+      $rows[] = $row;
+      $pastfirst = TRUE;
+    }
+
+    $display_from = ($resultobj->query['startrow'] + 1);
+    $display_to_if_full_page = $resultobj->query['startrow'] + $resultobj->pager['interval'];
+    $display_to = ($display_to_if_full_page < $resultobj->total_results_count) ? $display_to_if_full_page : $resultobj->total_results_count;
+    $cache = ($resultobj->request['cached']) ? '<i>cached</i> ' : '';
+    $querywords =  ucwords($resultobj->query['name']. $resultobj->query['query']. $resultobj->query['name_equals']); 
+    $forstring = ($querywords) ? ' for <b>' . $querywords .'</b>' : '';
+
+    return 'Displaying ' . $cache . 'results ' . $display_from . ' - ' . $display_to . ' of ' . $resultobj->total_results_count 
+		       . $forstring . ' (<i>' . round($resultobj->request['seconds'], 3) . '</i> seconds)' . theme('table', _readable_fieldnames($header), $rows);
+  } 
+  else {
+    return 'No results (in '.round($resultobj->request['seconds'], 3).' seconds)';
+  }
+} 
+
+
+/**
+ * Sort the results in the result object
+ *
+ * @param $results
+ *   results in the results object
+ * @param $key
+ *   string, name of key to sort
+ * @param $order
+ *   string, descending=DESC (ascending (ASC) is default)
+ */
+function _geonames_sort(&$results, $key, $order) {
+  if ($results[0][$key]) {
+    global $_geonames_sort_by_key;
+    $_geonames_sort_by_key = $key;
+    uasort($results, '_results_cmp');
+  }
+  if (strtolower($order) === 'desc') {
+    $results = array_reverse($results);
+  }
+}
+
+/**
+ * Compare Results 
+ *
+ * @see _geonames_sort
+ */
+function _results_cmp($a, $b) {
+  global $_geonames_sort_by_key;
+
+  $sortable = array(strtolower($a[$_geonames_sort_by_key]), strtolower($b[$_geonames_sort_by_key]));
+  $sorted = $sortable;
+  sort($sorted);    
+        
+  return ($sorted[0] == $sortable[0]) ? -1 : 1;
+}
+
+/** 
+ * String to lowercase for Associative Arrays (for use with array_walk)
+ */
+function _aw_val_to_lower(&$val) {
+  $val = strtolower($val);
+}
+
+/**
+ * Translates tech Field Names to Readable Names 
+ *
+ * @param 
+ *   array of field names
+ * @return 
+ *   array of non-nerd-readable field names
+ */
+function _readable_fieldnames($header) {
+  $fieldnames = geonames_fields();
+  foreach ($header as $key => $val) {
+    $val = strtolower($val);
+    if ($fieldnames[$val]) {
+      $header[$key] = $fieldnames[strtolower($val)]['name'];
+    }
+  }
+  return $header;
+}
+
+/**
+ * A couple of functions just to display the stuff ;) GMap + Result table
+ */
+function _geonames_gmap($result) {
+  $markers = _geonames_gmap_markers($result);
+  return  "[gmap ". $markers ."behavior=+autozoom | width=100% |height=222px |id=geonames_map |control=Small |type=Map]";
+} 
+
+/**
+ * Compile a set of GMap markers
+ *
+ * @param $result
+ *   array from geonames_search
+ * @see
+ *   geonames_search
+ * @return
+ * 	 string with markers for inclusion in Gmap Macro
+ */
+function _geonames_gmap_markers($result) {
+  if (!is_array($result->results)) {
+    return '';
+  }
+  foreach ($result->results as $result) {
+    $content = '';
+    $markers .= ($markers) ? '+' : ' markers=numbers::';
+
+    $country = ($result['countryname']) ? $result['countryname'] : $result['countrycode'];
+
+    $content .= '<b>'.$result['name'] .'</b>';
+    $content .= ($country || $result['adminname1']) ? ' (' : '';
+    $content .= ($result['adminname1']) ? $result['adminname1'] : '';
+    $content .= ($result['adminname1'] && $country) ? ', ' : '';
+    $content .= ($country) ? $country : '';
+    $content .= ($country || $result['adminname1']) ? ')' : '';
+    $content .= '<br />';
+	
+    $content .= ($result['fcodename']) ? $result['name'].', '. $result['fcodename'] .'.<br />' : '';
+    $content .= ($result['timezone']) ? 'Timezone: '.eregi_replace("_", " ", $result['timezone']) : '';
+    $content .= ($result['gmtoffset']) ? ' (GMT: '.$result['gmtoffset'].')' : '';
+    $content .= ($result['timezone'] || $result['gmtoffset']) ? '<br />' : '';
+    $content .= 'Location: ('. round($result['lat'], 4). ', '. round($result['lng'], 4).')<br />';
+    $content .= ($result['population']) ? 'Population: '.$result['population'].'<br />' : '';
+    $content .= ($result['elevation']) ? 'Elevation: '.$result['elevation'].' meters<br />' : '';
+/*	list of fields we haven't dealt with
+  foreach ($result as $key=>$val) {	  
+    if ($key != 'name' && $key != 'countryCode' && $key != 'lat' && $key != 'lng' && $key != 'fcl' && $key != 'fcode' && $key != 'fcodeName') {
+	    $content .= "$key: $val<br>";
+    }
+  }
+*/
+    $markers .= $result['lat'] . ',' . $result['lng'] . ':' . $content;
+  }
+  return $markers.' |';
+}
+
+
+function theme_results($resultobj, $showfields = FALSE) {
+  // for backwards compatibility 
+  return theme('geonames_table', $resultobj);
+}

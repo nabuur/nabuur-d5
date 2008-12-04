@@ -1,0 +1,65 @@
+<?php
+// $Id: active_translation.install,v 1.1.2.2 2008/11/17 08:28:29 drewish Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function active_translation_install() {
+  
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+    
+    $sql = _active_translation_get_table_creation_sql();
+    if (db_query($sql) ) {
+      $success = true;
+    }
+    break;
+  }
+
+    if ($success) {
+        drupal_set_message(t('Active Translate module installed tables successfully.'));
+    }
+    else {
+      drupal_set_message(t('Active Translate module install was unsuccessful.'),
+    'error');
+    } 
+}
+
+function active_translation_uninstall() {
+  db_query("DROP table `active_translation`");
+}
+
+function _active_translation_get_table_creation_sql() {
+     
+  // And dynamically assemble the table with a column per languages. Call
+  // language_list() with $reset = TRUE in case the languages have changed.
+  $keys = '';
+  $fields = '';
+  
+  //Problem here, if someone is installing both at the same time... how do we make i18n go first?
+  
+  if (function_exists('i18n_language_list')) {
+    foreach (i18n_language_list() as $lang_code => $language) {
+      $lang_code = db_escape_table($lang_code);    
+      $fields .= sprintf("`%s` int(10) unsigned NOT NULL,\n",$lang_code);
+      $keys .= sprintf("KEY `%s` (`%s`),\n",$lang_code,$lang_code);
+    }
+  }
+  
+  $keys = substr($keys,0,-2);
+  if ($fields && $keys) {
+    $language_field_sql = ",
+    $fields
+    $keys
+    ";
+  }
+  $sql = <<<EOT
+    CREATE TABLE  {active_translations} (
+    `atid` int(10) unsigned NOT NULL
+    $language_field_sql
+    ) ENGINE=MyISAM DEFAULT CHARSET=utf8
+EOT;
+
+return $sql;
+}

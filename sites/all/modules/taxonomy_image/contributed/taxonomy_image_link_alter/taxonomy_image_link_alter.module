@@ -1,0 +1,56 @@
+<?php
+// $Id: taxonomy_image_link_alter.module,v 1.1.2.2 2008/04/08 15:15:41 nancyw Exp $
+
+/**
+ *  Implement hook_link_alter to picturize the taxonomy term links
+ */
+function taxonomy_image_link_alter(&$node, &$links) {
+
+  // Is the type one we want to change?
+  $type_enabled = variable_get('taxonomy_image_link_types', array());
+  if (!$type_enabled[$node->type]) {
+    return;
+  }
+
+  foreach ($links AS $module => $link) {
+    if (strstr($module, 'taxonomy_term')) {
+      // Link back to my display and not the taxonomy term page
+      $tid = substr($module, 14);
+      $term = taxonomy_image_get_object($tid);
+      $tname = $term->name;
+      // See if we have a taxonomy image associated with this term
+      $taxo_image = taxonomy_image_display($term->tid, null, null, array('wrapper' => false));
+      if ($taxo_image) {
+        $links[$module]['title'] = $taxo_image;
+        $links[$module]['html'] = TRUE;   /* if we don't do this, it will come out as text */
+      }
+    }
+  }
+}
+
+function taxonomy_image_link_alter_form_alter($form_id, &$form) {
+  if ($form_id == 'taxonomy_image_admin_settings') {
+    $form['link_alter'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Alter Taxonomy Links'),
+      '#collapsible' => true,
+      '#collapsed' => true,
+      '#weight' => 0,
+      );
+
+    $form['link_alter']['taxonomy_image_link_types'] = array(
+      '#type' => 'checkboxes',
+      '#title' => t('Select content types to alter links'),
+      '#options' => array_map('check_plain', node_get_types('names')),
+      '#default_value' => variable_get('taxonomy_image_link_types', array()),
+      '#description' => t('For the selected content types, the taxonomy links will use taxonomy images if they are available.'),
+      '#prefix' => '<div class="taxonomy_image_checkboxes">',
+      '#suffix' => '</div>',
+      '#weight' => -3,
+      );
+
+    $form['buttons']['submit']['#weight'] = 4;
+    $form['buttons']['reset']['#weight'] = 5;
+  }
+  return $form;
+}

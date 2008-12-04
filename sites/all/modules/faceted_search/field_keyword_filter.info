@@ -1,0 +1,10 @@
+; $Id: field_keyword_filter.info,v 1.2 2008/05/29 21:55:37 davidlesieur Exp $
+name = Field Keyword Filter
+description = "Allows users to perform keyword searches restricted by field."
+dependencies = search faceted_search field_indexer
+package = Faceted Search
+; Information added by drupal.org packaging script on 2008-06-23
+version = "5.x-1.0-beta4"
+project = "faceted_search"
+datestamp = "1214182208"
+

@@ -1,0 +1,965 @@
+<?php
+// $Id: faceted_search.module,v 1.42.2.3 2008/06/22 23:49:22 davidlesieur Exp $
+
+/**
+ * @file
+ * An API for performing faceted searches.
+ */
+
+require_once('./'. drupal_get_path('module', 'faceted_search') .'/faceted_search.inc');
+
+/**
+ * Global.
+ */
+$_faceted_search_variables = array(); 
+
+/**
+ * Implementation of hook_help().
+ */
+function faceted_search_help($section) {
+  switch ($section) {
+    case 'admin/help#faceted_search':
+      return '<p>'. t('A faceted search interface allows users to browse content in such a way that they can rapidly get acquainted with the scope and nature of the content without ever feeling lost. Such system relies on metadata (such as !categories) usually built specifically for !classification.', array('!categories' => l(t('categories'), 'admin/help/taxonomy'), '!classification' => l(t('faceted classification'), 'http://en.wikipedia.org/wiki/Faceted_classification'))) .'</p><p>'. t('Introductory information is provided in !article about when to use &mdash; and how to build &mdash; a faceted classification.', array('!article' => l(t('this article'), 'http://www.miskatonic.org/library/facet-web-howto.html'))) .'</p>';
+  }
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function faceted_search_menu($may_cache) {
+  $items = array();
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/settings/faceted_search',
+      'title' => t('Faceted search'),
+      'callback' => 'faceted_search_list_page',
+      'access' => user_access('administer site configuration'), // TODO: have an 'administer faceted search' permission.
+      'description' => t('Administer faceted search environments.'),
+      'type' => MENU_NORMAL_ITEM,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/faceted_search/list',
+      'title' => t('List'),
+      'weight' => -10,
+      'callback' => 'faceted_search_list_page',
+      'access' => user_access('administer site configuration'),
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/faceted_search/add',
+      'title' => t('Add environment'),
+      'callback' => 'faceted_search_add_page',
+      'access' => user_access('administer site configuration'),
+      'type' => MENU_LOCAL_TASK,
+    );
+    foreach (faceted_search_get_env_ids() as $env_id) {
+      $items[] = array(
+        'path' => 'admin/settings/faceted_search/delete/'. $env_id,
+        'callback' => 'drupal_get_form',
+        'callback arguments' => array('faceted_search_delete_form', $env_id),
+        'access' => user_access('administer site configuration'),
+        'type' => MENU_CALLBACK,
+      );
+      $items[] = array(
+        'path' => 'admin/settings/faceted_search/'. $env_id,
+        'title' => t('Faceted search environment: @env', array('@env' => faceted_search_variable_get($env_id, 'name', $env_id))),
+        'callback' => 'drupal_get_form',
+        'callback arguments' => array('faceted_search_edit_form', $env_id),
+        'access' => user_access('administer site configuration'),
+        'type' => MENU_CALLBACK,
+      );
+    }    
+  }
+  
+  return $items;
+}
+
+/**
+ * Similar to hook_faceted_search_collect(), this function collects the node
+ * keyword filters only and is called separately. Those filters allow searching
+ * keywords on the full nodes index.
+ *
+ * These are handled separately from other filters because they do not use a key
+ * in the search text and must therefore be processed after all other filters.
+ *
+ * @param $filters
+ *   Array of filters into which this function should append new filters.
+ * @param $domain
+ *   The domain where to look for filters. Possible values:
+ *   - 'keyword filters': All possible keyword filters.
+ *   - 'text': Filters specified in the specified search text.
+ * @param $env_id
+ *   Id of the environment for which filters are collected. This is NULL in the
+ *   case of a new environment.
+ * @param $text
+ *   The search text. Only used when the domain is 'text'.
+ */ 
+function faceted_search_collect_node_keyword_filters(&$filters, $domain, $env_id, $text = '') {
+  switch ($domain) {
+    case 'keyword filters':
+      $filter = new faceted_search_keyword_filter('node', t('Anywhere'));
+      $filter->set_weight(-999); // Default weight.
+      $filter->set_status(TRUE); // Default status.
+      $filters[] = $filter;
+      break;
+
+    case 'text':
+      $keys = faceted_search_parse_keywords($text);
+      
+      // Create the filters.
+      foreach ($keys['positive'] as $keyword) {
+        if (is_array($keyword)) {
+          $filter = new faceted_search_keyword_filter('node', '', new faceted_search_keyword_or_category($keyword));
+        }
+        elseif (strpos($keyword, ' ')) {
+          $filter = new faceted_search_keyword_filter('node', '', new faceted_search_keyword_phrase_category($keyword));
+        }
+        else {
+          $filter = new faceted_search_keyword_filter('node', '', new faceted_search_keyword_and_category($keyword));
+        }
+        $filter->set_weight(-999); // Default weight.
+        $filter->set_status(TRUE); // Default status.
+        $filters[] = $filter;
+      }
+      foreach ($keys['negative'] as $keyword) {
+        $filter = new faceted_search_keyword_filter('node', '', new faceted_search_keyword_not_category($keyword));
+        $filter->set_weight(-999); // Default weight.
+        $filter->set_status(TRUE); // Default status.
+        $filters[] = $filter;
+      }
+  }
+}
+
+/**
+ * List all environments and provide links to operations on those.
+ */
+function faceted_search_list_page() {
+  $env_ids = faceted_search_get_env_ids();
+  if (count($env_ids)) {
+    $headers = array(t('Environment'), t('Description'), t('Operations'));
+    $items = array();
+    foreach ($env_ids as $env_id) {
+      $links = array(
+        array('title' => t('Edit'), 'href' => 'admin/settings/faceted_search/'. $env_id),
+        array('title' => t('Delete'), 'href' => 'admin/settings/faceted_search/delete/'. $env_id),
+      );
+      $name = faceted_search_variable_get($env_id, 'name', $env_id);
+      $path = faceted_search_variable_get($env_id, 'base_path', NULL);
+      $env = isset($path) ? l($name, $path) : $name; // Validate the path, because it is a faceted_search_ui thing, normally unknown by faceted_search.
+      $description = faceted_search_variable_get($env_id, 'description', '');
+      $items[$name] = array($env, filter_xss_admin($description), theme('links', $links));
+    }
+    ksort($items); // Sort items by name.
+    $output = '<p>'. t('This page shows all of the faceted search environments that are currently defined.') .'</p>';
+    $output .= theme('table', $headers, $items);
+  }
+  else {
+    $output = '<p>'. t('No faceted search environments have currently been defined.') .'</p>';
+  }
+  return $output;
+}
+
+/**
+ * Add a new environment.
+ */
+function faceted_search_add_page() {
+  drupal_set_title(t('Add a faceted search environment'));
+  return drupal_get_form('faceted_search_edit_form', NULL);
+}
+
+/**
+ * Delete an environment.
+ */
+function faceted_search_delete_form($env_id) {
+  $form['env_id'] = array(
+    '#type' => 'value',
+    '#value' => $env_id,
+  );
+  $form = confirm_form(
+    $form,
+    t('Are you sure you want to delete %env?', array('%env' => faceted_search_variable_get($env_id, 'name', $env_id))),
+    'admin/settings/faceted_search',
+    t('This action cannot be undone.'),
+    t('Delete'),
+    t('Cancel')
+  );
+  return $form;
+}
+
+/**
+ * Handle the submit button to delete an environment.
+ */
+function faceted_search_delete_form_submit($form_id, $form_values) {
+  $env = faceted_search_variable_get($form_values['env_id'], 'name', $form_values['env_id']);
+
+  faceted_search_variable_del_all($form_values['env_id']);
+  db_query('DELETE FROM {faceted_search_filters} WHERE env_id = %d', $form_values['env_id']);
+  menu_rebuild();
+
+  drupal_set_message(t('Faceted search environment %env deleted.', array('%env' => $env)));
+
+  return 'admin/settings/faceted_search';
+}
+
+/**
+ * Form for editing an environment.
+ *
+ * @param $env_id
+ *   The id of the environment to edit, or null if adding a new one.
+ */
+function faceted_search_edit_form($env_id = NULL) {
+  if (isset($env_id)) {
+    $form['env_id'] = array(
+      '#type' => 'value',
+      '#value' => $env_id,
+    );
+  }
+
+  // Basic information section.
+  $form['info'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Basic information'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+  );
+  $form['info']['name'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Name'),
+    '#maxlength' => 32,
+    '#size' => 32,
+    '#required' => TRUE,
+    '#default_value' => isset($env_id) ? faceted_search_variable_get($env_id, 'name', $env_id) : '',
+    '#description' => t('A unique name to help site administrators identify the environment. Only alphanumeric and the underscore character are allowed here.'),
+  );
+  $form['info']['title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Title'),
+    '#maxlength' => 128,
+    '#size' => 32,
+    '#required' => TRUE,
+    '#default_value' => isset($env_id) ? faceted_search_variable_get($env_id, 'title', $env_id) : t('Search'),
+    '#description' => t("The title shown to users on the environment's pages."),
+  );
+  $form['info']['description'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Description'),
+    '#maxlength' => 255,
+    '#size' => 60,
+    '#default_value' => isset($env_id) ? faceted_search_variable_get($env_id, 'description', '') : '',
+    '#description' => t('The description of the environment for site administrators.'),
+  );
+  $types = array();
+  foreach (array_keys(node_get_types('names')) as $type) {
+    $types[$type] = $type;
+  }
+  $form['info']['types'] = array(
+    '#title' => t('Content types'),
+    '#type' => 'checkboxes',
+    '#options' => node_get_types('names'),
+    '#description' => t('Only the checked types will appear in this search environment. If none is checked, all types will be allowed.'),
+    '#default_value' => array_intersect($types, array_filter(faceted_search_variable_get($env_id, 'types', array()))),
+  );
+
+  // Facets section.
+  $form['facets'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Facets'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#description' => t('<p>Facets provide categories for users to browse and refine their search.</p><p>Check the facets you wish to expose to users. In listings, the heavier facets will sink and the lighter facets will be positioned nearer the top.</p><p>The Sort criteria applies to categories listings only, and the Categories limit applies to category listings in the Guided search only. For performance reasons, it is advisable to select some limit (users will still be able to get the full listing of categories by following a <em>more</em> link).</p>'),
+  );
+  $form['facets']['facets'] = array(
+    '#theme' => 'faceted_search_facets_settings',
+    '#tree' => TRUE,
+  );
+  
+  // Gather every possible facet.
+  $all_settings = faceted_search_load_filter_settings($env_id, TRUE);
+  $facets = array();
+  foreach (module_implements('faceted_search_collect') as $module) {
+    $hook = $module .'_faceted_search_collect';
+    $hook($facets, 'facets', $env_id, NULL);
+  }
+
+  // Prepare facets for use, assigning them their settings and sorting them.
+  faceted_search_prepare_filters($facets, $all_settings);
+
+  // Add the facets section's content to the form.
+  _faceted_search_facet_settings_form($form['facets']['facets'], $facets);
+
+  // Keyword search section.
+  $form['keyword'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Keyword search'),
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+  );
+  $form['keyword']['fields'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Fields'),
+    '#collapsible' => TRUE,
+    '#collapsed' => FALSE,
+    '#description' => t('<p>Users may restrict keyword search by field. <em>Anywhere</em> lets them search for keywords in the full nodes.</p><p>Check the fields you wish to expose to users for keyword search. In listings, the heavier fields will sink and the lighter fields will be positioned nearer the top.</p>'),
+  );
+  $form['keyword']['fields']['keyword_filters'] = array(
+    '#theme' => 'faceted_search_keyword_filters_settings',
+    '#tree' => TRUE,
+  );
+  
+  // Gather keyword filters.
+  $keyword_filters = array();
+  foreach (module_implements('faceted_search_collect') as $module) {
+    $hook = $module .'_faceted_search_collect';
+    $hook($keyword_filters, 'keyword filters', $env_id, NULL);
+  }
+  // Gather the node keyword filter. This is the default, always-enabled keyword
+  // filter that allows searching in the full node index.
+  faceted_search_collect_node_keyword_filters($keyword_filters, 'keyword filters', $env_id);
+  
+  // Prepare facets for use, assigning them their settings and sorting them.
+  faceted_search_prepare_filters($keyword_filters, $all_settings);
+
+  // Add the facets section's content to the form.
+  _faceted_search_filter_settings_form($form['keyword']['fields']['keyword_filters'], $keyword_filters);
+
+  // Buttons.
+  $form['buttons']['#weight'] = 1000; // Ensure buttons remain at the bottom when form is altered.
+  $form['buttons']['save'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+  );
+  $form['buttons']['save_and_edit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save and edit'),
+  );
+  
+  return $form;
+}
+
+/**
+ * Validation callback for the environment edit form.
+ */
+function faceted_search_edit_form_validate($form_id, $form_values) {
+  // Name must be alphanumeric or underscores, no other punctuation.
+  if (preg_match('/[^a-zA-Z0-9_]/', $form_values['name'])) {
+    form_set_error('name', t('Name must be alphanumeric or underscores only.'));
+  }
+    
+  // Name must be unique.
+  if (db_result(db_query("SELECT COUNT(*) FROM {faceted_search_variables} WHERE name = 'name' AND value = '%s' AND env_id != %d", serialize($form_values['name']), isset($form_values['env_id']) ? $form_values['env_id'] : 0)) > 0) {
+    form_set_error('name', t('Name %name already in use.', array('%name' => $form_values['name'])));
+  }
+    
+  // Weights must be numeric.
+  foreach ($form_values['facets'] as $key => $settings) {
+    if (!is_numeric($settings['weight'])) {
+      form_set_error("facets][$key][weight", t('Weight must be a numeric value.'));
+    }
+  }
+  foreach ($form_values['keyword_filters'] as $key => $settings) {
+    if (!is_numeric($settings['weight'])) {
+      form_set_error("keyword_filters][$key][weight", t('Weight must be a numeric value.'));
+    }
+  }
+}
+
+/**
+ * Form callback for saving environment data.
+ */
+function faceted_search_edit_form_submit($form_id, $form_values) {
+  if (isset($form_values['env_id'])) {
+    $env_id = $form_values['env_id'];
+  }
+  else {
+    $env_id = db_next_id('{faceted_search}_env_id'); // Adding new environment.
+  }
+    
+  // Exclude elements that should not be saved as environment variables.
+  $exclude = array('save', 'save_and_edit', 'form_id', 'op', 'form_token', 'env_id', 'facets', 'keyword_filters');
+
+  // Save form values as environment variables (except those excluded).
+  foreach ($form_values as $key => $value) {
+    if (!in_array($key, $exclude)) {
+      faceted_search_variable_set($env_id, $key, $value);
+    }
+  }
+
+  // Save filter settings.
+  faceted_search_save_filter_settings($env_id, array_merge($form_values['facets'], $form_values['keyword_filters']));
+  
+  // Rebuild the menus, if only for updating titles.
+  menu_rebuild();
+  
+  drupal_set_message(t('The faceted search environment %env has been saved.', array('%env' => $form_values['name'])));
+
+  if ($form_values['op'] == t('Save')) {
+    return 'admin/settings/faceted_search';
+  }
+  else {
+    return 'admin/settings/faceted_search/'. $env_id;
+  }
+}
+
+/**
+ * Return the collection of node types handled by a given environment.
+ *
+ * @return
+ *   Array with type names. Empty when all types are allowed in the environment.
+ */
+function faceted_search_types($env_id) {
+  $all_types = array();
+  foreach (array_keys(node_get_types('names')) as $type) {
+    $all_types[$type] = $type;
+  }
+  $types = array_filter(faceted_search_variable_get($env_id, 'types', array()));
+  if (!empty($types)) {
+    // Only return types that still exist.
+    $types = array_intersect($types, $all_types);
+    if (count($types) == count($all_types)) {
+      // All types are selected in the environment; do the same as if none was.
+      $types = array();
+    }
+  }
+  return $types;
+}
+
+/**
+ * Load the persistent environment variables table.
+ *
+ * The variable table is composed of values that have been saved in the table
+ * with faceted_search_variable_set().
+ */
+function _faceted_search_variables_init() {
+  global $_faceted_search_variables;
+
+  $_faceted_search_variables = array();
+  
+  $result = db_query('SELECT * FROM {faceted_search_variables}');
+  while ($variable = db_fetch_object($result)) {
+    $_faceted_search_variables[$variable->env_id][$variable->name] = unserialize($variable->value);
+  }
+}
+
+/**
+ * Return a persistent environment variable.
+ *
+ * @param $env_id
+ *   The environment to which the variable applies.
+ * @param $name
+ *   The name of the variable to return.
+ * @param $default
+ *   The default value to use if this variable has never been set.
+ * @return
+ *   The value of the variable.
+ */
+function faceted_search_variable_get($env_id, $name, $default) {
+  global $_faceted_search_variables;
+  
+  if (!isset($_faceted_search_variables)) {
+    _faceted_search_variables_init();
+  }
+  
+  return isset($_faceted_search_variables[$env_id][$name]) ? $_faceted_search_variables[$env_id][$name] : $default;
+}
+
+/**
+ * Set a persistent environment variable.
+ *
+ * @param $env_id
+ *   The environment to which the variable applies.
+ * @param $name
+ *   The name of the variable to set.
+ * @param $value
+ *   The value to set. This can be any PHP data type; these functions take care
+ *   of serialization as necessary.
+ */
+function faceted_search_variable_set($env_id, $name, $value) {
+  global $_faceted_search_variables;
+
+  if (!isset($_faceted_search_variables)) {
+    _faceted_search_variables_init();
+  }
+  
+  db_lock_table('faceted_search_variables');
+  db_query("DELETE FROM {faceted_search_variables} WHERE env_id = %d AND name = '%s'", $env_id, $name);
+  db_query("INSERT INTO {faceted_search_variables} (env_id, name, value) VALUES (%d, '%s', '%s')", $env_id, $name, serialize($value));
+  db_unlock_tables();
+
+  $_faceted_search_variables[$env_id][$name] = $value;
+}
+
+/**
+ * Unset a persistent environment variable.
+ *
+ * @param $env_id
+ *   The environment to which the variable applies.
+ * @param $name
+ *   The name of the variable to undefine.
+ */
+function faceted_search_variable_del($env_id, $name) {
+  global $_faceted_search_variables;
+
+  if (!isset($_faceted_search_variables)) {
+    _faceted_search_variables_init();
+  }
+  
+  db_query("DELETE FROM {faceted_search_variables} WHERE env_id = %d AND name = '%s'", $env_id, $name);
+  unset($_faceted_search_variables[$env_id][$name]);
+}
+
+/**
+ * Unset all persistent variables from a given environment.
+ */
+function faceted_search_variable_del_all($env_id) {
+  global $_faceted_search_variables;
+
+  if (!isset($_faceted_search_variables)) {
+    _faceted_search_variables_init();
+  }
+  
+  db_query('DELETE FROM {faceted_search_variables} WHERE env_id = %d', $env_id);
+  unset($_faceted_search_variables[$env_id]);
+}
+
+/**
+ * Return the ids of all existing environments.
+ */
+function faceted_search_get_env_ids() {
+  static $env_ids = array();
+  if (!$env_ids) {
+    $results = db_query('SELECT DISTINCT(env_id) FROM {faceted_search_filters}');
+    while ($result = db_fetch_object($results)) {
+      $env_ids[$result->env_id] = $result->env_id;
+    }
+  }
+  return $env_ids;
+}
+
+/**
+ * Load filter settings into an array.
+ *
+ * @param $env_id
+ *   Environment whose filters should be loaded.
+ * @param $include_disabled
+ *   Optional. When FALSE, only retrieve the settings of filters that are enabled. When
+ *   TRUE, retrieve all settings. Defaults to FALSE.
+ * @param $filter_key
+ *   Optional. Filter key to load the settings for. When not set, settings are
+ *   retrieved for all filters.
+ * @return
+ *   Array of filters settings keyed by filter key and filter id.
+ */
+function faceted_search_load_filter_settings($env_id, $include_disabled = FALSE, $filter_key = NULL) {
+  $filter_settings = array();
+
+  $where_status = $include_disabled ? '' : 'AND status = 1';
+  $where_filter_key = isset($filter_key) ? "AND filter_key = '%s'" : '';
+  $results = db_query("SELECT * FROM {faceted_search_filters} WHERE env_id = %d $where_status $where_filter_key", $env_id, $filter_key);
+  while ($settings = db_fetch_array($results)) {
+    $filter_settings[$settings['filter_key']][$settings['filter_id']] = $settings;
+  }
+  return $filter_settings;
+}
+
+/**
+ * Save filter settings.
+ *
+ * @param $env_id
+ *   Environment whose filter settings are to be saved.
+ * @param $filter_settings
+ *   Array where each element is itself an array of settings for an individual
+ *   filter.
+ */
+function faceted_search_save_filter_settings($env_id, $filter_settings) {
+  db_lock_table('faceted_search_filters');
+  db_query('DELETE FROM {faceted_search_filters} WHERE env_id = %d', $env_id);
+  foreach ($filter_settings as $settings) {
+    db_query("INSERT INTO {faceted_search_filters} (env_id, filter_key, filter_id, status, weight, sort, max_categories) VALUES (%d, '%s', '%s', %d, %d, '%s', %d)", $env_id, $settings['filter_key'], $settings['filter_id'], $settings['status'], $settings['weight'], isset($settings['sort']) ? $settings['sort'] : '', isset($settings['max_categories']) ? $settings['max_categories'] : 0);
+  }
+  db_unlock_tables();
+}
+
+/**
+ * Return a selection with all the filters from the given filter settings.
+ *
+ * The selection is an array keyed by filter key and filter id.
+ */
+function faceted_search_get_filter_selection($all_settings) {
+  $selection = array();
+  foreach ($all_settings as $filter_key_settings) {
+    foreach ($filter_key_settings as $settings) {
+      $selection[$settings['filter_key']][$settings['filter_id']] = TRUE;
+    }
+  }
+  return $selection;
+}
+
+/**
+ * Build a search text from the specified array of filters.
+ *
+ * This can be seen as the opposite of class faceted_search's constructor, where
+ * a search text is parsed to build filters.
+ */
+function faceted_search_build_text($filters) {
+  $texts_per_key = array();
+  foreach ($filters as $filter) {
+    if ($text = $filter->get_text()) {
+      $texts_per_key[$filter->get_key()][] = $text;
+    }
+  }
+  // Build the combined search text
+  $text = '';
+  foreach ($texts_per_key as $key => $texts) {
+    if ($text) {
+      $text .= ' ';
+    }
+    if ($key == 'node') {
+      // This is a special case where the filter's key does not appear in text.
+      $text .= implode(' ', $texts);
+    }
+    else {
+      // TODO: It is really modules that should build this text since they are
+      // responsible for parsing it. Or maybe it should be both built and parsed
+      // for them.
+      $text .= $key .':'. implode(',', $texts); 
+    }
+  }
+  return trim($text);
+}
+
+function faceted_search_quoted_query_extract($keys, $option) {
+  // Based on search_query_extract, but matching a quoted value. Double-quotes
+  // are allowed into the value when escaped.
+  $escape_char = variable_get('faceted_search_escape_char', '\\');
+  if ($escape_char == '\\') {
+    $escape_char .= '\\'; // Special case for regex.
+  }
+  if (preg_match('/(^| )'. $option .':"(('. $escape_char .'.|[^"])*?)"( |$)/i', $keys, $matches)) {
+    return faceted_search_quoted_query_unescape($matches[2]);
+  }
+}
+
+function faceted_search_quoted_query_insert($keys, $option, $value = '') {
+  // Based on search_query_extract, but matching a quoted value. Double-quotes
+  // are allowed into the value when escaped.
+  $escape_char = variable_get('faceted_search_escape_char', '\\');
+  if ($escape_char == '\\') {
+    $escape_char .= '\\'; // Special case for regex.
+  }
+  if (search_query_extract($keys, $option)) {
+    $keys = trim(preg_replace('/(^| )'. $option .':"(('. $escape_char .'.|[^"])*?)"( |$)/i', ' ', $keys));
+  }
+  if ($value != '') {
+    $keys .= ' '. $option .':'. $value;
+  }
+  return $keys;
+}
+
+function faceted_search_quoted_query_escape($text) {
+  $escape_char = variable_get('faceted_search_escape_char', '\\');
+  return strtr($text, array('"' => $escape_char .'"', $escape_char => $escape_char . $escape_char));
+}
+
+function faceted_search_quoted_query_unescape($text) {
+  $escape_char = variable_get('faceted_search_escape_char', '\\');
+  return strtr($text, array($escape_char .'"' => '"', $escape_char . $escape_char => $escape_char));
+}
+
+/**
+ * Parse text for keyword search.
+ *
+ * @return Array with positive and negative keywords.
+ */
+function faceted_search_parse_keywords($text) {
+  // Taken from search_parse_query() (search.module 1.207) - BEGIN
+  $keys = array('positive' => array(), 'negative' => array());
+
+  // Tokenize query string
+  $matches = array();
+  preg_match_all('/ (-?)("[^"]+"|[^" ]+)/i', ' '. $text, $matches, PREG_SET_ORDER);
+
+  // Classify tokens
+  $or = FALSE;
+  foreach ($matches as $match) {
+    $phrase = FALSE;
+    // Strip off phrase quotes
+    if ($match[2]{0} == '"') {
+      $match[2] = substr($match[2], 1, -1);
+      $phrase = TRUE;
+    }
+    // Simplify keyword according to indexing rules and external preprocessors
+    $words = search_simplify($match[2]);
+    // Re-explode in case simplification added more words, except when matching a phrase
+    $words = $phrase ? array($words) : preg_split('/ /', $words, -1, PREG_SPLIT_NO_EMPTY);
+    // Negative matches
+    if ($match[1] == '-') {
+      $keys['negative'] = array_merge($keys['negative'], $words);
+    }
+    // OR operator: instead of a single keyword, we store an array of all
+    // OR'd keywords.
+    elseif ($match[2] == 'OR' && count($keys['positive'])) {
+      $last = array_pop($keys['positive']);
+      // Starting a new OR?
+      if (!is_array($last)) {
+        $last = array($last);
+      }
+      $keys['positive'][] = $last;
+      $or = TRUE;
+      continue;
+    }
+    // Plain keyword
+    else {
+      if ($or) {
+        // Add to last element (which is an array)
+        $keys['positive'][count($keys['positive']) - 1] = array_merge($keys['positive'][count($keys['positive']) - 1], $words);
+      }
+      else {
+        $keys['positive'] = array_merge($keys['positive'], $words);
+      }
+    }
+    $or = FALSE;
+  }
+  // Taken from search_parse_query() - END
+  return $keys;
+}
+
+/**
+ * Assign settings to filters and sort them.
+ */
+function faceted_search_prepare_filters(&$filters, $settings) {
+  if (count($filters)) {
+    // Assign settings to each filter.
+    foreach ($filters as $index => $filter) {
+      if (isset($settings[$filter->get_key()][$filter->get_id()])) {
+        $filters[$index]->set($settings[$filter->get_key()][$filter->get_id()]);
+      }
+    }
+
+    // Sort filters.
+    uasort($filters, '_faceted_search_compare_filters');
+  }
+}
+
+function theme_faceted_search_facets_settings($form) {
+  uasort($form, '_element_sort');
+
+  $output = '';
+  $header = array('', t('Facet'), t('Type'), t('Weight'), t('Sort criteria'), t('Categories limit'));
+  $rows_enabled = array(array('', '<em>'. t('Enabled facets') .'</em>', '', '', '', ''));
+  $rows_disabled = array(array('', '<em>'. t('Disabled facets') .'</em>', '', '', '', ''));
+  foreach (element_children($form) as $key) {
+    unset($form[$key]['status']['#title']);
+    unset($form[$key]['weight']['#title']);
+    unset($form[$key]['max_categories']['#title']);
+    unset($form[$key]['sort']['#title']);
+    $row = array(
+      drupal_render($form[$key]['status']),
+      $form[$key]['#title'] . ($form[$key]['help']['#value'] ? ' ('. check_plain($form[$key]['help']['#value']) .')' : ''),
+      drupal_render($form[$key]['type']),
+      drupal_render($form[$key]['weight']),
+      drupal_render($form[$key]['sort']),
+      drupal_render($form[$key]['max_categories']),
+    );
+    if ($form[$key]['status']['#value']) {
+      $rows_enabled[] = $row;
+    }
+    else {
+      $rows_disabled[] = $row;
+    }
+  }
+
+  if (count($rows_enabled) > 1 && count($rows_disabled) > 1) {
+    $rows = array_merge($rows_enabled, $rows_disabled);
+  }
+  elseif (count($rows_enabled) > 1) {
+    $rows = $rows_enabled;
+  }
+  else {
+    $rows = $rows_disabled;
+  }
+  $output .= theme('table', $header, $rows);
+  $output .= drupal_render($form);
+  return $output;
+}
+
+function theme_faceted_search_keyword_filters_settings($form) {
+  uasort($form, '_element_sort');
+
+  $output = '';
+  $header = array('', t('Field'), t('Weight'));
+  $rows_enabled = array(array('', '<em>'. t('Enabled fields') .'</em>', ''));
+  $rows_disabled = array(array('', '<em>'. t('Disabled fields') .'</em>', ''));
+  foreach (element_children($form) as $key) {
+    unset($form[$key]['status']['#title']);
+    unset($form[$key]['weight']['#title']);
+    unset($form[$key]['type']);
+    $row = array(
+      drupal_render($form[$key]['status']),
+      $form[$key]['#title'] . ($form[$key]['help']['#value'] ? ' ('. check_plain($form[$key]['help']['#value']) .')' : ''),
+      drupal_render($form[$key]['weight']),
+    );
+    if ($form[$key]['status']['#value']) {
+      $rows_enabled[] = $row;
+    }
+    else {
+      $rows_disabled[] = $row;
+    }
+  }
+
+  if (count($rows_enabled) > 1 && count($rows_disabled) > 1) {
+    $rows = array_merge($rows_enabled, $rows_disabled);
+  }
+  elseif (count($rows_enabled) > 1) {
+    $rows = $rows_enabled;
+  }
+  else {
+    $rows = $rows_disabled;
+  }
+  $output .= theme('table', $header, $rows);
+  $output .= drupal_render($form);
+  return $output;
+}
+
+function theme_faceted_search_keyword_and_label($keyword) {
+  return check_plain($keyword);
+}
+
+function theme_faceted_search_keyword_phrase_label($phrase) {
+  return check_plain($phrase);
+}  
+
+function theme_faceted_search_keyword_or_label($keywords) {
+  foreach ($keywords as $index => $keyword) {
+    $keywords[$index] = check_plain($keyword);
+  }
+  return implode(' <em>OR</em> ', $keywords);
+}
+
+function theme_faceted_search_keyword_not_label($keyword) {
+  return '-'. check_plain($keyword);
+}
+  
+/**
+ * Build a form for a filter's settings.
+ *
+ * @param $form
+ *   The form to modify.
+ * @param $filters
+ *   The filters whose settings are to be added.
+ */
+function _faceted_search_filter_settings_form(&$form, $filters) {
+  foreach ($filters as $filter) {
+    $key = $filter->get_key() .'_'. $filter->get_id();
+    $form[$key] = array(
+      '#title' => $filter->get_label(),
+      '#weight' => $filter->get_weight(),
+    );
+    $form[$key]['filter_key'] = array(
+      '#type' => 'value',
+      '#value' => $filter->get_key(),
+    );
+    $form[$key]['filter_id'] = array(
+      '#type' => 'value',
+      '#value' => $filter->get_id(),
+    );
+    $form[$key]['help'] = array(
+      '#type' => 'value',
+      '#value' => $filter->get_help(),
+    );
+    $form[$key]['status'] = array(
+      '#title' => t('Enabled'),
+      '#type' => 'checkbox',
+      '#default_value' => $filter->get_status(),
+    );
+    if ($filter->get_key() == 'node') {
+      $form[$key]['status']['#value'] = TRUE;
+      $form[$key]['status']['#disabled'] = TRUE;
+    }
+    $form[$key]['type'] = array(
+      '#type' => 'markup',
+      '#value' => check_plain($filter->get_key()),
+    );
+    $form[$key]['weight'] = array(
+      '#title' => t('Weight'),
+      '#type' => 'textfield',
+      '#default_value' => $filter->get_weight(),
+      '#maxlength' => 4,
+      '#size' => 4,
+      '#required' => TRUE,
+    );
+  }  
+  return $form;
+}
+
+/**
+ * Build a form for a facet's settings.
+ *
+ * @param $form
+ *   The form to modify.
+ * @param $filters
+ *   The filters whose settings are to be added.
+ */
+function _faceted_search_facet_settings_form(&$form, $filters) {
+  $form = _faceted_search_filter_settings_form($form, $filters);
+  foreach ($filters as $filter) {
+    $key = $filter->get_key() .'_'. $filter->get_id();
+
+    // Sort criteria.
+    $sort_options = $filter->get_sort_options();
+    if (count($sort_options)) {
+      $form[$key]['sort'] = array(
+        '#title' => t('Sort criteria for categories'),
+        '#type' => 'select',
+        '#default_value' => $filter->get_sort(),
+        '#options' => $sort_options,
+      );
+    }
+    else {
+      $form[$key]['sort'] = array(
+        '#type' => 'markup',
+        '#value' => t('n/a'),
+      );
+    }
+
+    // Number of categories to show.
+    $form[$key]['max_categories'] = array(
+      '#title' => t('Number of categories to show in guided search'),
+      '#type' => 'select',
+      '#options' => array(
+        0 => t('All categories'),
+        5 => t('Up to 5 categories'),
+        10 => t('Up to 10 categories'),
+        15 => t('Up to 15 categories'),
+        20 => t('Up to 20 categories'),
+        25 => t('Up to 25 categories'),
+        30 => t('Up to 30 categories'),
+        40 => t('Up to 40 categories'),
+        50 => t('Up to 50 categories'),
+        100 => t('Up to 100 categories'),
+      ),
+      '#default_value' => $filter->get_max_categories(),
+    );
+  }
+  
+  return $form;
+}
+
+/**
+ * Utility function to sort filters.
+ */
+function _faceted_search_compare_filters($a, $b) {
+  if ($a->get_weight() == $b->get_weight()) {
+    if ($a->get_key() == $b->get_key() && $a->get_id() == $b->get_id() && $a->is_active() && $b->is_active()) {
+      // Same filter, then sort by active category.
+      $a_cat = $a->get_active_category();
+      $b_cat = $b->get_active_category();
+      if ($a_cat->get_weight() == $b_cat->get_weight()) {
+        return strcmp($a_cat->get_label(), $b_cat->get_label());
+      }
+      return ($a_cat->get_weight() < $b_cat->get_weight()) ? -1 : 1;
+    }
+    return strcmp($a->get_label(), $b->get_label());
+  }
+  return ($a->get_weight() < $b->get_weight()) ? -1 : 1;
+}
+

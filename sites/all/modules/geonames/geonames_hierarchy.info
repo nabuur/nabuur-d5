@@ -1,0 +1,11 @@
+; $id$
+name = hierarchy
+description = Place Hierarchy: Find all Geonames higher up in the hierarchy of a place name.
+package = Geonames
+dependencies = geonames
+version = "$Name: DRUPAL-5 $"
+; Information added by drupal.org packaging script on 2007-10-10
+version = "5.x-1.x-dev"
+project = "geonames"
+datestamp = "1192017839"
+

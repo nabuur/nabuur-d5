@@ -1,0 +1,11 @@
+; $Id: imagecache.info,v 1.4 2008/04/15 15:12:23 dopry Exp $
+name = ImageCache
+description = Dynamic image manipulator and cache.
+package = ImageCache
+dependencies = imageapi
+
+; Information added by drupal.org packaging script on 2008-05-12
+version = "5.x-2.0"
+project = "imagecache"
+datestamp = "1210551011"
+

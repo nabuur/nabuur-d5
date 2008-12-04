@@ -1,0 +1,71 @@
+<?php
+// $Id: geonames_nearbypostalcodes.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames nearbypostalcodes API / by Erlend Eide, erlend(|)edesign.no
+ *
+ * http://www.geonames.org/export/
+ *
+	* Parameters : 
+ *   lat,lng, radius (in km), maxRows (default = 5),style (verbosity : SHORT,MEDIUM,LONG,FULL), 
+	*   country (default = all countries)
+ * or
+ *   postalcode,country, radius (in Km), maxRows (default = 5)
+ *
+	* Result : returns a list of postalcodes and places for the lat/lng query as xml document
+	*
+	*
+	* NOTE: Style is allways MEDIUM (supported in formats SHORT/MEDIUM -- but there is so little to 
+	* save by requesting the SHORT format, so we allways use MEDIUM - which also is default)
+	*/
+ 
+/**
+ * Service configuration
+ */ 
+function geonames_nearbypostalcodes_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'nearbypostalcodes',
+    'service_full_name'   => 'Find nearby Postal Codes (reverse geocoding)',
+    'description'         => 'Find nearby Postal Codes (reverse geocoding)',
+    'service_path'        => 'findNearbyPostalCodes',
+    'credit_cost'         => 2,
+    'result_cache_prefix' => 'nbpres:',
+    'data_cache_prefix'   => 'nbpdat:',
+    'allowed_parameters' => array(
+      //our style  geonames style
+      'lat'        => 'lat',
+      'lng'        => 'lng',
+      'radius'     => 'radius',
+      'postalcode' => 'postalcode',
+      'maxrows'    => 'maxRows',      // Geonames default = 5
+      'country'    => 'country',      // Geonames default = ALL
+      'style'      => 'style',
+				),
+    'required_parameters' => array( // If you have set query_defaults you should not include the parameter here
+      array('lat', 'lng'),
+      array('postalcode', 'country')
+    ),
+    'required_parameters_type' => 'all',
+    'query_defaults' => array(
+      'maxrows' => 15, 
+      'radius'  => 10,
+      'style'   => 'medium',
+    ),
+    'columns' => array(
+      'postalcode',
+      'name',
+      'countrycode',
+      'lat',
+      'lng',
+      'distance',
+      'admincode1',
+      'admincode2',
+      'admincode3',
+      'adminname1',
+      'adminname2',
+      'adminname3',
+    ),
+	 );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

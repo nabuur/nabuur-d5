@@ -1,0 +1,12 @@
+; $Id: date_facets_format.info,v 1.1 2008/02/28 18:14:33 davidlesieur Exp $
+name = Date Facets Format
+description = "Provides formatting options for date-based facets."
+dependencies = faceted_search
+package = Faceted Search
+
+
+; Information added by drupal.org packaging script on 2008-06-23
+version = "5.x-1.0-beta4"
+project = "faceted_search"
+datestamp = "1214182208"
+

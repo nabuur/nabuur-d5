@@ -1,0 +1,58 @@
+<?php
+// $Id: geonames_wikipediasearch.module,v 1.1.2.4 2007/10/10 07:53:01 serosero Exp $
+
+/**
+ * @file
+ * Geonames wikipediasearch API / by Erlend Eide, erlend(|)edesign.no
+ *
+ * http://www.geonames.org/export/wikipedia-webservice.html
+ *
+ */
+ 
+/**
+ * Changelog
+ * new parameter: title (thanks to Arlene ,http://forum.geonames.org/gforum/posts/list/629.page#2887)
+ */
+ 
+/**
+ * Service configuration
+ */ 
+function geonames_wikipediasearch_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'wikipediasearch',
+    'service_full_name'   => 'Wikipedia Fulltext Search',
+    'description'         => 'Search Wikipedia entries in Fulltext',
+    'service_path'        => 'wikipediaSearch',
+    'credit_cost'         => 1,
+    'result_cache_prefix' => 'wiksres:',
+    'data_cache_prefix'   => 'wiksdat:',
+    'allowed_parameters' => array(
+      //our style  geonames style
+      'query'      => 'q',
+	 'title'      => 'title',
+      'lang'       => 'lang',         // Geonames default = en
+      'maxrows'    => 'maxRows',      // Geonames default = 5
+    ),
+    'required_parameters' => array( // If you have set query_defaults you should not include the parameter here
+      array('query'),
+	 array('title'),
+    ),
+    'required_parameters_type' => 'all',
+    'query_defaults' => array(
+      'maxrows' => 15, 
+    ),
+    'columns' => array(
+      'lang',
+      'title',
+      'summary',
+      'feature',
+      'population',
+      'elevation',
+      'lat',
+      'lng',
+      'wikipediaurl',
+      'thumbnailimg',
+    ),
+  );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

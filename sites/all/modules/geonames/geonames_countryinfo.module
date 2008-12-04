@@ -1,0 +1,50 @@
+<?php
+// $Id: geonames_countryinfo.module,v 1.1.2.2 2007/09/20 11:16:42 serosero Exp $
+
+/**
+ * @file
+ * Geonames countryinfo / by Erlend Eide, erlend(|)edesign.no
+ *
+ * IMPORTANT NOTE: http://forum.geonames.org/gforum/posts/list/119.page
+ * - Countries AE,CS,UM,VA, TL are missing in the XML Service
+ * - All countries are available from here: http://ws.geonames.org/countryInfoCSV?
+ */
+ 
+/**
+ * Service configuration
+ */ 
+function geonames_countryinfo_geoconfig($item = FALSE, $local = FALSE) {
+  $config = array(
+    'service_name'        => 'countryinfo',
+    'service_full_name'   => 'Country Info (Bounding Box, Capital, Area in square km, Population)',
+    'description'         => 'Find countries for which postal code geocoding is available.',
+	  'service_path'        => 'countryInfo',
+	  'credit_cost'         => 1,
+	  'result_cache_prefix' => 'couires:',
+	  'data_cache_prefix'   => 'couidat:',
+    'allowed_parameters' => array(
+      //our style  geonames style
+      'country' => 'country',
+			'lang' => 'lang',
+    ),
+	  'columns' => array(
+      'countrycode',
+      'countryname',
+      'isonumeric',
+      'isoalpha3',
+      'fipscode',
+      'continent',
+      'capital',
+      'areainsqkm',
+      'population',
+      'currencycode',
+      'languages',
+      'geonameid',
+      'bboxwest',
+      'bboxnorth',
+      'bboxsouth',
+      'bboxeast',
+		),
+  );
+  return ($item ? ($local ? $config[$item] : array($config['service_name'] => $config[$item])) : array($config['service_name'] => $config));
+}

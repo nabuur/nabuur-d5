@@ -1,0 +1,15 @@
+; $Id: cck_address.info,v 1.10.2.1 2007/12/14 20:16:15 rconstantine Exp $
+;/**
+; * @package CCK_Address
+; * @category NeighborForge
+; */
+name = Address Field
+description = Defines address field so all parts are treated as a single unit.
+dependencies = content
+package = CCK
+project = "cck_address"
+; Information added by drupal.org packaging script on 2007-12-14
+version = "5.x-2.1"
+project = "cck_address"
+datestamp = "1197663604"
+

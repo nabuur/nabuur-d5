@@ -1,0 +1,12 @@
+; $Id: invite_cancel_account.info,v 1.1.2.1 2007/12/01 05:30:29 smk Exp $
+name = Cancel User Accounts
+description = "Allows your users to terminate user accounts by withdrawing their invitation. WARNING - This module is put into effect when you enable it."
+dependencies = invite
+package = Invite
+
+
+; Information added by drupal.org packaging script on 2007-12-01
+version = "5.x-1.13"
+project = "invite"
+datestamp = "1196529013"
+

@@ -1,0 +1,11 @@
+; $Id: nodeprofile.info,v 1.1.2.3 2007/06/18 23:06:54 dww Exp $
+name = "Node Profile"
+description = "Marks content types as profiles."
+package = "Node Profile"
+dependencies = nodefamily subform_element
+
+; Information added by drupal.org packaging script on 2008-04-20
+version = "5.x-1.4"
+project = "nodeprofile"
+datestamp = "1208725519"
+
