@@ -64,6 +64,14 @@ function faceted_search_ui_menu($may_cache) {
     // TODO: Per-environment access control setting (à la Views). Then, will no
     // longer need the 'use faceted search' permission.
   }
+  else {
+    foreach (faceted_search_get_env_ids() as $env_id) {
+      $base_path = faceted_search_variable_get($env_id, 'base_path', '');
+      if (stripos($_GET['q'], $base_path) === 0) {
+        i18n_selection_mode('off');
+      }
+    }
+  }
   
   return $items;
 }
