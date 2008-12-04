@@ -44,6 +44,7 @@ function i18nsync_form_alter($form_id, &$form) {
       // saved as an array. Special themeing for group titles.
       foreach (i18nsync_node_available_fields($type) as $group => $data) {
         $title = $data['#title'];
+        if (is_array($data['#options'])) { // prevents error on empty CCK array
         foreach ($data['#options'] as $field => $name) {
           $form['workflow']['i18n']['i18nsync_nodeapi'][$field] = array(
             '#group_title' => $title,
@@ -53,7 +54,7 @@ function i18nsync_form_alter($form_id, &$form) {
             '#theme' => 'i18nsync_workflow_checkbox',
           );
           $title = '';  
-        }     
+        }}  
       }
 
       break;
