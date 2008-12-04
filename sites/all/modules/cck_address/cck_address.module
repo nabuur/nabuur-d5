@@ -1504,7 +1504,7 @@ function cck_address_widget($op, &$node, $field, &$items) {
             '#type' => 'textfield',
             '#title' => isset($field['field_names_state']) ? $field['field_names_state'] : t('State'),
             '#default_value' => $state,
-            '#required' => $field['fielddisplay']['field_display_state'] == 'field_display_state' && $field['required'] == TRUE ? TRUE : FALSE,
+            '#required' => $field['fielddisplay']['field_display_state'] == 'field_display_state' && $field['required'] == TRUE ? FALSE : FALSE,
             '#size' => 20,
             '#maxlength' => $field['max_length_city'] ? $field['max_length_city'] : NULL,
             '#prefix' => '<div class="cck-address-state">',
