@@ -1,0 +1,785 @@
+<?php
+// $Id: countries_api.module,v 1.1 2007/12/13 12:33:11 horsconcept Exp $
+
+/**
+ * Implementation of hook_help()
+ */
+function countries_api_help($__section = '')
+{
+  $_content = '';
+
+  // license path
+  $_license = drupal_get_path('module', 'countries_api') . '/LICENSE.txt';
+
+  // switch over section
+  switch($__section) {
+
+    // module
+    case 'admin/help#countries_api':
+
+      $_content = <<<HELP
+<p>
+  Provides an API for official ISO 3166 country codes and names.
+  <br />
+  Please visit the Maintenance agency website on
+  <a href="http://www.iso.org/iso/country_codes/"
+    target="_blank">http://www.iso.org/iso/country_codes/</a>
+  for more information about ISO 3166.
+</p>
+<h3 style="border-bottom:solid 1px #ABABAB;">
+  <br />
+  <b>Global operations</b>
+</h3>
+<blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_get_list()</b> : array
+  </h4>
+  <blockquote>
+    <p>
+      This function returns the full list of official ISO country codes and
+      names.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      None
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      An indexed array containing the list of each official ISO country codes
+      and name as associative arrays, using the following keys:
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            name
+            <br/>
+            <i>Returns the country short name.</i>
+          </li>
+          <li>
+            iso2
+            <br/>
+            <i>Returns the country ISO 3166-1-alpha-2 code.</i>
+          </li>
+          <li>
+            iso3
+            <br/>
+            <i>Returns the country ISO 3166-1-alpha-3 code.</i>
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+  </blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_get_name(\$code)</b> : string
+  </h4>
+  <blockquote>
+    <p>
+      This function gets either an ISO 3166-1-alpha-2 or ISO 3166-1-alpha-3
+      code in parameter and returns the corresponding country short name.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-2 or ISO 3166-1-alpha-3 code as a</i>
+            string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      The corresponding country short name as a <i>string</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_get_country(\$code)</b> : array
+  </h4>
+  <blockquote>
+    <p>
+      This function gets either an ISO 3166-1-alpha-2 or ISO 3166-1-alpha-3
+      code in parameter and returns an array representing the corresponding
+      country.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-2 or ISO 3166-1-alpha-3 code as a</i>
+            string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      An associative <i>array</i>, using the keys as described in
+      <i>countries_api_get_list()</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+</blockquote>
+<h3 style="border-bottom:solid 1px #ABABAB;">
+  <br />
+  <b>ISO 3166-1-alpha-2 code operations</b>
+</h3>
+<blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_iso2_get_name(\$code)</b> : string
+  </h4>
+  <blockquote>
+    <p>
+      This function gets an ISO 3166-1-alpha-2 code in parameter and returns
+      the corresponding country short name.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-2 code as a</i> string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      The corresponding country short name as a <i>string</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_iso2_get_iso3(\$code)</b> : string
+  </h4>
+  <blockquote>
+    <p>
+      This function gets an ISO 3166-1-alpha-2 code in parameter and returns
+      the corresponding ISO 3166-1-alpha-3 code.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-2 code as a</i> string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      The corresponding ISO 3166-1-alpha-3 code as a <i>string</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_iso2_get_country(\$code)</b> : array
+  </h4>
+  <blockquote>
+    <p>
+      This function gets an ISO 3166-1-alpha-2 code in parameter and returns an
+      array representing the corresponding country.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-2 code as a</i> string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      An associative <i>array</i>, using the keys as described in
+      <i>countries_api_get_list()</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+</blockquote>
+<h3 style="border-bottom:solid 1px #ABABAB;">
+  <br />
+  <b>ISO 3166-1-alpha-3 code operations</b>
+</h3>
+<blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_iso3_get_name(\$code)</b> : string
+  </h4>
+  <blockquote>
+    <p>
+      This function gets an ISO 3166-1-alpha-3 code in parameter and returns
+      the corresponding country short name.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-3 code as a</i> string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      The corresponding country short name as a <i>string</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_iso3_get_iso2(\$code)</b> : string
+  </h4>
+  <blockquote>
+    <p>
+      This function gets an ISO 3166-1-alpha-3 code in parameter and returns
+      the corresponding ISO 3166-1-alpha-2 code.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-3 code as a</i> string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      The corresponding ISO 3166-1-alpha-2 code as a <i>string</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+  <h4>
+    <br />
+    function <b>countries_api_iso3_get_country(\$code)</b> : array
+  </h4>
+  <blockquote>
+    <p>
+      This function gets an ISO 3166-1-alpha-3 code in parameter and returns an
+      array representing the corresponding country.
+    </p>
+    <p>
+      <i>Parameter(s):</i>
+      <br />
+      <blockquote>
+        <ul>
+          <li>
+            \$code
+            <br/>
+            <i>An ISO 3166-1-alpha-3 code as a</i> string.
+          </li>
+        </ul>
+      </blockquote>
+    </p>
+    <p>
+      <i>Returns:</i>
+      <br />
+      An associative <i>array</i>, using the keys as described in
+      <i>countries_api_get_list()</i>.
+      <br />
+      In case the country code doesn't match any country, <i>null</i> is
+      returned.
+    </p>
+  </blockquote>
+</blockquote>
+<h3 style="border-bottom:solid 1px #ABABAB;">
+  <br />
+  <b>License</b>
+</h3>
+<blockquote>
+  <br />
+  <p>
+    This module is licensed under the terms of the
+    <a href="$_license"
+      target="_blank">GNU General Public License version 2</a>.
+    <br />
+    This module was created by horsconcept, Alexandre Kraft
+    &lt;ak@horsconcept.ch&gt;.
+  </p>
+</blockquote>
+HELP;
+      break;
+  }
+
+  return $_content;
+}
+
+/**
+ * ISO 3166-1-alpha-#n code to country API function
+ */
+function countries_api_get_country($code)
+{
+  if(strlen(trim($code)) == 2) {
+    return countries_api_iso2_get_country($code);
+  } elseif(strlen(trim($code)) == 3) {
+    return countries_api_iso3_get_country($code);
+  } else {
+    return null;
+  }
+}
+
+/**
+ * ISO 3166-1-alpha-2 code to country API function
+ */
+function countries_api_iso2_get_country($code)
+{
+  return _countries_api_iso_get_country($code, 'iso2');
+}
+
+/**
+ * ISO 3166-1-alpha-3 code to country API function
+ */
+function countries_api_iso3_get_country($code)
+{
+  return _countries_api_iso_get_country($code, 'iso3');
+}
+
+/**
+ * ISO 3166-1-alpha-#n code to country name API function
+ */
+function countries_api_get_name($code)
+{
+  if(strlen(trim($code)) == 2) {
+    return countries_api_iso2_get_name($code);
+  } elseif(strlen(trim($code)) == 3) {
+    return countries_api_iso3_get_name($code);
+  } else {
+    return null;
+  }
+}
+
+/**
+ * ISO 3166-1-alpha-2 code to country name API function
+ */
+function countries_api_iso2_get_name($code)
+{
+  $_country = countries_api_iso2_get_country($code);
+
+  if(!is_null($_country)) {
+    return $_country['name'];
+  }
+
+  return null;
+}
+
+/**
+ * ISO 3166-1-alpha-3 code to country name API function
+ */
+function countries_api_iso3_get_name($code)
+{
+  $_country = countries_api_iso3_get_country($code);
+
+  if(!is_null($_country)) {
+    return $_country['name'];
+  }
+
+  return null;
+}
+
+/**
+ * ISO 3166-1-alpha-2 code to ISO 3166-1-alpha-3 code API function
+ */
+function countries_api_iso2_get_iso3($code)
+{
+  $_country = countries_api_iso2_get_country($code);
+
+  if(!is_null($_country)) {
+    return $_country['iso3'];
+  }
+
+  return null;
+}
+
+/**
+ * ISO 3166-1-alpha-3 code to ISO 3166-1-alpha-2 code API function
+ */
+function countries_api_iso3_get_iso2($code)
+{
+  $_country = countries_api_iso3_get_country($code);
+
+  if(!is_null($_country)) {
+    return $_country['iso2'];
+  }
+
+  return null;
+}
+
+/**
+ * Internal ISO 3166-1-alpha-#n code to country helper
+ */
+function _countries_api_iso_get_country($__code, $__alpha)
+{
+  $_list = countries_api_get_list();
+  $_code = strtoupper(trim(check_plain($__code)));
+
+  foreach($_list as $_country) {
+    if($_country[$__alpha] == $_code) {
+      return $_country;
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Countries list API function
+ */
+function countries_api_get_list()
+{
+  $_countries = array(
+
+    // a
+    array('name' => t('Afghanistan'), 'iso2' => 'AF', 'iso3' => 'AFG'),
+    array('name' => t('Åland Islands'), 'iso2' => 'AX', 'iso3' => 'ALA'),
+    array('name' => t('Albania'), 'iso2' => 'AL', 'iso3' => 'ALB'),
+    array('name' => t('Algeria'), 'iso2' => 'DZ', 'iso3' => 'DZA'),
+    array('name' => t('American Samoa'), 'iso2' => 'AS', 'iso3' => 'ASM'),
+    array('name' => t('Andorra'), 'iso2' => 'AD', 'iso3' => 'AND'),
+    array('name' => t('Angola'), 'iso2' => 'AO', 'iso3' => 'AGO'),
+    array('name' => t('Anguilla'), 'iso2' => 'AI', 'iso3' => 'AIA'),
+    array('name' => t('Antarctica'), 'iso2' => 'AQ', 'iso3' => 'ATA'),
+    array('name' => t('Antigua and Barbuda'), 'iso2' => 'AG', 'iso3' => 'ATG'),
+    array('name' => t('Argentina'), 'iso2' => 'AR', 'iso3' => 'ARG'),
+    array('name' => t('Armenia'), 'iso2' => 'AM', 'iso3' => 'ARM'),
+    array('name' => t('Aruba'), 'iso2' => 'AW', 'iso3' => 'ABW'),
+    array('name' => t('Australia'), 'iso2' => 'AU', 'iso3' => 'AUS'),
+    array('name' => t('Austria'), 'iso2' => 'AT', 'iso3' => 'AUT'),
+    array('name' => t('Azerbaijan'), 'iso2' => 'AZ', 'iso3' => 'AZE'),
+
+    // b
+    array('name' => t('Bahamas'), 'iso2' => 'BS', 'iso3' => 'BHS'),
+    array('name' => t('Bahrain'), 'iso2' => 'BH', 'iso3' => 'BHR'),
+    array('name' => t('Bangladesh'), 'iso2' => 'BD', 'iso3' => 'BGD'),
+    array('name' => t('Barbados'), 'iso2' => 'BB', 'iso3' => 'BRB'),
+    array('name' => t('Belarus'), 'iso2' => 'BY', 'iso3' => 'BLR'),
+    array('name' => t('Belgium'), 'iso2' => 'BE', 'iso3' => 'BEL'),
+    array('name' => t('Belize'), 'iso2' => 'BZ', 'iso3' => 'BLZ'),
+    array('name' => t('Benin'), 'iso2' => 'BJ', 'iso3' => 'BEN'),
+    array('name' => t('Bermuda'), 'iso2' => 'BM', 'iso3' => 'BMU'),
+    array('name' => t('Bhutan'), 'iso2' => 'BT', 'iso3' => 'BTN'),
+    array('name' => t('Bolivia'), 'iso2' => 'BO', 'iso3' => 'BOL'),
+    array('name' => t('Bosnia and Herzegovina'), 'iso2' => 'BA', 'iso3' => 'BIH'),
+    array('name' => t('Botswana'), 'iso2' => 'BW', 'iso3' => 'BWA'),
+    array('name' => t('Bouvet Island'), 'iso2' => 'BV', 'iso3' => 'BVT'),
+    array('name' => t('Brazil'), 'iso2' => 'BR', 'iso3' => 'BRA'),
+    array('name' => t('British Indian Ocean Territory'), 'iso2' => 'IO', 'iso3' => 'IOT'),
+    array('name' => t('Brunei Darussalam'), 'iso2' => 'BN', 'iso3' => 'BRN'),
+    array('name' => t('Bulgaria'), 'iso2' => 'BG', 'iso3' => 'BGR'),
+    array('name' => t('Burkina Faso'), 'iso2' => 'BF', 'iso3' => 'BFA'),
+    array('name' => t('Burundi'), 'iso2' => 'BI', 'iso3' => 'BDI'),
+
+    // c
+    array('name' => t('Cambodia'), 'iso2' => 'KH', 'iso3' => 'KHM'),
+    array('name' => t('Cameroon'), 'iso2' => 'CM', 'iso3' => 'CMR'),
+    array('name' => t('Canada'), 'iso2' => 'CA', 'iso3' => 'CAN'),
+    array('name' => t('Cape Verde'), 'iso2' => 'CV', 'iso3' => 'CPV'),
+    array('name' => t('Cayman Islands'), 'iso2' => 'KY', 'iso3' => 'CYM'),
+    array('name' => t('Central African Republic'), 'iso2' => 'CF', 'iso3' => 'CAF'),
+    array('name' => t('Chad'), 'iso2' => 'TD', 'iso3' => 'TCD'),
+    array('name' => t('Chile'), 'iso2' => 'CL', 'iso3' => 'CHL'),
+    array('name' => t('China'), 'iso2' => 'CN', 'iso3' => 'CHN'),
+    array('name' => t('Christmas Island'), 'iso2' => 'CX', 'iso3' => 'CXR'),
+    array('name' => t('Cocos (Keeling) Islands'), 'iso2' => 'CC', 'iso3' => 'CCK'),
+    array('name' => t('Colombia'), 'iso2' => 'CO', 'iso3' => 'COL'),
+    array('name' => t('Comoros'), 'iso2' => 'KM', 'iso3' => 'COM'),
+    array('name' => t('Congo'), 'iso2' => 'CG', 'iso3' => 'COG'),
+    array('name' => t('Congo, The Democratic Republic of the'), 'iso2' => 'CD', 'iso3' => 'ZAR'),
+    array('name' => t('Cook Islands'), 'iso2' => 'CK', 'iso3' => 'COK'),
+    array('name' => t('Costa Rica'), 'iso2' => 'CR', 'iso3' => 'CRI'),
+    array('name' => t('Côte d\'Ivoire'), 'iso2' => 'CI', 'iso3' => 'CIV'),
+    array('name' => t('Croatia'), 'iso2' => 'HR', 'iso3' => 'HRV'),
+    array('name' => t('Cuba'), 'iso2' => 'CU', 'iso3' => 'CUB'),
+    array('name' => t('Cyprus'), 'iso2' => 'CY', 'iso3' => 'CYP'),
+    array('name' => t('Czech Republic'), 'iso2' => 'CZ', 'iso3' => 'CZE'),
+
+    // d
+    array('name' => t('Denmark'), 'iso2' => 'DK', 'iso3' => 'DNK'),
+    array('name' => t('Djibouti'), 'iso2' => 'DJ', 'iso3' => 'DJI'),
+    array('name' => t('Dominica'), 'iso2' => 'DM', 'iso3' => 'DMA'),
+    array('name' => t('Dominican Republic'), 'iso2' => 'DO', 'iso3' => 'DOM'),
+
+    // e
+    array('name' => t('Ecuador'), 'iso2' => 'EC', 'iso3' => 'ECU'),
+    array('name' => t('Egypt'), 'iso2' => 'EG', 'iso3' => 'EGY'),
+    array('name' => t('El Salvador'), 'iso2' => 'SV', 'iso3' => 'SLV'),
+    array('name' => t('Equatorial Guinea'), 'iso2' => 'GQ', 'iso3' => 'GNQ'),
+    array('name' => t('Eritrea'), 'iso2' => 'ER', 'iso3' => 'ERI'),
+    array('name' => t('Estonia'), 'iso2' => 'EE', 'iso3' => 'EST'),
+    array('name' => t('Ethiopia'), 'iso2' => 'ET', 'iso3' => 'ETH'),
+
+    // f
+    array('name' => t('Falkland Islands (Malvinas)'), 'iso2' => 'FK', 'iso3' => 'FLK'),
+    array('name' => t('Faroe Islands'), 'iso2' => 'FO', 'iso3' => 'FRO'),
+    array('name' => t('Fiji'), 'iso2' => 'FJ', 'iso3' => 'FJI'),
+    array('name' => t('Finland'), 'iso2' => 'FI', 'iso3' => 'FIN'),
+    array('name' => t('France'), 'iso2' => 'FR', 'iso3' => 'FRA'),
+    array('name' => t('French Guiana'), 'iso2' => 'GF', 'iso3' => 'GUF'),
+    array('name' => t('French Polynesia'), 'iso2' => 'PF', 'iso3' => 'PYF'),
+    array('name' => t('French Southern Territories'), 'iso2' => 'TF', 'iso3' => 'ATF'),
+
+    // g
+    array('name' => t('Gabon'), 'iso2' => 'GA', 'iso3' => 'GAB'),
+    array('name' => t('Gambia'), 'iso2' => 'GM', 'iso3' => 'GMB'),
+    array('name' => t('Georgia'), 'iso2' => 'GE', 'iso3' => 'GEO'),
+    array('name' => t('Germany'), 'iso2' => 'DE', 'iso3' => 'DEU'),
+    array('name' => t('Ghana'), 'iso2' => 'GH', 'iso3' => 'GHA'),
+    array('name' => t('Gibraltar'), 'iso2' => 'GI', 'iso3' => 'GIB'),
+    array('name' => t('Greece'), 'iso2' => 'GR', 'iso3' => 'GRC'),
+    array('name' => t('Greenland'), 'iso2' => 'GL', 'iso3' => 'GRL'),
+    array('name' => t('Grenada'), 'iso2' => 'GD', 'iso3' => 'GRD'),
+    array('name' => t('Guadeloupe'), 'iso2' => 'GP', 'iso3' => 'GLP'),
+    array('name' => t('Guam'), 'iso2' => 'GU', 'iso3' => 'GUM'),
+    array('name' => t('Guatemala'), 'iso2' => 'GT', 'iso3' => 'GTM'),
+    array('name' => t('Guernsey'), 'iso2' => 'GG', 'iso3' => 'GGY'),
+    array('name' => t('Guinea'), 'iso2' => 'GN', 'iso3' => 'GIN'),
+    array('name' => t('Guinea-Bissau'), 'iso2' => 'GW', 'iso3' => 'GNB'),
+    array('name' => t('Guyana'), 'iso2' => 'GY', 'iso3' => 'GUY'),
+
+    // h
+    array('name' => t('Haiti'), 'iso2' => 'HT', 'iso3' => 'HTI'),
+    array('name' => t('Heard Island and McDonald Islands'), 'iso2' => 'HM', 'iso3' => 'HMD'),
+    array('name' => t('Holy See (Vatican City State)'), 'iso2' => 'VA', 'iso3' => 'VAT'),
+    array('name' => t('Honduras'), 'iso2' => 'HN', 'iso3' => 'HND'),
+    array('name' => t('Hong Kong'), 'iso2' => 'HK', 'iso3' => 'HKG'),
+    array('name' => t('Hungary'), 'iso2' => 'HU', 'iso3' => 'HUN'),
+
+    // i
+    array('name' => t('Iceland'), 'iso2' => 'IS', 'iso3' => 'ISL'),
+    array('name' => t('India'), 'iso2' => 'IN', 'iso3' => 'IND'),
+    array('name' => t('Indonesia'), 'iso2' => 'ID', 'iso3' => 'IDN'),
+    array('name' => t('Iran, Islamic Republic of'), 'iso2' => 'IR', 'iso3' => 'IRN'),
+    array('name' => t('Iraq'), 'iso2' => 'IQ', 'iso3' => 'IRQ'),
+    array('name' => t('Ireland'), 'iso2' => 'IE', 'iso3' => 'IRL'),
+    array('name' => t('Isle of Man'), 'iso2' => 'IM', 'iso3' => 'IMN'),
+    array('name' => t('Israel'), 'iso2' => 'IL', 'iso3' => 'ISR'),
+    array('name' => t('Italy'), 'iso2' => 'IT', 'iso3' => 'ITA'),
+
+    // j
+    array('name' => t('Jamaica'), 'iso2' => 'JM', 'iso3' => 'JAM'),
+    array('name' => t('Japan'), 'iso2' => 'JP', 'iso3' => 'JPN'),
+    array('name' => t('Jersey'), 'iso2' => 'JE', 'iso3' => 'JEY'),
+    array('name' => t('Jordan'), 'iso2' => 'JO', 'iso3' => 'JOR'),
+
+    // k
+    array('name' => t('Kazakhstan'), 'iso2' => 'KZ', 'iso3' => 'KAZ'),
+    array('name' => t('Kenya'), 'iso2' => 'KE', 'iso3' => 'KEN'),
+    array('name' => t('Kiribati'), 'iso2' => 'KI', 'iso3' => 'KIR'),
+    array('name' => t('Korea, Democratic People\'s Republic of'), 'iso2' => 'KP', 'iso3' => 'PRK'),
+    array('name' => t('Korea, Republic of'), 'iso2' => 'KR', 'iso3' => 'KOR'),
+    array('name' => t('Kuwait'), 'iso2' => 'KW', 'iso3' => 'KWT'),
+    array('name' => t('Kyrgyzstan'), 'iso2' => 'KG', 'iso3' => 'KGZ'),
+
+    // l
+    array('name' => t('Lao People\'s Democratic Republic'), 'iso2' => 'LA', 'iso3' => 'LAO'),
+    array('name' => t('Latvia'), 'iso2' => 'LV', 'iso3' => 'LVA'),
+    array('name' => t('Lebanon'), 'iso2' => 'LB', 'iso3' => 'LBN'),
+    array('name' => t('Lesotho'), 'iso2' => 'LS', 'iso3' => 'LSO'),
+    array('name' => t('Liberia'), 'iso2' => 'LR', 'iso3' => 'LBR'),
+    array('name' => t('Libyan Arab Jamahiriya'), 'iso2' => 'LY', 'iso3' => 'LBY'),
+    array('name' => t('Liechtenstein'), 'iso2' => 'LI', 'iso3' => 'LIE'),
+    array('name' => t('Lithuania'), 'iso2' => 'LT', 'iso3' => 'LTU'),
+    array('name' => t('Luxembourg'), 'iso2' => 'LU', 'iso3' => 'LUX'),
+
+    // m
+    array('name' => t('Macao'), 'iso2' => 'MO', 'iso3' => 'MAC'),
+    array('name' => t('Macedonia, The Former Yugoslav Republic of'), 'iso2' => 'MK', 'iso3' => 'MKD'),
+    array('name' => t('Madagascar'), 'iso2' => 'MG', 'iso3' => 'MDG'),
+    array('name' => t('Malawi'), 'iso2' => 'MW', 'iso3' => 'MWI'),
+    array('name' => t('Malaysia'), 'iso2' => 'MY', 'iso3' => 'MYS'),
+    array('name' => t('Maldives'), 'iso2' => 'MV', 'iso3' => 'MDV'),
+    array('name' => t('Mali'), 'iso2' => 'ML', 'iso3' => 'MLI'),
+    array('name' => t('Malta'), 'iso2' => 'MT', 'iso3' => 'MLT'),
+    array('name' => t('Marshall Islands'), 'iso2' => 'MH', 'iso3' => 'MHL'),
+    array('name' => t('Martinique'), 'iso2' => 'MQ', 'iso3' => 'MTQ'),
+    array('name' => t('Mauritania'), 'iso2' => 'MR', 'iso3' => 'MRT'),
+    array('name' => t('Mauritius'), 'iso2' => 'MU', 'iso3' => 'MUS'),
+    array('name' => t('Mayotte'), 'iso2' => 'YT', 'iso3' => 'MYT'),
+    array('name' => t('Mexico'), 'iso2' => 'MX', 'iso3' => 'MEX'),
+    array('name' => t('Micronesia, Federated States of'), 'iso2' => 'FM', 'iso3' => 'FSM'),
+    array('name' => t('Moldova, Republic of'), 'iso2' => 'MD', 'iso3' => 'MDA'),
+    array('name' => t('Monaco'), 'iso2' => 'MC', 'iso3' => 'MCO'),
+    array('name' => t('Mongolia'), 'iso2' => 'MN', 'iso3' => 'MNG'),
+    array('name' => t('Montenegro'), 'iso2' => 'ME', 'iso3' => 'MNE'),
+    array('name' => t('Montserrat'), 'iso2' => 'MS', 'iso3' => 'MSR'),
+    array('name' => t('Morocco'), 'iso2' => 'MA', 'iso3' => 'MAR'),
+    array('name' => t('Mozambique'), 'iso2' => 'MZ', 'iso3' => 'MOZ'),
+    array('name' => t('Myanmar'), 'iso2' => 'MM', 'iso3' => 'MMR'),
+
+    // n
+    array('name' => t('Namibia'), 'iso2' => 'NA', 'iso3' => 'NAM'),
+    array('name' => t('Nauru'), 'iso2' => 'NR', 'iso3' => 'NRU'),
+    array('name' => t('Nepal'), 'iso2' => 'NP', 'iso3' => 'NPL'),
+    array('name' => t('Netherlands'), 'iso2' => 'NL', 'iso3' => 'NLD'),
+    array('name' => t('Netherlands Antilles'), 'iso2' => 'AN', 'iso3' => 'ANT'),
+    array('name' => t('New Caledonia'), 'iso2' => 'NC', 'iso3' => 'NCL'),
+    array('name' => t('New Zealand'), 'iso2' => 'NZ', 'iso3' => 'NZL'),
+    array('name' => t('Nicaragua'), 'iso2' => 'NI', 'iso3' => 'NIC'),
+    array('name' => t('Niger'), 'iso2' => 'NE', 'iso3' => 'NER'),
+    array('name' => t('Nigeria'), 'iso2' => 'NG', 'iso3' => 'NGA'),
+    array('name' => t('Niue'), 'iso2' => 'NU', 'iso3' => 'NIU'),
+    array('name' => t('Norfolk Island'), 'iso2' => 'NF', 'iso3' => 'NFK'),
+    array('name' => t('Northern Mariana Islands'), 'iso2' => 'MP', 'iso3' => 'MNP'),
+    array('name' => t('Norway'), 'iso2' => 'NO', 'iso3' => 'NOR'),
+
+    // o
+    array('name' => t('Oman'), 'iso2' => 'OM', 'iso3' => 'OMN'),
+
+    // p
+    array('name' => t('Pakistan'), 'iso2' => 'PK', 'iso3' => 'PAK'),
+    array('name' => t('Palau'), 'iso2' => 'PW', 'iso3' => 'PLW'),
+    array('name' => t('Palestinian Territory, Occupied'), 'iso2' => 'PS', 'iso3' => 'PSE'),
+    array('name' => t('Panama'), 'iso2' => 'PA', 'iso3' => 'PAN'),
+    array('name' => t('Papua New Guinea'), 'iso2' => 'PG', 'iso3' => 'PNG'),
+    array('name' => t('Paraguay'), 'iso2' => 'PY', 'iso3' => 'PRY'),
+    array('name' => t('Peru'), 'iso2' => 'PE', 'iso3' => 'PER'),
+    array('name' => t('Philippines'), 'iso2' => 'PH', 'iso3' => 'PHL'),
+    array('name' => t('Pitcairn'), 'iso2' => 'PN', 'iso3' => 'PCN'),
+    array('name' => t('Poland'), 'iso2' => 'PL', 'iso3' => 'POL'),
+    array('name' => t('Portugal'), 'iso2' => 'PT', 'iso3' => 'PRT'),
+    array('name' => t('Puerto Rico'), 'iso2' => 'PR', 'iso3' => 'PRI'),
+
+    // q
+    array('name' => t('Qatar'), 'iso2' => 'QA', 'iso3' => 'QAT'),
+
+    // r
+    array('name' => t('Réunion'), 'iso2' => 'RE', 'iso3' => 'REU'),
+    array('name' => t('Romania'), 'iso2' => 'RO', 'iso3' => 'ROU'),
+    array('name' => t('Russian Federation'), 'iso2' => 'RU', 'iso3' => 'RUS'),
+    array('name' => t('Rwanda'), 'iso2' => 'RW', 'iso3' => 'RWA'),
+
+    // s
+    array('name' => t('Saint Barthélemy'), 'iso2' => 'BL', 'iso3' => 'BLM'),
+    array('name' => t('Saint Helena'), 'iso2' => 'SH', 'iso3' => 'SHN'),
+    array('name' => t('Saint Kitts and Nevis'), 'iso2' => 'KN', 'iso3' => 'KNA'),
+    array('name' => t('Saint Lucia'), 'iso2' => 'LC', 'iso3' => 'LCA'),
+    array('name' => t('Saint Martin'), 'iso2' => 'MF', 'iso3' => 'MAF'),
+    array('name' => t('Saint Pierre and Miquelon'), 'iso2' => 'PM', 'iso3' => 'SPM'),
+    array('name' => t('Saint Vincent and the Grenadines'), 'iso2' => 'VC', 'iso3' => 'VCT'),
+    array('name' => t('Samoa'), 'iso2' => 'WS', 'iso3' => 'WSM'),
+    array('name' => t('San Marino'), 'iso2' => 'SM', 'iso3' => 'SMR'),
+    array('name' => t('Sao Tome and Principe'), 'iso2' => 'ST', 'iso3' => 'STP'),
+    array('name' => t('Saudi Arabia'), 'iso2' => 'SA', 'iso3' => 'SAU'),
+    array('name' => t('Senegal'), 'iso2' => 'SN', 'iso3' => 'SEN'),
+    array('name' => t('Serbia'), 'iso2' => 'RS', 'iso3' => 'SRB'),
+    array('name' => t('Seychelles'), 'iso2' => 'SC', 'iso3' => 'SYC'),
+    array('name' => t('Sierra Leone'), 'iso2' => 'SL', 'iso3' => 'SLE'),
+    array('name' => t('Singapore'), 'iso2' => 'SG', 'iso3' => 'SGP'),
+    array('name' => t('Slovakia'), 'iso2' => 'SK', 'iso3' => 'SVK'),
+    array('name' => t('Slovenia'), 'iso2' => 'SI', 'iso3' => 'SVN'),
+    array('name' => t('Solomon Islands'), 'iso2' => 'SB', 'iso3' => 'SLB'),
+    array('name' => t('Somalia'), 'iso2' => 'SO', 'iso3' => 'SOM'),
+    array('name' => t('South Africa'), 'iso2' => 'ZA', 'iso3' => 'ZAF'),
+    array('name' => t('South Georgia and the South Sandwich Islands'), 'iso2' => 'GS', 'iso3' => 'SGS'),
+    array('name' => t('Spain'), 'iso2' => 'ES', 'iso3' => 'ESP'),
+    array('name' => t('Sri Lanka'), 'iso2' => 'LK', 'iso3' => 'LKA'),
+    array('name' => t('Sudan'), 'iso2' => 'SD', 'iso3' => 'SDN'),
+    array('name' => t('Suriname'), 'iso2' => 'SR', 'iso3' => 'SUR'),
+    array('name' => t('Svalbard and Jan Mayen'), 'iso2' => 'SJ', 'iso3' => 'SJM'),
+    array('name' => t('Swaziland'), 'iso2' => 'SZ', 'iso3' => 'SWZ'),
+    array('name' => t('Sweden'), 'iso2' => 'SE', 'iso3' => 'SWE'),
+    array('name' => t('Switzerland'), 'iso2' => 'CH', 'iso3' => 'CHE'),
+    array('name' => t('Syrian Arab Republic'), 'iso2' => 'SY', 'iso3' => 'SYR'),
+
+    // t
+    array('name' => t('Taiwan, Province of China'), 'iso2' => 'TW', 'iso3' => 'TWN'),
+    array('name' => t('Tajikistan'), 'iso2' => 'TJ', 'iso3' => 'TJK'),
+    array('name' => t('Tanzania, United Republic of'), 'iso2' => 'TZ', 'iso3' => 'TZA'),
+    array('name' => t('Thailand'), 'iso2' => 'TH', 'iso3' => 'THA'),
+    array('name' => t('Timor-Leste'), 'iso2' => 'TL', 'iso3' => 'TLS'),
+    array('name' => t('Togo'), 'iso2' => 'TG', 'iso3' => 'TGO'),
+    array('name' => t('Tokelau'), 'iso2' => 'TK', 'iso3' => 'TKL'),
+    array('name' => t('Tonga'), 'iso2' => 'TO', 'iso3' => 'TON'),
+    array('name' => t('Trinidad and Tobago'), 'iso2' => 'TT', 'iso3' => 'TTO'),
+    array('name' => t('Tunisia'), 'iso2' => 'TN', 'iso3' => 'TUN'),
+    array('name' => t('Turkey'), 'iso2' => 'TR', 'iso3' => 'TUR'),
+    array('name' => t('Turkmenistan'), 'iso2' => 'TM', 'iso3' => 'TKM'),
+    array('name' => t('Turks and Caicos Islands'), 'iso2' => 'TC', 'iso3' => 'TCA'),
+    array('name' => t('Tuvalu'), 'iso2' => 'TV', 'iso3' => 'TUV'),
+
+    // u
+    array('name' => t('Uganda'), 'iso2' => 'UG', 'iso3' => 'UGA'),
+    array('name' => t('Ukraine'), 'iso2' => 'UA', 'iso3' => 'UKR'),
+    array('name' => t('United Arab Emirates'), 'iso2' => 'AE', 'iso3' => 'ARE'),
+    array('name' => t('United Kingdom'), 'iso2' => 'GB', 'iso3' => 'GBR'),
+    array('name' => t('United States'), 'iso2' => 'US', 'iso3' => 'USA'),
+    array('name' => t('United States Minor Outlying Islands'), 'iso2' => 'UM', 'iso3' => 'UMI'),
+    array('name' => t('Uruguay'), 'iso2' => 'UY', 'iso3' => 'URY'),
+    array('name' => t('Uzbekistan'), 'iso2' => 'UZ', 'iso3' => 'UZB'),
+
+    // v
+    array('name' => t('Vanuatu'), 'iso2' => 'VU', 'iso3' => 'VUT'),
+    array('name' => t('Venezuela'), 'iso2' => 'VE', 'iso3' => 'VEN'),
+    array('name' => t('Viet Nam'), 'iso2' => 'VN', 'iso3' => 'VNM'),
+    array('name' => t('Virgin Islands, British'), 'iso2' => 'VG', 'iso3' => 'VGB'),
+    array('name' => t('Virgin Islands, U.S.'), 'iso2' => 'VI', 'iso3' => 'VIR'),
+
+    // w
+    array('name' => t('Wallis and Futuna'), 'iso2' => 'WF', 'iso3' => 'WLF'),
+    array('name' => t('Western Sahara'), 'iso2' => 'EH', 'iso3' => 'ESH'),
+
+    // y
+    array('name' => t('Yemen'), 'iso2' => 'YE', 'iso3' => 'YEM'),
+
+    // z
+    array('name' => t('Zambia'), 'iso2' => 'ZM', 'iso3' => 'ZMB'),
+    array('name' => t('Zimbabwe'), 'iso2' => 'ZW', 'iso3' => 'ZWE'));
+
+  return $_countries;
+}

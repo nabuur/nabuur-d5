@@ -1,0 +1,4 @@
+; $Id: countries_api.info,v 1.1 2007/12/13 12:33:11 horsconcept Exp $
+name = "Country codes API"
+description = "This module provides an API for official ISO 3166 country codes and names."
+package = "Location"
