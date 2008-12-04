@@ -2008,6 +2008,17 @@ function drupal_cron_run() {
     set_time_limit(240);
   }
 
+  $load = sys_getloadavg();
+  $cron_loadskip = variable_get('cron_loadskip', 0);
+  $cron_loadrun = variable_get('cron_loadrun', 0);
+
+  if ($load[0] > 5) {
+    $cron_loadskip++;
+    watchdog('cron', t('Cron run skipped as load at %load (running total %skip:%run)', array('%load' => $load[0], '%skip' => $cron_loadskip, '%run' => $cron_loadrun)), WATCHDOG_WARNING);
+    variable_set('cron_loadskip', $cron_loadskip);
+    return TRUE;
+  }
+
   // Fetch the cron semaphore
   $semaphore = variable_get('cron_semaphore', FALSE);
 
@@ -2037,7 +2048,9 @@ function drupal_cron_run() {
 
     // Record cron time
     variable_set('cron_last', time());
-    watchdog('cron', t('Cron run completed.'), WATCHDOG_NOTICE);
+    $cron_loadrun++;
+    watchdog('cron', t('Cron run completed. (running total %skip:%run)', array('%skip' => $cron_loadskip, '%run' => $cron_loadrun)), WATCHDOG_NOTICE);
+    variable_set('cron_loadrun', $cron_loadrun);
 
     // Release cron semaphore
     variable_del('cron_semaphore');
