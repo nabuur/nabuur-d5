@@ -660,7 +660,7 @@ function countries_api_get_list()
     array('name' => t('Montserrat'), 'iso2' => 'MS', 'iso3' => 'MSR'),
     array('name' => t('Morocco'), 'iso2' => 'MA', 'iso3' => 'MAR'),
     array('name' => t('Mozambique'), 'iso2' => 'MZ', 'iso3' => 'MOZ'),
-    array('name' => t('Myanmar'), 'iso2' => 'MM', 'iso3' => 'MMR'),
+    array('name' => t('Burma'), 'iso2' => 'MM', 'iso3' => 'MMR'),
 
     // n
     array('name' => t('Namibia'), 'iso2' => 'NA', 'iso3' => 'NAM'),
@@ -738,10 +738,11 @@ function countries_api_get_list()
     array('name' => t('Syrian Arab Republic'), 'iso2' => 'SY', 'iso3' => 'SYR'),
 
     // t
-    array('name' => t('Taiwan, Province of China'), 'iso2' => 'TW', 'iso3' => 'TWN'),
+    array('name' => t('Taiwan'), 'iso2' => 'TW', 'iso3' => 'TWN'),
     array('name' => t('Tajikistan'), 'iso2' => 'TJ', 'iso3' => 'TJK'),
-    array('name' => t('Tanzania, United Republic of'), 'iso2' => 'TZ', 'iso3' => 'TZA'),
+    array('name' => t('Tanzania'), 'iso2' => 'TZ', 'iso3' => 'TZA'),
     array('name' => t('Thailand'), 'iso2' => 'TH', 'iso3' => 'THA'),
+    array('name' => t('Tibet'), 'iso2' => 'TI', 'iso3' => 'TIB'),
     array('name' => t('Timor-Leste'), 'iso2' => 'TL', 'iso3' => 'TLS'),
     array('name' => t('Togo'), 'iso2' => 'TG', 'iso3' => 'TGO'),
     array('name' => t('Tokelau'), 'iso2' => 'TK', 'iso3' => 'TKL'),
