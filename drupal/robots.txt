@@ -42,15 +42,19 @@ Disallow: /MAINTAINERS.txt
 Disallow: /LICENSE.txt
 Disallow: /UPGRADE.txt
 # Paths (clean URLs)
+Disallow: /search/
+Disallow: /facet_search/
+Disallow: /village/results/
+Disallow: /group/results/
 Disallow: /admin/
 Disallow: /comment/reply/
 Disallow: /contact/
 Disallow: /logout/
 Disallow: /node/add/
 Disallow: /search/
-Disallow: /user/register/
-Disallow: /user/password/
-Disallow: /user/login/
+Disallow: /user/register
+Disallow: /user/password
+Disallow: /user/login
 # Paths (no clean URLs)
 Disallow: /?q=admin/
 Disallow: /?q=comment/reply/
@@ -58,6 +62,68 @@ Disallow: /?q=contact/
 Disallow: /?q=logout/
 Disallow: /?q=node/add/
 Disallow: /?q=search/
-Disallow: /?q=user/password/
-Disallow: /?q=user/register/
-Disallow: /?q=user/login/
+Disallow: /?q=user/password
+Disallow: /?q=user/register
+Disallow: /?q=user/login
+# Paths (clean URL's whith prefixes)
+# /en/
+Disallow: /en/search/
+Disallow: /en/facet_search/
+Disallow: /en/village/results/
+Disallow: /en/group/results/
+Disallow: /en/admin/
+Disallow: /en/comment/reply/
+Disallow: /en/contact/
+Disallow: /en/logout/
+Disallow: /en/node/add/
+Disallow: /en/search/
+Disallow: /en/user/register
+Disallow: /en/user/password
+Disallow: /en/user/login
+# Paths (clean URL's whith prefixes)
+# /es/
+Disallow: /es/search/
+Disallow: /es/facet_search/
+Disallow: /es/village/results/
+Disallow: /es/group/results/
+Disallow: /es/admin/
+Disallow: /es/comment/reply/
+Disallow: /es/contact/
+Disallow: /es/logout/
+Disallow: /es/node/add/
+Disallow: /es/search/
+Disallow: /es/user/register
+Disallow: /es/user/password
+Disallow: /es/user/login
+# Paths (clean URL's whith prefixes)
+# /fr/
+Disallow: /fr/search/
+Disallow: /fr/facet_search/
+Disallow: /fr/village/results/
+Disallow: /fr/group/results/
+Disallow: /fr/admin/
+Disallow: /fr/comment/reply/
+Disallow: /fr/contact/
+Disallow: /fr/logout/
+Disallow: /fr/node/add/
+Disallow: /fr/search/
+Disallow: /fr/user/register
+Disallow: /fr/user/password
+Disallow: /fr/user/login
+# Paths (clean URL's whith prefixes)
+# /nl/
+Disallow: /nl/search/
+Disallow: /nl/facet_search/
+Disallow: /nl/village/results/
+Disallow: /nl/group/results/
+Disallow: /nl/admin/
+Disallow: /nl/comment/reply/
+Disallow: /nl/contact/
+Disallow: /nl/logout/
+Disallow: /nl/node/add/
+Disallow: /nl/search/
+Disallow: /nl/user/register
+Disallow: /nl/user/password
+Disallow: /nl/user/login
+# see http://www.sitemaps.org/protocol.php#submit_robots
+Sitemap: http://www.nabuur.com/sitemap.xml
