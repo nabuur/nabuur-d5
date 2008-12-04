@@ -173,6 +173,12 @@ function faceted_search_ui_form_alter($form_id, &$form) {
       '#default_value' => faceted_search_variable_get($env_id, 'start_page', $base_path),
       '#description' => t("Path to go to when the current search is cleared. Popular options are the base path as entered above (shows a full search page), the base path followed by <code>/results</code> (shows all content using the same display style as search results), and <code>&lt;front&gt;</code> (goes to your site's front page). Do not begin or end the start page's path with a /."),
     );
+    $form['info']['help_description'] = array (
+      '#type' => 'textarea',
+      '#title' => t('Search description'),
+      '#default_value' => faceted_search_variable_get($env_id, 'help_description', ''),
+      '#description' => t('A description of the search, or help text, for users. Displayed above the search options on the first page. Optional.'),
+    );
     
     // Results page section.
     $form['results'] = array(
@@ -390,7 +396,7 @@ function faceted_search_ui_stage_select($env_id, $text = '') {
 
   $keyword_block_content = faceted_search_ui_keyword_block($_faceted_search[$env_id]);
   $guided_block_content = faceted_search_ui_guided_block($_faceted_search[$env_id]);
-  if ($output = theme('faceted_search_ui_stage_select', $_faceted_search[$env_id], $keyword_block_content, $guided_block_content)) {
+  if ($output = theme('faceted_search_ui_stage_select', $_faceted_search[$env_id], $keyword_block_content, $guided_block_content, faceted_search_variable_get($env_id, 'help_description', ''))) {
     return theme('faceted_search_ui_page', $_faceted_search[$env_id], $output);
   }
 }
@@ -1323,7 +1329,15 @@ function theme_faceted_search_ui_stage_results($results, $style) {
   }
 }
 
-function theme_faceted_search_ui_stage_select($search, $keyword_block_content, $guided_block_content) {
+function theme_faceted_search_ui_stage_select($search, $keyword_block_content, $guided_block_content, $description_content = '') {
+  if ($description_content != '') {
+    $form['description'] = array(
+      '#type' => 'item',
+      '#value' => check_markup($description_content, FILTER_FORMAT_DEFAULT, FALSE),
+      '#weight' => -5,
+      '#attributes' => array('class' => 'faceted-search-description'),
+    );
+  }
   if ($keyword_block_content) {
     $form['keyword'] = array(
       '#type' => 'fieldset',
