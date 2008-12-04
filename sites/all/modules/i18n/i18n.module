@@ -640,6 +640,7 @@ function _i18n_selection_mode(){
   return array(
     'simple' => t('Only current language and no language'),
     'mixed' => t('Only current and default languages and no language'),
+    'mixed_single' => t('Current, default language when current not present and no language'),
     'default' => t('Only default language and no language'),    
     'strict' => t('Only current language'),
     'off' => t('All content. No language conditions apply'),    
@@ -741,9 +742,23 @@ function i18n_db_rewrite_sql($query, $primary_table, $primary_key){
       if (preg_match("/WHERE.*\s$primary_table.nid\s*=\s*(\d|%d)/", $query)) return;
       // If language conditions already there, get out
       if (preg_match("/i18n/", $query)) return;
-      
-      $result['join'] = "LEFT JOIN {i18n_node} i18n ON $primary_table.nid = i18n.nid";
-      $result['where'] = i18n_db_rewrite_where('i18n', $mode);
+
+      if($mode == 'mixed_single'){
+        $cur_lang = i18n_get_lang();
+        $result['join'] = "LEFT JOIN {i18n_node} def ON $primary_table.nid = def.nid 
+                           LEFT JOIN {i18n_node} ndf ON ndf.trid = def.trid 
+                                                    AND def.trid != 0 
+                                                    AND ndf.language = '$cur_lang'";
+        $def_lang = i18n_default_language();
+        $result['where'] = "((def.language = ndf.language) != 0 
+                          or (def.language is null and ndf.language is null) 
+                          or (def.language = '$def_lang' and ndf.language is null)
+                          or (def.language = '$cur_lang' and ndf.language is null)
+                            )";
+      } else {
+        $result['join'] = "LEFT JOIN {i18n_node} i18n ON $primary_table.nid = i18n.nid";
+        $result['where'] = i18n_db_rewrite_where('i18n', $mode);
+      }
       return $result;
     case 't':
     case 'v':
@@ -770,6 +785,7 @@ function i18n_db_rewrite_where($alias, $mode){
   switch($mode){
     case 'simple':
       return "$alias.language ='".i18n_get_lang()."' OR $alias.language ='' OR $alias.language IS NULL" ;
+    case 'mixed_single': 
     case 'mixed':
       return "$alias.language ='".i18n_get_lang()."' OR $alias.language ='".i18n_default_language()."' OR $alias.language ='' OR $alias.language IS NULL" ;
     case 'strict':
