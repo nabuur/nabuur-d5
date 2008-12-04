@@ -56,26 +56,20 @@ function sess_read($key) {
 function sess_write($key, $value) {
   global $user;
 
-  // If saving of session data is disabled or if the client doesn't have a session,
-  // and one isn't being created ($value), do nothing.
-  if (!session_save_session() || (empty($_COOKIE[session_name()]) && empty($value))) {
+  // If saving of session data is disabled or if the client doesn't have a session cookie
+  // Cookies are the only supported way of carrying a session on the site
+  // If cookies are on they will be set on first page view - ie. it's only a problem if you
+  // submit the login form without visiting the login page first.
+  if (!session_save_session() || empty($_COOKIE[session_name()]) || empty($value)) {
     return TRUE;
   }
 
-  $result = db_query("SELECT sid FROM {sessions} WHERE sid = '%s'", $key);
+  $result = db_query("UPDATE {sessions} SET uid = %d, cache = %d, hostname = '%s', session = '%s', timestamp = %d WHERE sid = '%s'", $user->uid, $user->cache, $_SERVER["REMOTE_ADDR"], $value, time(), $key);
 
-  if (!db_num_rows($result)) {
-    // Only save session data when when the browser sends a cookie. This keeps
-    // crawlers out of session table. This reduces memory and server load,
-    // and gives more useful statistics. We can't eliminate anonymous session
-    // table rows without breaking throttle module and "Who's Online" block.
-    if ($user->uid || $value || count($_COOKIE)) {
-      db_query("INSERT INTO {sessions} (sid, uid, cache, hostname, session, timestamp) VALUES ('%s', %d, %d, '%s', '%s', %d)", $key, $user->uid, $user->cache, $_SERVER["REMOTE_ADDR"], $value, time());
-    }
+  if (!db_affected_rows($result)) {
+    db_query("INSERT INTO {sessions} (sid, uid, cache, hostname, session, timestamp) VALUES ('%s', %d, %d, '%s', '%s', %d)", $key, $user->uid, $user->cache, $_SERVER["REMOTE_ADDR"], $value, time());
   }
   else {
-    db_query("UPDATE {sessions} SET uid = %d, cache = %d, hostname = '%s', session = '%s', timestamp = %d WHERE sid = '%s'", $user->uid, $user->cache, $_SERVER["REMOTE_ADDR"], $value, time(), $key);
-
     // TODO: this can be an expensive query. Perhaps only execute it every x minutes. Requires investigation into cache expiration.
     if ($user->uid) {
       db_query("UPDATE {users} SET access = %d WHERE uid = %d", time(), $user->uid);
