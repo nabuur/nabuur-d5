@@ -87,17 +87,22 @@ function theme_geonames_cck_location_name($location) {
 
 
 function theme_geonames_location($lat, $lng, $name='', $item=NULL, $node=NULL) {  
-  $name and $location_name[] = $name; 
-  ($node) and $title = $node -> title;   // we have data, but no title 
-  if ($node) $attributes = 'nid="'. $node -> nid .'"'; 
-  if ($item) {
-    // this is a cck item
-    geoapi_countries($item['country']) and $location_name[] = geoapi_countries($item['country']);
-    $output = check_plain(implode(', ', $location_name));    
-  } 
-  else {
-    $output = check_plain(implode(', ', $location_name));  
+  $location_name = array();
+
+  if ($name != '') {
+    $location_name[] = $name;
   }
+  if (is_object($node)) {
+    $title = $node->title;   // we have data, but no title 
+    $attributes = 'nid="'. $node->nid .'"';
+  }
+  if (is_array($item)) {
+    // this is a cck item
+    if (geoapi_countries($item['country'])) {
+      $location_name[] = geoapi_countries($item['country']);
+  } 
+  }
+  $output = check_plain(implode(', ', $location_name));
   if ($lat and $lng) {
     $output .= '<span class="latitude" title="'. $lat .'"></span> 
                 <span class="longitude" title="'. $lng .'"></span>';
