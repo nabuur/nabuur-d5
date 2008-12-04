@@ -346,7 +346,7 @@ function _imagecache_cache($presetname, $path) {
   // otherwise try to create the derivative. 
   if (!file_exists($dst) && !imagecache_build_derivative($preset['actions'], $src, $dst)) {
     // Generate an error if image could not generate.
-    watchdog('imagecache', t('Failed generating an image from %image using imagecache preset %preset.', array('%image' => $path, '%preset' => $preset)), WATCHDOG_ERROR);
+    watchdog('imagecache', t('Failed generating an image from %image using imagecache preset %preset.', array('%image' => $path, '%preset' => $preset['presetname'])), WATCHDOG_ERROR);
     header('HTTP/1.0 500 Internal Server Error');
     exit;
   } 
