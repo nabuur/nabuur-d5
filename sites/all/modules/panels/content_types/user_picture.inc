@@ -21,13 +21,16 @@ function panels_user_picture_panels_content_types() {
  * based on the module and delta supplied in the configuration.
  */
 function panels_content_user_picture($conf, $panel_args, $context) {
-  $account = isset($context->data) ? drupal_clone($context->data) : NULL;
+  if (! user_access('access user profiles') && ! user_access('administer users')) {
+    return;
+  }
+  if (! is_object($context->data)) {
+    return;
+  }
+
+  $account = drupal_clone($context->data);
   $block = new stdClass();
   $block->module = 'term-list';
-
-  if ($account === FALSE || ($account->access == 0 && !user_access('administer users'))) {
-    return drupal_not_found();
-  }
 
   $block->title = check_plain($account->name);
   $block->content = theme('user_picture', $account);
