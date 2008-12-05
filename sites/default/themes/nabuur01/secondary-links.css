@@ -1,0 +1,75 @@
+/* $Id: */
+/**
+ * Secondary links
+ */
+ 
+#secondary-links {
+  border-bottom: 1px solid #0D6147;
+  position: absolute;
+  bottom: 0px;
+  height: 23px;
+  width: 100%;
+  color: #FFFFFF;
+}
+
+#secondary-links .tab {
+  border-bottom: 1px solid #0D6147;
+  font-size: 12px;
+  padding: 0px;
+  margin-right: 7px;
+  height: 23px;
+  float: left;
+}
+
+#secondary-links .tab.active {
+  border-bottom: 1px solid #FFFFFF;
+}
+
+#secondary-links .tab.first {
+  margin-left: 15px;
+}
+
+#secondary-links .left {
+  background: transparent url(img/tab-secondary-inactive-left.png) no-repeat scroll left top;
+  float: left;
+  height: 100%;
+  width: 12px;
+}
+
+#secondary-links .link {
+  background: transparent; 
+  padding:5px 25px 3px 10px;
+  float: left;
+  border-top:1px solid #0D6147;
+  /*border-bottom:1px solid #0D6147;*/
+}
+
+#secondary-links .right {
+  background: transparent url(img/tab-secondary-inactive-right.png) no-repeat scroll left top;
+  float: left;
+  height: 100%;
+  width: 7px;
+}
+
+#secondary-links .active .left {
+  background-image: url(img/tab-secondary-active-left.png);
+}
+
+#secondary-links .active .link {
+  background: #FFFFFF;
+}
+
+#secondary-links .active .right {
+  background-image: url(img/tab-secondary-active-right.png);
+}
+
+#secondary-links a {
+  text-decoration: none;
+  height: 18px;
+  color: #0D6147;
+}
+
+#secondary-links .active a {
+  font-weight: bold;
+}
+

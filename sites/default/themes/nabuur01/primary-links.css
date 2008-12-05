@@ -1,0 +1,65 @@
+/* $Id: */
+/**
+ * Primary Links
+ */
+
+#primary-links {
+  margin-top: 5px;
+  position: absolute;
+  left: 0px; /* Necessary for IE */
+  top: 46px;
+}
+
+#primary-links .tab {
+  color: #FFFFFF;
+  font-size: 1.2em;
+  float: left;
+  height: 30px;
+}
+
+#primary-links .tab.active {
+  background: #FFFFFF;
+  color: #0D6147;
+}
+
+#primary-links .left {
+  width: 9px;
+  height: 100%;
+  float: left;
+}
+
+#primary-links .right {
+  background: transparent url(img/tab-primary-inactive-right.png) no-repeat;
+  float: left;
+  height: 100%;
+  width: 9px;
+}
+
+#primary-links .active .left {
+  background: #FFFFFF url(img/tab-primary-active-left.png) no-repeat;
+}
+
+#primary-links .active .right {
+  background: #FFFFFF url(img/tab-primary-active-right.png) no-repeat; 
+}
+
+#primary-links .link {
+  float: left;
+  margin-top: 6px;
+  padding: 1px 5px 3px;
+}
+
+#primary-links .active .link {
+  background: #FFFFFF;
+}
+
+#primary-links :link, #primary-links :visited {
+  color: #FFFFFF;
+  text-decoration: none;
+}
+
+#primary-links .active :visited, #primary-links .active :link  {
+  color: #0D6147;
+}
+
+

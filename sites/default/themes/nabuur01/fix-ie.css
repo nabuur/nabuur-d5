@@ -1,0 +1,54 @@
+/* $Id: */
+
+
+body {
+  /* Center layout */
+  text-align: center;
+}
+
+#page {
+  /* Reset text alignment */
+  text-align: left;
+  /* Reduce amount of damage done by extremely wide content */
+  overflow: hidden;
+}
+
+.inside {
+  /* Set background to white because of strange IE behaviour */
+  background: #FFFFFF;
+}
+
+fieldset {
+  /* Don't draw backgrounds on fieldsets in IE, as they look really bad. */
+  background: none;
+}
+
+ul.primary {
+  /* Fix missing top margin */
+  position: relative;
+/*  top: 0.5em; */
+}
+
+/* Prevent fieldsets from shifting when changing collapsed state. */
+html.js fieldset.collapsible {
+  position: relative;
+  top: -1em;
+}
+html.js fieldset.collapsed {
+  top: 0;
+  margin-bottom: 1em;
+}
+
+td.menu-disabled {
+  /* Use filter to emulate CSS3 opacity */
+  filter: alpha(opacity=50);
+}
+
+.faceted-search tr td {
+  width: 268px;
+}
+
+.content .front-feature .field-item img {
+  /* compensate for lacking max-width support */
+  width: 100px;
+}

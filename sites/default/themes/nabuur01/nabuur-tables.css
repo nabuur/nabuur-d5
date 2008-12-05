@@ -1,0 +1,98 @@
+table {
+  font-size: 1em;
+  line-height: 1.25;
+  margin-top: 1em;
+  margin-bottom: 1em;
+  width: 100%;
+  max-width: 100%;
+}
+
+table thead th {
+  color: #FFFFFF;
+  background-color: #0D6147;  
+  font-size: 1.1em;
+  font-weight: bold;
+  padding: 2px;
+  border: none;
+}
+
+table thead th a {
+  color:#FFFFFF;
+}
+
+table tr.even, table tr.odd {
+  border: none;
+  width: 100%;
+}
+
+table td {
+  background-color: #F5F4E0;
+  border: 1px solid #FFFFFF;
+  padding: 2px;
+}
+
+table td.active {
+  background-color: #F5F4E0;
+}
+
+table tbody {
+  border: 1px;
+  border-color: #0D6147;
+}
+
+table h1 {
+  font-size: 1.6em;
+}
+
+table li {
+  font-size: 1em;
+  line-height:1.25;
+}
+
+table a {
+  color: #0d6147;
+}
+
+table a:hover {
+  color: #cc6600;
+}
+
+#content table a img {
+  display: inline;
+  clear: none;
+  float: none;
+  margin: 0px;
+}
+
+.nabuur-table-title {
+  color: #FFFFFF;
+  background-color: #0D6147;  
+  font-size: 1.1em;
+  font-weight: bold;
+  padding: 2px;
+  border: none;
+  text-align: center;
+  padding-bottom: 10px;
+}
+
+
+table.things-to-do td {
+  background: #EEF4F1;
+  font-size: 1.2em;
+  border: none;
+  height: 50px;
+}
+
+tr.things-to-do-empty td {
+  background: #FFFFFF;
+  height: 20px
+}
+
+
+table.things-to-do td.time-needed {
+  font-size: 0.8em;
+}
+
+table.things-to-do img {
+  vertical-align: middle;
+}

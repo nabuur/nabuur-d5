@@ -1,0 +1,143 @@
+/*
+ * Featured news
+ */
+div.front-feature {
+  background: #F3F3E4;
+  border: 1px solid #0D6147;
+  padding: 9px;
+  width: auto;
+}
+
+div.front-feature p {
+  font-size: 1.1em;
+  margin: 0px;
+}
+
+.front-feature img {
+  float: left;
+  clear: left;
+  margin: 5px 10px 15px 0px;
+  height: auto;
+}
+
+.view-front-features .panel-separator {
+  background: #ffffff;
+}
+
+div.front-feature .view-data-title a {
+  color: #000000;
+  text-decoration: none;
+  font-size: 1.5em;
+  font-weight: bold;
+}
+
+
+/*
+ * Local community block
+ */
+#local-community {
+  border: 1px solid #0D6147;
+}
+
+/* 
+ * points op interest
+ */
+div.front-pi {
+  background: #F3F3E4;
+  border: 1px solid #0D6147;
+  padding: 9px;
+  width: auto;
+}
+
+div.front-pi p {
+  font-size: 1.1em;
+  margin: 0px;
+}
+
+div.front-pi img {
+  float: none;
+  width: 107px;
+  margin: 0px 0px 10px 0px;
+}
+
+div.front-pi a {
+  text-decoration: none;
+  font-weight: bold;
+}
+
+div.front-pi h2 {
+  background: #B7B776;
+  font-size: 1.0em;
+  text-align: center;
+  padding: 2px;
+}
+
+/*
+ * Middle column
+ */
+#front .panel-col-2 .inside {
+  width: 425px;
+  margin-left: auto;
+  margin-right: auto;
+}
+  
+#video {
+  text-align: center;
+  margin: 0px auto;
+}
+
+#front-tags {
+  margin-top: 40px;
+  padding: 10px;
+}
+
+#front-stats {
+  margin-top: 40px;
+  background: #F3F3E4;
+  padding: 10px;
+}
+
+#front-tags p, #front-tags a {
+  color: #999999;
+}
+
+#front-stats p, front-stats a {
+  color: #666666;
+}
+
+#front-tags p, #front-tags a, #front-stats p, #front-stats a {
+  margin-bottom: 0.4em;
+}
+
+#front-tags a {
+  text-decoration: none;
+}
+
+#front-stats a {
+  text-decoration: underline;
+}
+
+/*
+ * Front footer
+ */
+#front-footer .block {
+  margin-top: 10px;
+  margin-bottom: 0px;
+}
+
+#clinton h2, #sponsors h2, #partners h2 {
+  margin: 0px;
+  text-align: center;
+}
+
+#clinton img, #sponsors img, #partners img {
+  width: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+#clinton , #sponsors , #partners  {
+    height: 102px;
+    background-color: #FFFFFF;
+    padding: 10px;
+}
