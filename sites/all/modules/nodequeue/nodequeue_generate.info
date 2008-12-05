@@ -1,0 +1,4 @@
+; $Id: nodequeue_generate.info,v 1.1.2.1 2008/01/01 23:52:39 merlinofchaos Exp $
+name = Node Queue Generate
+description = Bulk assign nodes into queues for quickly populating a site.
+package = Development
