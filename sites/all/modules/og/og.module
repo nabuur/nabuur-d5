@@ -2874,7 +2874,9 @@ function og_token_list($type = 'all') {
   if ($type == 'node' || $type == 'all') {
     $tokens['node']['ogname']          = t("Title of top group");
     $tokens['node']['ogname-raw']      = t("Unfiltered title of top group. WARNING - raw user input.");
-    $tokens['node']['og-id']        = t("ID of top group");
+    $tokens['node']['og-id']           = t("ID of top group");
+    $tokens['node']['og-type']         = t("Node type of the top group");
+    $tokens['node']['og-type-name']    = t("Node type (user-friendly version) of the top group");
     return $tokens;
   }
 }
@@ -2888,10 +2890,13 @@ function og_token_values($type, $object = NULL) {
       if (is_array($object->og_groups)) {
         $gids = array_filter($object->og_groups);
         foreach ($gids as $gid) {
-          $title = db_result(db_query("SELECT title FROM {node} WHERE nid = %d", $gid));
-          $values['ogname'] = check_plain($title);
-          $values['ogname-raw'] = $title;
+          $query = db_query("SELECT n.title as title, n.type as type, t.name as name FROM {node} n INNER JOIN {node_type} t on n.type = t.type WHERE nid = %d", $gid);
+          $group = db_fetch_object($query);
+          $values['ogname'] = check_plain($group->title);
+          $values['ogname-raw'] = $group->title;
           $values['og-id'] = $gid;
+          $values['og-type'] = $group->type;
+          $values['og-type-name'] = check_plain($group->name);
           break;
         }
         return $values;
@@ -2903,6 +2908,8 @@ function og_token_values($type, $object = NULL) {
   $values['ogname'] = '';
   $values['ogname-raw'] = '';
   $values['og-id'] = '';
+  $values['og-type-name'] = '';
+  $values['og-type'] = '';
   return $values;
 }
 
