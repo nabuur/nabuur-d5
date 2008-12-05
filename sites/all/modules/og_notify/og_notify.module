@@ -104,10 +104,18 @@ function og_notify_og($op, $nid, $uid, $args = array()) {
         $node = node_load($nid);
         $group = check_plain($node->title);
         $sender = variable_get('site_mail', '');
-        $subject = t('User @user added to group: @group', array('@user' => $user->name, '@group' => $group));
-        $view_user = "user/$user->uid";
         
-        $message = "User " . l($user->name, $view_user, array(), "gids[]=$nid", NULL, TRUE) . " added to group: " . l($group, "node/$nid", array(), NULL, NULL, TRUE);
+        // NABUUR USER HACK
+        $user_profile = nabuur_users_nodeprofile_load($user->uid);
+        if (is_object($user_profile)) {
+          $user_name = check_plain($user_profile->title);
+          $view_user = 'node/'. $user_profile->nid;
+        }
+
+        // NABUUR MESSAGE
+        $subject =  t('Neighbour @user joined village @group', array('@user' => $user_name, '@group' => $group));
+        $message = 'Neighbour '. $user_name .' just joined village: '. $group ."\n\n";
+        $message .= "Follow this link to view $user_name's profile: ". url($view_user, NULL, NULL, TRUE) . "\nFollow this link to view the Village $group: " . url("node/$nid", NULL, NULL, TRUE) ."\n\n";
         $result = db_query("SELECT uid FROM {og_uid} WHERE is_admin = 1 AND nid = %d", $nid);
       
         while ($obj = db_fetch_object($result)) {
