@@ -46,7 +46,7 @@
 /**
  * Database settings:
  */
-require_once('./.ht_config.php');
+require_once('.ht_config.php');
 
 /**
  * Base URL (optional).
