@@ -118,3 +118,6 @@ ini_set('url_rewriter.tags',        '');
 #   'anonymous' => 'Visitor',
 # );
 
+# For custom paths, including custom i18n urls
+include_once('sites/default/modules/nabuur_path/nabuur_pathalias.inc');
+include_once('sites/all/modules/i18n/i18n.module');
