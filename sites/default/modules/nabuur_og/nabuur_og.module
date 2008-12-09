@@ -125,7 +125,7 @@ function nabuur_og_group_owner_image() {
 }
 
 function theme_nabuur_og_group_owner_image($nid, $image) {
-  $img = theme('imagecache', 'Village', $image[0]['filepath'], $image[0]['alt'], $image[0]['title'], $attributes);
+  $img = theme('imagecache', 'gallery', $image[0]['filepath'], $image[0]['alt'], $image[0]['title'], $attributes);
   return l($img, 'node/'. $nid, array(), null, null, false, true);
 }
 
