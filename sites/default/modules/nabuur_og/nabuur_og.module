@@ -1,5 +1,5 @@
 <?php
-// $Id: nabuur_og.module,v 1.1.2.21 2008/09/29 12:48:29 kester Exp $
+// $Id: nabuur_og.module,v 1.1.2.22 2008/11/07 16:36:21 kester Exp $
 
 /**
  * @file
@@ -135,7 +135,7 @@ function theme_nabuur_og_group_owner_image($nid, $image) {
  * would like to use og_block_details() hooks - but would need seperate modules
  */
 function nabuur_og_block_details() {
-  if (($node = og_get_group_context()) && node_access('view', $node)) {
+  if (is_object($node = og_get_group_context()) && $node->nid && node_access('view', $node)) {
     global $user;
 
     list($txt, $subscription) = og_subscriber_count_link($node);
@@ -203,7 +203,7 @@ function nabuur_og_block_details() {
 function nabuur_og_block_subscribers() {
 //  global $user;
   if ($group_node = og_get_group_context()) {
-    $gid = $group_node->nid;
+    if($gid = $group_node->nid) {
     // only members can see subscriber list
     //if (in_array($gid, array_keys($user->og_groups))) {
       $max = variable_get('og_block_cnt_2', 10);
@@ -217,7 +217,7 @@ function nabuur_og_block_subscribers() {
       $block['content'] .= '<div class="more-link">'. l(t('more'), 'node/'. $gid .'/neighbours') .'</div>';
       $block['subject'] = t('Members');
       return $block;
-    //}
+    }
   }
 }
 
