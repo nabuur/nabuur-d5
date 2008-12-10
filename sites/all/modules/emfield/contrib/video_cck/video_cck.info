@@ -3,9 +3,3 @@ name = Embedded Video Field
 description = Defines a field type for displaying third party videos, such as YouTube and Google Video.
 dependencies = emfield
 package = CCK
-
-; Information added by drupal.org packaging script on 2008-05-11
-version = "5.x-1.1"
-project = "emfield"
-datestamp = "1210481706"
-

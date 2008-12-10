@@ -5,9 +5,3 @@ dependencies = content
 package = CCK
 
 
-
-; Information added by drupal.org packaging script on 2008-05-11
-version = "5.x-1.1"
-project = "emfield"
-datestamp = "1210481706"
-
