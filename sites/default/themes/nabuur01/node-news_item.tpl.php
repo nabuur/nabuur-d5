@@ -1,4 +1,4 @@
-<?php // $Id: node-news_item.tpl.php,v 1.1.1.3 2008/12/05 09:39:01 fransk Exp $ ?>
+<?php // $Id: node-news_item.tpl.php,v 1.1.1.4 2008/12/11 17:03:23 admin Exp $ ?>
 <?php phptemplate_comment_wrapper(NULL, $node->type); ?>
 
 <div id="node-<?php print $node->nid; ?>" class="node <?php print $node->type;?><?php if ($sticky) { print ' sticky'; } ?><?php if (!$status) { print ' node-unpublished'; } ?>">
@@ -49,8 +49,8 @@
   <?php if ($user->uid): ?>
     <div class="ab-comment"><?php $mytitle = t("Leave a comment");  $mytitle = theme('image', drupal_get_path('theme', 'nabuur01') .'/img/comment.gif', $mytitle, '', array('class' => 'forward-icon forward-icon-margin')) . $mytitle; 
     print '<a href="/en/node/add/comment/'. $node->nid .'">'. $mytitle .'</a>'; ?></div>
-    <div class="ab-writeown"><?php $mytitle = t("Write your own story");  $mytitle = theme('image', drupal_get_path('theme', 'nabuur01') .'/img/writeown.gif', $mytitle, '', array('class' => 'forward-icon forward-icon-margin')) . $mytitle; 
-    print '<a href="/node/add/news_item?gids[]=29295">'. $mytitle .'</a>';  ?></div>
+    <div class="ab-writeown"><?php $mytitle = t("Become a story teller");  $mytitle = theme('image', drupal_get_path('theme', 'nabuur01') .'/img/writeown.gif', $mytitle, '', array('class' => 'forward-icon forward-icon-margin')) . $mytitle; 
+    print '<a href="/en/group/storytelling/project">'. $mytitle .'</a>';  ?></div>
   <?php endif; ?>
   <div class="ab-10things"><?php $mytitle = t("10 things you can do today");  $mytitle = theme('image', drupal_get_path('theme', 'nabuur01') .'/img/10things.gif', $mytitle, '', array('class' => 'forward-icon forward-icon-margin')) . $mytitle; 
     print '<a href="/10-things-you-can-do">'. $mytitle .'</a>';  ?></div>
