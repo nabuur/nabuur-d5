@@ -46,7 +46,7 @@
 
     <div class="views_more" align="right">
     <br><ul><li>
-      <a href="/news/stories" alt="More stories" title="Read more stories on NABUUR.com">more stories</a>
+      <?php print l(t('more stories'), '/news/stories', array('title' => t('Read more stories on NABUUR.com'))); ?>
     </li></ul>
     </div>
 </div>
