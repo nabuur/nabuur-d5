@@ -43,4 +43,10 @@
     <div class="view-field view-data-field-teaser-value">
       <?php print $field_teaser_value?>
     </div>
+
+    <div class="views_more" align="right">
+    <br><ul><li>
+      <a href="/news/stories" alt="More stories" title="Read more stories on NABUUR.com">more stories</a>
+    </li></ul>
+    </div>
 </div>
