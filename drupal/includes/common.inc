@@ -736,6 +736,19 @@ function locale_initialize() {
  */
 function t($string, $args = 0) {
   global $locale;
+// Replace some English Strings in a performace friendly way
+  static $custom_strings;
+//  print '<pre>'. var_export($custom_strings) .'</pre>';
+    if (!isset($custom_strings)) {
+        $custom_strings = variable_get('custom_strings_en', array());
+    }
+    if (isset($custom_strings[$string])) {
+        $string = t($custom_strings[$string]) ;
+//  print '<pre> yesss'. $string .'</pre>';
+    }
+//  print '<pre> xxx '. $string .'</pre>';
+// End Replace
+
   if (function_exists('locale') && $locale != 'en') {
     $string = locale($string);
   }
