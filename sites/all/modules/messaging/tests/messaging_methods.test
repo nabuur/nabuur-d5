@@ -4,6 +4,9 @@
  *
  * Tests basic API functions
  */
+
+require_once 'messaging_testcase.inc';
+
 class Messaging_Methods_Tests extends MessagingTestCase {
   
   function get_info() {

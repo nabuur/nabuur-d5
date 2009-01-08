@@ -1,0 +1,15 @@
+/CHANGELOG.txt/1.1.2.36/Thu Nov 13 21:01:20 2008//TDRUPAL-5--1-2
+/README.txt/1.1.2.1/Sun Apr 13 10:33:04 2008//TDRUPAL-5--1-2
+/notifications.admin.inc/1.5.2.15/Thu Nov 13 21:01:20 2008//TDRUPAL-5--1-2
+/notifications.cron.inc/1.6.2.14/Fri Nov  7 23:58:38 2008//TDRUPAL-5--1-2
+/notifications.info/1.1/Mon Jan 21 22:29:36 2008//TDRUPAL-5--1-2
+/notifications.install/1.4.2.5/Sun Apr 13 10:33:04 2008//TDRUPAL-5--1-2
+/notifications.module/1.6.2.25/Tue Nov  4 19:05:35 2008//TDRUPAL-5--1-2
+D/notifications_autosubscribe////
+D/notifications_content////
+D/notifications_feed////
+D/notifications_lite////
+D/notifications_tags////
+D/notifications_ui////
+D/po////
+D/tests////

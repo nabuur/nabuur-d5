@@ -14,7 +14,7 @@ function messaging_mime_mail_messaging($op = 'info') {
         'name' => t('Mime Mail'), // Name for display
         'group' => 'mail', // Class of send method
         'destination' => 'mail', // Account property to use as destination
-        'send' => 'messaging_mime_mail_send', // Sending callback
+        'send' => 'messaging_mime_mail_send_msg', // Sending callback
         'type' => MESSAGING_TYPE_PUSH,  // Method type: push || pull
         'glue' => "<br>", // don't use <br/> nor <br /> for maximum HTML email client compatibility
         'footer' => "<br><br>--",  // Separator for message footer
@@ -31,9 +31,9 @@ function messaging_mime_mail_messaging($op = 'info') {
  * @param $message
  *   Message array
  */
-function messaging_mime_mail_send($destination, $message, $params = array()) {
+function messaging_mime_mail_send_msg($destination, $message, $params = array()) {
   
   $params = messaging_mail_params($message, $params);
   
-  return mimemail($params['from'], $destination, $message['subject'], $message['body'], NULL, $message['headers'], NULL, array(), $params['mailkey']);
+  return mimemail($params['from'], $destination, $message['subject'], $message['body'], NULL, $params['headers'], NULL, array(), $params['mailkey']);
 }

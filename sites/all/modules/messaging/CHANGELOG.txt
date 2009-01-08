@@ -1,13 +1,35 @@
-// $Id: CHANGELOG.txt,v 1.1.2.10 2008/04/24 19:22:20 jareyero Exp $
+// $Id: CHANGELOG.txt,v 1.1.2.17 2008/10/08 11:16:51 jareyero Exp $
 
 TO DO
 ------
 * Ability to receive the same message through more than one channel. It should be possible to implement some ‘abstract’ sending method that pipes messages through two or more other channels.
-* Sending messages to potential users, with a reserved user id. It seems we are already good for that with latest hooks introduced in notifications module.
-* Keeping a log of sent messages, facebook like. This could be mixed with adding some basic queueing into the messaging module.
-* Simplify admin settings ui, get rid of configurable filtering for subjects which is not really needed, and implement some good text filtering for them that can anyway be overridden programatically.
+* More sending methods plug-ins: IM, Twitter, etc...
 
-5.x-1.0-beta1 to ....
+5.x-1.0 to ..........
+--------------------------------
+- Added hook requirements to check there are sending methods enabled, by Zen, #316122
+- Fixed minor issues with modules and documentation
+- Fixed wrong delta in filter system, by the greenman, #305593
+- Fixed namespace collisions with other hooks, #301715 and #294322
+
+5.x-1.0-rc1 to 5.x-1.0
+--------------------------------
+- Some clean up, moved documentation to the handbook, http://drupal.org/node/252582
+- Fixed: Condition produces false positive when rendering messages, by andremolnar, #290163
+- Added unit tests for message rendering.
+
+5.x-1.0-beta2 to 5.x-1.0-rc1
+--------------------------------
+- Creating default Messaging filter on install, #284414
+- Fixed parameter inconsistency, by darren.ferguson, #272545
+- Changed some names and texts to make them easier to understand
+- Added error message on settings page when no sending methods enabled.
+- Updated sms plug-in for smsframework 5.x-1.0 version
+- Fixed issue with mimemail, by jeffmurphy, #250236
+- Fixed bug: "Can't delete message parts", by therzog, #255640
+- Regrouped admin pages for messaging and notifications
+
+5.x-1.0-beta1 to 5.x-1.0-beta2
 --------------------------------
 - User settings improvements. Disabled when only one send methods.
 - Strenghten permissions when changed, ignoring previous user settings.

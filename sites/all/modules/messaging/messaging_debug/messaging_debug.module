@@ -82,7 +82,7 @@ function messaging_debug_messaging($op = 'info') {
       $info['debug'] = array(
         'name' => t('Debug'),
         'destination' => 'name',
-        'send' => 'messaging_debug_send',
+        'send' => 'messaging_debug_send_msg',
         'send_user' => 'messaging_debug_send_user',
         'type' => MESSAGING_TYPE_PULL,
         'glue' => '<br />',
@@ -108,7 +108,7 @@ function messaging_debug_send_user($account, $message, $method = 'debug') {
  * 
  * This is a pull method though, so this is mainly intended for testing options
  */
-function messaging_debug_send($destination, $message) {
+function messaging_debug_send_msg($destination, $message) {
   // Just logs everything.
   $text = '';
   $count = 0;

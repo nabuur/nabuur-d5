@@ -3,8 +3,3 @@ name = Simple Mail
 description = Mail Sending Method: Integration with Drupal mail API
 package = "Messaging"
 dependencies = messaging
-; Information added by drupal.org packaging script on 2008-04-30
-version = "5.x-1.0-beta2"
-project = "messaging"
-datestamp = "1209567015"
-

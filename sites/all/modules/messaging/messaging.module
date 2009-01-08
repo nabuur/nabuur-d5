@@ -1,5 +1,5 @@
 <?php
-// $Id: messaging.module,v 1.7.2.10 2008/04/24 19:22:20 jareyero Exp $
+// $Id: messaging.module,v 1.7.2.16 2008/09/15 15:09:13 jareyero Exp $
 /**
  * Drupal Messaging Framework
  *
@@ -30,11 +30,11 @@ function messaging_help($section) {
     case 'admin/help#filters':
       return $output;
     default:
-      if (arg(0) == 'admin' && arg(1) == 'settings') {
-        if (arg(2) == 'filters') {
+      if (arg(0) == 'admin') {
+        if (arg(1) == 'settings' && arg(2) == 'filters') {
           return '<p>'.t('Filters are used also for messaging. If the input format is to be used only for messaging you don\'t need to allow any role for it.').'</p>';
         }
-        if (arg(2) == 'messaging' && arg(3) == 'edit' && ($group = arg(4))) {
+        if (arg(1) == 'messaging' && arg(2) == 'template' && arg(3) == 'edit' && ($group = arg(4))) {
           $output = '<p>'. t('These are the message parts for %group. Leave blank to use the default texts or use \'%empty\' for an empty message part, preventing fallback to default message texts.', array('%group' => messaging_message_group($group, 'name'), '%empty' => MESSAGING_EMPTY)) .'</p>';
           if ($help = messaging_message_group($group, 'help')) {
             $output .= '<p>'. $help .'</p>';
@@ -53,29 +53,34 @@ function messaging_menu($may_cache) {
   if ($may_cache) {
     $items[] = array(
       'title' => t('Messaging'),
-      'path' => 'admin/settings/messaging',
-      'callback' => 'messaging_admin_page',
+      'path' => 'admin/messaging',
+      'callback' => 'messaging_admin_overview_page',
       'access' => user_access('administer messaging'),
       'description' => t('Administration of messages and sending methods'),
     );
+
     $items[] = array(
-      'title' => t('Messages'),
-      'path' => 'admin/settings/messaging/manage',
-      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'title' => t('Messaging methods'),
+      'description' => t('Configuration of sending methods'),
+      'path' => 'admin/messaging/settings',
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('messaging_admin_settings'),
+      //'type' => MENU_LOCAL_TASK,
     );
     $items[] = array(
-      'title' => t('Messages'),
-      'path' => 'admin/settings/messaging/edit',
+      'title' => t('Messaging templates'),
+      'callback' => 'messaging_admin_template_overview',
+      'description' => t('Configuration of message templates'),
+      'path' => 'admin/messaging/template',
+      // 'type' => MENU_DEFAULT_LOCAL_TASK,
+    );
+    $items[] = array(
+      'title' => t('Messaging templates'),
+      'path' => 'admin/messaging/template/edit',
       'callback' => 'messaging_admin_message_edit',
       'type' => MENU_CALLBACK,
     );
-    $items[] = array(
-      'title' => t('Settings'),
-      'path' => 'admin/settings/messaging/settings',
-      'callback' => 'drupal_get_form',
-      'callback arguments' => array('messaging_admin_settings'),
-      'type' => MENU_LOCAL_TASK,
-    );
+
   }
   return $items;
 }
@@ -117,6 +122,16 @@ function messaging_user($type, $edit, &$user, $category = NULL) {
 }
 
 /**
+ * Admin overview page
+ */
+function messaging_admin_overview_page() {
+  $menu = menu_get_item(NULL, 'admin/messaging');
+  $content = system_admin_menu_block($menu);
+  $output = theme('admin_block_content', $content);
+  return $output;
+}
+
+/**
  * Menu callback. Admin overview page.
  */
 function messaging_admin_page($group = NULL, $msgkey = NULL) {
@@ -127,8 +142,17 @@ function messaging_admin_page($group = NULL, $msgkey = NULL) {
   }
 }
 
-function messaging_admin_page_overview() {
+/**
+ * Overview page for message templates
+ */
+function messaging_admin_template_overview() {
   $output = '';
+  // List message groups
+  $groups = module_invoke_all('messaging', 'message groups');
+  foreach ($groups as $group => $group_info) {
+    $list[] = l($group_info['name'], 'admin/messaging/template/edit/'.$group);
+  }
+  $output .= theme('box', t('Message groups'), theme('item_list', $list));
   // List sending methods
   $rows = array();
   messaging_method_list();
@@ -139,12 +163,6 @@ function messaging_admin_page_overview() {
     );
   }
   $output .= theme('box', t('Sending methods'), theme('table', NULL, $rows));
-  // List message groups
-  $groups = module_invoke_all('messaging', 'message groups');
-  foreach ($groups as $group => $group_info) {
-    $list[] = l($group_info['name'], 'admin/settings/messaging/edit/'.$group);
-  }
-  $output .= theme('box', t('Message groups'), theme('item_list', $list));
   return $output;
 }
 
@@ -248,9 +266,8 @@ function messaging_admin_message_form_submit($form_id, $form_values) {
   $group = $form_values['group'];
   foreach ($form_values['messages'] as $key => $messages) {
     foreach ($messages as $method => $text) {
+      db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method);
       if ($text = trim($text)) {
-        // Save
-        db_query("DELETE FROM {messaging_message_parts} WHERE type = '%s' AND msgkey = '%s' AND method = '%s'", $group, $key, $method);
         db_query("INSERT INTO {messaging_message_parts} (type, msgkey, method, module, message) VALUES('%s', '%s', '%s', '', '%s')", $group, $key, $method, $text);
       }
     }
@@ -262,12 +279,16 @@ function messaging_admin_message_form_submit($form_id, $form_values) {
  * Admin settings form
  */
 function messaging_admin_settings() {
+  // Get plug-in information and produce big warning if none enabled.
+  $methods = messaging_method_list();
+  if (!$methods) {
+    drupal_set_message(t('No sending method plug-ins available. Please enable some Sending Method on the !admin-modules page.', array('!admin-modules' => l(t('Modules administration'), 'admin/build/modules'))), 'error');
+  }
+    
   $form['general'] = array(
     '#type' => 'fieldset',
     '#title' => t('General settings'),
   );
-  $methods = messaging_method_list();
-
   $form['general']['messaging_default_method'] = array(
     '#title' => t('Default send method'),
     '#type' => 'radios',
@@ -283,34 +304,6 @@ function messaging_admin_settings() {
     '#options' => $period,
     '#default_value' => variable_get('messaging_log', 0),
     '#description' => t('If enabled all messages will be logged and kept for the specified time after they\'re sent.'),
-  );
-
-  // Processing limits
-  $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
-  $form['messaging_process_limit'] = array(
-    '#type' => 'fieldset',
-    '#title' => t('Limits for queue processing'),
-    '#tree' => TRUE,
-    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
-  );
-  $form['messaging_process_limit']['message'] = array(
-    '#title' => t('Number of messages sent'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['message'],
-  );
-  $form['messaging_process_limit']['time'] = array(
-    '#title' => t('Time (seconds)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['time'],
-  );
-  $form['messaging_process_limit']['percent'] = array(
-    '#title' => t('Time (% of cron time)'),
-    '#type' => 'textfield',
-    '#size' => 10,
-    '#default_value' => $limit['percent'],
-    '#description' => t('Maximum percentage of cron time the process may use.'),
   );
 
   // Sending methods settings
@@ -339,13 +332,42 @@ function messaging_admin_settings() {
       $form['messaging_methods'][$key]['filter'] = array(
         '#type' => 'select',
         '#title' => t('Message body filter'),
-        '#default_value' => $options['filter'],
+        '#default_value' => isset($options['filter']) ? $options['filter'] : variable_get('messaging_default_filter', ''),
         '#options' => $format_options,
       );
     }
   } else {
     $form['messaging_methods']['warning'] = array('#value' => t('You should enable some messaging method plug-ins for this to work.'));
   }
+  // Processing limits
+  $limit = variable_get('messaging_process_limit', array('message' => 0, 'percent' => 0, 'time' => 0));
+  $form['messaging_process_limit'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Limits for queue processing'),
+    '#tree' => TRUE,
+    '#collapsible' => TRUE,
+    '#collapsed' => TRUE,
+    '#description' => t('These are the limits for each cron run on queue processing. The process will stop when it first meets any of them. Set to 0 for no limit.'),
+  );
+  $form['messaging_process_limit']['message'] = array(
+    '#title' => t('Number of messages sent'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['message'],
+  );
+  $form['messaging_process_limit']['time'] = array(
+    '#title' => t('Time (seconds)'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['time'],
+  );
+  $form['messaging_process_limit']['percent'] = array(
+    '#title' => t('Time (% of cron time)'),
+    '#type' => 'textfield',
+    '#size' => 10,
+    '#default_value' => $limit['percent'],
+    '#description' => t('Maximum percentage of cron time the process may use.'),
+  );
   return system_settings_form($form);
 }
 
@@ -371,8 +393,10 @@ function messaging_admin_settings() {
  *   - 'body'. The message body may have 'header', 'content', 'footer', 'etc'
  * @param $method
  *   Optional send method. Defaults to the user account predefined method
+ * @param $queue
+ *   1 to force queueing instead of sending right away
  */
-function messaging_message_send_user($account, $message, $method = NULL, $queue = FALSE) {
+function messaging_message_send_user($account, $message, $method = NULL, $queue = 0) {
   // Get default sending method, or default for this user account
   $method = $method ? $method : messaging_method_default($account);
   $message['account'] = $account;
@@ -753,8 +777,9 @@ function messaging_message_render($message, $info) {
   if (!empty($message['rendered'])) {
     return $message;
   }
-  // Apply footer prefix if provided
-  if (!empty($info['footer']) && isset($message['body']['footer'])) {
+  // Apply footer prefix if provided and the message has a footer element. 
+  // Note: If message body is a string the final isset($message['body']['footer']) will be true
+  if (!empty($info['footer']) && is_array($message['body']) && isset($message['body']['footer'])) {
     $message['body']['footer'] = array('#prefix' => $info['footer'], '#text' => $message['body']['footer']);
   }
   // Render separately subject and body info, adding default parameters
@@ -838,9 +863,9 @@ function messaging_filter($op, $delta = 0, $format = -1, $text = '') {
     case 'process':
       switch ($delta) {
         case 0:
-          return messaging_html_to_text($text);
-        case 1:
           return messaging_check_plain($text);
+        case 1:
+          return messaging_html_to_text($text);          
         default:
           return $text;
       }

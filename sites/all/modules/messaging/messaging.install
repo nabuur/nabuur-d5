@@ -1,5 +1,5 @@
 <?php
-// $Id: messaging.install,v 1.2.2.4 2008/03/31 16:13:56 jaydub Exp $
+// $Id: messaging.install,v 1.2.2.6 2008/10/08 11:16:51 jareyero Exp $
 
 function messaging_install() {
   switch ($GLOBALS['db_type']) {
@@ -62,11 +62,42 @@ function messaging_install() {
         )");
       break;
   }
+  // Create default input filter
+  _messaging_install_create_filter();
 }
 
 function messaging_uninstall() {
   db_query("DROP TABLE {messaging_message_parts}");
   db_query("DROP TABLE {messaging_store}");
+}
+
+/**
+ * Implementation of hook_requirements().
+ */
+function messaging_requirements($phase) {
+  if ($phase == 'runtime') {
+    $list = messaging_method_list();
+    if (empty($list)) {
+      $t = get_t();
+      return array('messaging' => array(
+        'title' => $t('Messaging method'),
+        'value' => $t('At least one delivery module needs to be enabled for the messaging module to function.'),
+        'severity' => REQUIREMENT_WARNING
+      ));
+    }
+  }
+}
+
+/**
+ * Create a default plain text filter, just to have some reasonable default to get started
+ */
+function _messaging_install_create_filter() {
+  // Create default filter, plain text
+  db_query("INSERT INTO {filter_formats} (name, cache) VALUES('%s', 0)", t('Messaging plain text'));
+  $format = db_result(db_query("SELECT MAX(format) AS format FROM {filter_formats}"));
+  db_query("INSERT INTO {filters} (format, module, delta, weight) VALUES(%d, 'messaging', 0, 0)", $format);
+  variable_set('messaging_default_filter', $format);
+  drupal_set_message(t("A new Input format has been created: %name", array('%name' => t('Messaging plain text'))));
 }
 
 /**
@@ -131,3 +162,11 @@ function messaging_update_2() {
   return $ret; 
 }
 
+/**
+ * Update method settings
+ */
+function messaging_update_3() {
+  $ret = array();
+  _messaging_install_create_filter();
+  return $ret;
+}

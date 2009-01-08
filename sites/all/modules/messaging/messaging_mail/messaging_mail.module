@@ -24,7 +24,7 @@ function messaging_mail_messaging($op) {
         'name' => t('Mail'), // Name for display
         'group' => 'mail', // Class of sending method
         'destination' => 'mail', // Account property to use as destination
-        'send' => 'messaging_mail_send', // Sending callback
+        'send' => 'messaging_mail_send_msg', // Sending callback
         'type' => MESSAGING_TYPE_PUSH,  // Method type: push || pull
         'glue' => "\n", // Glue for message body lines
         'footer' => "\n--",  // Separator for message footer
@@ -40,6 +40,7 @@ function messaging_mail_messaging($op) {
  * This is a callback function that will be invoked from messaging delivery methods
  * 
  * @see messaging_message_send()
+ * @see messaging_mail_params()
  * @see drupal_mail()
  * 
  * @param $destination
@@ -49,7 +50,7 @@ function messaging_mail_messaging($op) {
  * @param $params
  *   Optional parameters for this method type
  */
-function messaging_mail_send($destination, $message, $params = array()) {
+function messaging_mail_send_msg($destination, $message, $params = array()) {
   
   $params = messaging_mail_params($message, $params);
   

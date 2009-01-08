@@ -1,5 +1,5 @@
 <?php
-// $Id: og.install,v 1.21.2.31 2008/05/05 21:27:57 weitzman Exp $
+// $Id: og.install,v 1.21.2.32.2.8 2008/10/09 15:06:14 weitzman Exp $
 
 function og_install() {
   switch ($GLOBALS['db_type']) {
@@ -12,7 +12,6 @@ function og_install() {
         theme varchar(255) NULL,
         register int(1) NOT NULL default 0,
         directory int(1) NOT NULL default 0,
-        notification int(1) NOT NULL default 0,
         language varchar(12) NOT NULL default '',
         private int(1) NOT NULL default 0,
         PRIMARY KEY  (nid)
@@ -24,17 +23,11 @@ function og_install() {
         is_active int(1) NOT NULL DEFAULT 0,
         is_admin int(1) NOT NULL DEFAULT 0,
         uid int(11) NOT NULL,
-        mail_type int(11) NULL,
-      	created int(11) NULL DEFAULT 0,
-      	changed int(11) NULL DEFAULT 0,
+        created int(11) NULL DEFAULT 0,
+        changed int(11) NULL DEFAULT 0,
         PRIMARY KEY  (nid, uid)
       ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
       
-      db_query("CREATE TABLE {og_uid_global} (
-        uid int(11) NOT NULL,
-        og_email int(11) NOT NULL DEFAULT 2,
-        PRIMARY KEY  (uid)
-      ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
       db_query("CREATE TABLE {og_ancestry} (
         nid int(11) NOT NULL,
         group_nid int(11) NOT NULL,
@@ -52,7 +45,6 @@ function og_install() {
         website varchar(255) NULL,
         register smallint NOT NULL default 0,
         directory smallint NOT NULL default 0,
-        notification smallint NOT NULL default 0,
         language varchar(12) NOT NULL default '',
         private smallint NOT NULL default 0,  
         PRIMARY KEY  (nid)
@@ -64,20 +56,12 @@ function og_install() {
         is_active smallint NOT NULL DEFAULT 0,
         is_admin smallint NOT NULL DEFAULT 0,
         uid int NOT NULL,
-        mail_type int NULL,
-	    created int NULL DEFAULT 0,
-	    changed int NULL DEFAULT 0,
+        created int NULL DEFAULT 0,
+        changed int NULL DEFAULT 0,
         PRIMARY KEY  (nid, uid)
       );");
       
-      db_query("CREATE TABLE {og_uid_global} (
-        uid int NOT NULL,
-        og_email int NOT NULL DEFAULT 2,
-        PRIMARY KEY (uid)
-      );");
-      
-      db_query("
-      CREATE TABLE {og_ancestry} (
+      db_query("CREATE TABLE {og_ancestry} (
        nid int NOT NULL,
        group_nid int NOT NULL,
        is_public smallint NOT NULL
@@ -88,7 +72,7 @@ function og_install() {
   }
   
   // enable standard og blocks. for custom profiles, block may not be included yet.
-  if (function_exists('block_rehash')) {
+  if (function_exists('_block_rehash')) {
     _block_rehash();
   }
   
@@ -311,8 +295,11 @@ function og_update_12() {
   return $ret;
 }
 
-// populate the og_uid_global table. we have to choose selective here for backward compatibility. 
-// to set everyone up for 'always' notifications, run this after the update: UPDATE og_uid_global SET og_email=1
+// populate the og_uid_global table. we have to choose selective here for 
+// backward compatibility. To set everyone up for 'always' notifications, run
+// this after the update: UPDATE og_uid_global SET og_email=1
+// og_uid_global is later moved into og_notifications. This update is only
+// around to retain schema consistency - the population script has been removed.
 function og_update_13() {
   switch ($GLOBALS['db_type']) { 
     case 'mysql': 
@@ -331,14 +318,7 @@ function og_update_13() {
       );");
       break;
   }
-  
-  // works for mysql and postgres
-  $sql = 'SELECT uid FROM {users} WHERE uid > 0';
-  $result = db_query($sql);
-  while ($row = db_fetch_object($result)) {
-    $sql = "INSERT INTO {og_uid_global} (uid, og_email) VALUES (%d, %d)";
-    db_query($sql, $row->uid, OG_NOTIFICATION_SELECTIVE);
-  }
+
   return array();
 }
 
@@ -423,9 +403,9 @@ function og_update_18() {
   return array();
 }
 
+// Formerly contained og_uid_global code which is no longer required.
 function og_update_19() {
-  og_populate_uid_global_table();
-  return array('Populated og_uid_global table');
+  return array();
 }
 
 function og_update_20() {
@@ -463,7 +443,7 @@ function og_update_5600() {
 function og_update_5700() {
   $ret = array();
   if (variable_get('og_enabled', FALSE) && !module_exists('og_access')) {
-    module_enable('og_access');
+    drupal_install_modules(array('og_access'));
   }
   // variable_del('og_enabled'); is harmless to leave around, and will help if someone reruns the update.
   
@@ -496,37 +476,73 @@ function og_update_5700() {
    node_access_rebuild();
    return $ret;
  }
-
-// end updates //
-
-function og_enable() {
-  og_populate_uid_global_table();
-}
-
-// need to populate og_uid_global for existing users on enable
-// this is called from update 13 & 19 & og_enable. 
-// TODO: conditionally use subquery
-function og_populate_uid_global_table() {
-  $sql = 'SELECT u.uid FROM {users} u LEFT JOIN {og_uid_global} oug ON u.uid=oug.uid WHERE u.uid > 0 AND oug.og_email IS NULL';
-  $result = db_query($sql);
-  while ($row = db_fetch_object($result)) {
-    $sql = "INSERT INTO {og_uid_global} (uid, og_email) VALUES (%d, %d)";
-    db_query($sql, $row->uid, OG_NOTIFICATION_SELECTIVE);
+ 
+ /**
+  * Force menu rebuild since subscribe/unsubscribe paths are better protected now.
+  */ 
+ function og_update_5702() {
+   $ret[] = array('success' => TRUE, 'query' => 'Menu has been rebuilt.');
+   menu_rebuild();
+   return $ret;
+ }
+ 
+/**
+ * Notifications upgrade: Set flag to indicate that this is an upgraded 
+ * installation.
+ */ 
+function og_update_5703() {
+  // Remove mail / no mail options from OG group types and move preferences to
+  // og_notifications.
+  $types = og_get_types('group_post');
+  $mail_types = array();
+  foreach ($types as $type) {
+    $variable = 'og_content_type_usage_'. $type;
+    $usage = variable_get($variable, '');
+    switch ($usage) {
+      case 'group_post_standard_mail':
+        $mail_types[$type] = $type;
+      case 'group_post_standard_nomail':
+        variable_set($variable, 'group_post_standard');
+        break;
+      case 'group_post_wiki_mail':
+        $mail_types[$type] = $type;
+      case 'group_post_wiki_nomail':
+        variable_set($variable, 'group_post_wiki');
+        break;
+    }
   }
+  // Set variable for og_notifications. If it is never enabled, this variable
+  // is also deleted in og_uninstall.
+  variable_set('og_notifications_content_types', $mail_types);
+
+  // Vestigial variable.
+  variable_del('og_omitted_email_node_types');
+
+  // Set update flag for og_notifications.
+  variable_set('og_notifications_update_required', 1);
+
+  return array();
 }
+
+ // end updates //
 
 function og_uninstall() {
   // Drop database table
   db_query('DROP TABLE {og}');
   db_query('DROP TABLE {og_uid}');
-  db_query('DROP TABLE {og_uid_global}');
   db_query('DROP TABLE {og_ancestry}');
+
+  // In case og_notifications has never been enabled, the vestigial 
+  // og_uid_global table will still be around. 
+  if (variable_get('og_notifications_update_required', FALSE)) {
+    db_query('DROP TABLE {og_uid_global}');
+  }
 
   // Delete variables
   $variables = array(
     'og_member_pics', 'og_help', 'og_block_cnt_2', 'og_block_cnt_3',
     'og_audience_checkboxes', 'og_omitted', 'og_content_type_usage',
-    'og_audience_required', 'og_omitted_email_node_types',
+    'og_audience_required',
     'og_visibility_directory', 'og_visibility_registration',
     'og_home_page_view', 'og_email_max', 'og_node_types',
     'og_admin_email_body', 'og_email_notification_pattern',
@@ -535,7 +551,8 @@ function og_uninstall() {
     'og_invite_user_body', 'og_invite_user_subject',
     'og_new_admin_body', 'og_new_admin_subject',
     'og_new_node_body', 'og_new_node_subject',
-    'og_notification', 'og_request_user_body', 'og_request_user_subject',
+    'og_request_user_body', 'og_request_user_subject',
+    'og_notifications_update_required', 'og_notifications_content_types'
   );
   foreach ($variables as $variable) {
     variable_del($variable);

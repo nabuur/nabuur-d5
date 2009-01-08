@@ -15,7 +15,7 @@ function messaging_private_messaging($op) {
       $info['privatemsg'] = array(
         'name' => t('Privatemsg'),
         'group' => 'web',
-        'send' => 'messaging_private_send',
+        'send' => 'messaging_private_send_msg',
         'type' => MESSAGING_TYPE_PUSH,
         'access' => 'access private messages',
         'glue' => "\n",
@@ -31,7 +31,7 @@ function messaging_private_messaging($op) {
  * @param $destination
  *   User account
  */
-function messaging_private_send($destination, $message) {
+function messaging_private_send_msg($destination, $message) {
   // Hand over to privatemsg  
   privatemsg_send_privatemsg($destination, $message['subject'], $message['body']);
   // @ TO DO How to check for success?

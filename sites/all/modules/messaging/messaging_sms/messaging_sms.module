@@ -12,10 +12,11 @@ function messaging_sms_messaging($op = 'info') {
     case 'send methods':
       $info['sms'] = array(
         'name' => t('SMS'),
-        'send' => 'messaging_sms_send',
+        'group' => 'sms', // Class of send method
+        'send' => 'messaging_sms_send_msg',
         'send_user' => 'messaging_sms_send_user',
         'type' => MESSAGING_TYPE_PUSH,
-        'render' => 'messaging_sms_render',
+        'render' => 'messaging_sms_render_message',
         'glue' => '',
         'description' => t('Send SMS using SMS Framework.'),
       );
@@ -26,7 +27,7 @@ function messaging_sms_messaging($op = 'info') {
 /**
  * Message Render callback
  */
-function messaging_sms_render($message, $info) {
+function messaging_sms_render_message($message, $info) {
   // We need to apply filtering first or run through the render function
     $message = messaging_message_render($message, $info);
     // We can assume that we'll get max 110 characters for subject + body
@@ -41,13 +42,17 @@ function messaging_sms_render($message, $info) {
  * Send mail message to user account
  */
 function messaging_sms_send_user($account, $message) {
-  if ($account->sms_user['status'] == 2) {
-  $destination->number = $account->sms_user['number'];
-  foreach ($account->sms_user['gateway'] as $key => $field) {
-    $destination->$key = $field;
-  }
+  // Try to find an available gateway
+  if (!empty($account->sms_user[0]) && $account->sms_user[0]['status'] == 2) {
+    $destination = new Stdclass();
+    $destination->number = $account->sms_user[0]['number'];
+    foreach ($account->sms_user[0]['gateway'] as $key => $field) {
+      $destination->$key = $field;
+    }
     $destinations[] = $destination;
     return messaging_message_send($destinations, $message, 'sms');
+  } else {
+    return FALSE;
   }
 }
 
@@ -56,7 +61,7 @@ function messaging_sms_send_user($account, $message) {
  * 
  * This is just a wrapper for sms_send()
  */
-function messaging_sms_send($destination, $message, $params = array()) {
+function messaging_sms_send_msg($destination, $message, $params = array()) {
   // This function takes an array of destinations so 
   return sms_send(array($destination), $message['subject'].$message['body']);
 }

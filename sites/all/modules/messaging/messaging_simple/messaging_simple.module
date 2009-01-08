@@ -66,7 +66,7 @@ function messaging_simple_user_overview($account) {
       $rows[] = array(
         l($message['subject'], 'user/'.$account->uid.'/messages/view/'. $message['mqid']),
         !empty($message['sender_account']) ? theme('username', $message['sender_account']) : t('System'),
-        format_date($message['sent']),
+        format_date($message['created']),
       );
     }    
     $output .= theme('table', $header, $rows);
@@ -122,7 +122,7 @@ function messaging_simple_messaging($op = 'info') {
       $info['simple'] = array(
         'name' => t('Simple'),
         'group' => 'web',
-        'send' => 'messaging_simple_send',
+        'send' => 'messaging_simple_send_msg',
         'type' => MESSAGING_TYPE_PULL,
         'glue' => '<br />',
         'description' => t('Don\'t send messages but display them on a user account tab'),
@@ -138,6 +138,6 @@ function messaging_simple_messaging($op = 'info') {
  * 
  * Do nothing, the message will be retrieved from the queue
  */
-function messaging_simple_send($destination, $message) {
+function messaging_simple_send_msg($destination, $message) {
   return TRUE;
 }

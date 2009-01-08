@@ -4,6 +4,9 @@
  *
  * Tests basic API functions
  */
+
+require_once 'messaging_testcase.inc';
+
 class Messaging_API_Tests extends MessagingTestCase {
   
   function get_info() {
@@ -30,6 +33,21 @@ class Messaging_API_Tests extends MessagingTestCase {
     $this->assertEqual(messaging_method_info($test_method, 'filter') === 0, TRUE, 'Messaging method info retrieves filter information');
     $this->assertEqual(messaging_method_default($user) === $test_method, TRUE, 'Messaging method default is working for test user');
 
+    // Try message composition, a pair simple cases, no filter
+    $message = $this->randomMessage();
+    $info = array('glue' => '+', 'subject_glue' => '-', 'footer' => '--', 'filter' => FALSE);
+    // Calculate the rendered body
+    $body = implode($info['glue'], array($message['body']['header'], $message['body']['main'], $info['footer'], $message['body']['footer']));
+    $render = messaging_message_render($message, $info);
+    $this->assertEqual(($render['subject'] == $message['subject'] && $render['body'] == $body), TRUE, 'Message successfully rendered, first try');
+    
+    // Now give it a twist, make subject an array, body a plain text
+    $message['subject'] = array($message['subject'], $message['subject']);
+    $message['body'] = $body;
+    $render = messaging_message_render($message, $info);
+    $this->assertEqual(($render['subject'] == implode($info['subject_glue'], $message['subject']) && $render['body'] == $body), TRUE, 'Message successfully rendered, second try');
+    
+    
     // Create fake messages and try sending, they'll end up in messaging queue
     $message1 = $this->randomMessage();
     $message2 = $this->randomMessage();
