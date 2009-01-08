@@ -1,9 +1,41 @@
-// $Id: CHANGELOG.txt,v 1.173.2.21 2008/07/09 21:48:41 drumm Exp $
+// $Id: CHANGELOG.txt,v 1.173.2.33 2008/12/11 17:37:27 drumm Exp $
+
+Drupal 5.14, 2008-12-11
+-----------------------
+- removed a previous change incompatible with PHP 5.1.x and lower.
+
+Drupal 5.13, 2008-12-10
+-----------------------
+- fixed a variety of small bugs.
+- fixed security issues, (Cross site request forgery and Cross site scripting), see SA-2008-073
+- updated robots.txt and .htaccess to match current file use.
+
+Drupal 5.12, 2008-10-22
+-----------------------
+- fixed security issues, (File inclusion), see SA-2008-067
+
+Drupal 5.11, 2008-10-08
+-----------------------
+- fixed a variety of small bugs.
+- fixed security issues, (File upload access bypass, Access rules bypass,
+  BlogAPI access bypass, Node validation bypass), see SA-2008-060
+
+Drupal 5.10, 2008-08-13
+-----------------------
+- fixed a variety of small bugs.
+- fixed security issues, (Cross site scripting, Arbitrary file uploads via
+  BlogAPI and Cross site request forgery), see SA-2008-047
+
+Drupal 5.9, 2008-07-23
+----------------------
+- fixed a variety of small bugs.
+- fixed security issues, (Session fixation), see SA-2008-046
 
 Drupal 5.8, 2008-07-09
 ----------------------
 - fixed a variety of small bugs.
-- fixed security issues, (Cross site scripting, cross site request forgery, and session fixation), see SA-2008-044
+- fixed security issues, (Cross site scripting, cross site request forgery, and
+  session fixation), see SA-2008-044
 
 Drupal 5.7, 2008-01-28
 ----------------------

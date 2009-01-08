@@ -14,7 +14,8 @@ Options -Indexes
 Options +FollowSymLinks
 
 # Customized error messages.
-ErrorDocument 404 /index.php
+# ErrorDocument 404 /index.php
+ErrorDocument 404 /sites/default/themes/nabuur01/404.php 
 
 # Set the default handler.
 DirectoryIndex index.php
@@ -104,10 +105,16 @@ DirectoryIndex index.php
   #RewriteCond %{QUERY_STRING} ^mod=([^&]+)$
   #RewriteRule module.php index.php?q=%1 [L]
 
+  # Rewrite to lightweight 404.htm file
+#  RewriteCond %{REQUEST_FILENAME} !-f
+#  RewriteCond %{REQUEST_URI} !^/files/ 
+#  RewriteCond %{REQUEST_URI} \.(png|gif|jpe?g|s?html?|css|js|cgi|ico|swf|flv|dll)$
+#  RewriteCond %{REQUEST_URI} !^404.%1$
+#  RewriteRule ^(.*)$ 404.%1 [L]
   # Rewrite current-style URLs of the form 'index.php?q=x'.
   RewriteCond %{REQUEST_FILENAME} !-f
   RewriteCond %{REQUEST_FILENAME} !-d
   RewriteRule ^(.*)$ index.php?q=$1 [L,QSA]
 </IfModule>
 
-# $Id: .htaccess,v 1.81.2.4 2008/01/22 09:01:39 drumm Exp $
+# $Id: .htaccess.devel,v 1.1.2.1 2008/07/31 12:11:13 admin Exp $

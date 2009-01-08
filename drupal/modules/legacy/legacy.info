@@ -3,9 +3,3 @@ name = Legacy
 description = Provides legacy handlers for upgrades from older Drupal installations.
 package = Core - optional
 version = VERSION
-
-; Information added by drupal.org packaging script on 2008-07-09
-version = "5.8"
-project = "drupal"
-datestamp = "1215640809"
-

@@ -1,5 +1,5 @@
 <?php
-// $Id: theme.inc,v 1.337.2.5 2008/07/09 21:48:41 drumm Exp $
+// $Id: theme.inc,v 1.337.2.7 2008/12/05 22:32:50 dries Exp $
 
 /**
  * @file
@@ -8,7 +8,7 @@
  * The theme system allows for nearly all output of the Drupal system to be
  * customized by user themes.
  *
- * @see <a href="http://drupal.org/node/253">Theme system</a>
+ * @see <a href="http://drupal.org/node/171179">Theme guide</a>
  * @see themeable
  */
 
@@ -923,10 +923,10 @@ function theme_mark($type = MARK_NEW) {
  *   All other elements are treated as attributes of the list item element.
  * @param $title
  *   The title of the list.
- * @param $attributes
- *   The attributes applied to the list element.
  * @param $type
  *   The type of list to return (e.g. "ul", "ol")
+ * @param $attributes
+ *   The attributes applied to the list element.
  * @return
  *   A string containing the list output.
  */

@@ -1,5 +1,5 @@
 <?php
-// $Id: session.inc,v 1.37.2.2 2007/07/26 19:16:45 drumm Exp $
+// $Id: session.inc,v 1.37.2.7 2008/12/11 00:23:01 drumm Exp $
 
 /**
  * @file
@@ -45,7 +45,7 @@ function sess_read($key) {
     }
   }
   // We didn't find the client's record (session has expired), or they are an anonymous user.
-  else  {
+  else {
     $session = isset($user->session) ? $user->session : '';
     $user = drupal_anonymous_user($session);
   }
@@ -56,24 +56,26 @@ function sess_read($key) {
 function sess_write($key, $value) {
   global $user;
 
-  // If saving of session data is disabled or if the client doesn't have a session cookie
-  // Cookies are the only supported way of carrying a session on the site
-  // If cookies are on they will be set on first page view - ie. it's only a problem if you
-  // submit the login form without visiting the login page first.
-  if (!session_save_session() || empty($_COOKIE[session_name()]) || empty($value)) {
+  // If saving of session data is disabled or if the client doesn't have a session,
+  // and one isn't being created ($value), do nothing. This keeps crawlers out of
+  // the session table. This reduces memory and server load, and gives more useful
+  // statistics. We can't eliminate anonymous session table rows without breaking
+  // the throttle module and the "Who's Online" block.
+  if (!session_save_session() || ($user->uid == 0 && empty($_COOKIE[session_name()]) && empty($value))) {
     return TRUE;
   }
 
-  $result = db_query("UPDATE {sessions} SET uid = %d, cache = %d, hostname = '%s', session = '%s', timestamp = %d WHERE sid = '%s'", $user->uid, $user->cache, $_SERVER["REMOTE_ADDR"], $value, time(), $key);
-
-  if (!db_affected_rows($result)) {
-    db_query("INSERT INTO {sessions} (sid, uid, cache, hostname, session, timestamp) VALUES ('%s', %d, %d, '%s', '%s', %d)", $key, $user->uid, $user->cache, $_SERVER["REMOTE_ADDR"], $value, time());
-  }
-  else {
+  db_query("UPDATE {sessions} SET uid = %d, cache = %d, hostname = '%s', session = '%s', timestamp = %d WHERE sid = '%s'", $user->uid, isset($user->cache) ? $user->cache : '', $_SERVER["REMOTE_ADDR"], $value, time(), $key);
+  if (db_affected_rows()) {
     // TODO: this can be an expensive query. Perhaps only execute it every x minutes. Requires investigation into cache expiration.
     if ($user->uid) {
       db_query("UPDATE {users} SET access = %d WHERE uid = %d", time(), $user->uid);
     }
+  }
+  else {
+    // If this query fails, another parallel request probably got here first.
+    // In that case, any session data generated in this request is discarded.
+    @db_query("INSERT INTO {sessions} (sid, uid, cache, hostname, session, timestamp) VALUES ('%s', %d, %d, '%s', '%s', %d)", $key, $user->uid, isset($user->cache) ? $user->cache : '', $_SERVER["REMOTE_ADDR"], $value, time());
   }
 
   return TRUE;
@@ -157,8 +159,8 @@ function sess_gc($lifetime) {
  *
  * @param $status
  *   Disables writing of session data when FALSE, (re-)enables writing when TRUE.
- *
- * @return FALSE if writing session data has been disabled. Otherwise, TRUE.
+ * @return
+ *   FALSE if writing session data has been disabled. Otherwise, TRUE.
  */
 function session_save_session($status = NULL) {
   static $save_session = TRUE;
