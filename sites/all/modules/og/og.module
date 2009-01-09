@@ -1,5 +1,5 @@
 <?php
-// $Id: og.module,v 1.298.2.197.2.15 2008/11/02 20:30:45 weitzman Exp $
+// $Id: og.module,v 1.298.2.197.2.18 2008/12/30 16:34:33 weitzman Exp $
 
 // Selective groups states. chosen by the group admin
 define ('OG_OPEN', 0);
@@ -74,7 +74,7 @@ function og_menu($may_cache) {
     // we get a NOTICE if doing this from within og_theme() so I do it here for now.
     if ($group_node = og_get_group_context()) {
       if ($user->uid || variable_get('cache', CACHE_DISABLED) == CACHE_DISABLED) {
-        $_SESSION['og_last'] = og_get_group_context();
+        $_SESSION['og_last'] = $group_node->nid;
       }
     }
 
@@ -280,8 +280,8 @@ function og_set_theme($nid) {
       default:
         // node is in multiple groups. preference goes to the group we showed on the prior page view (if any),
         // then to a group the current user is a member of
-        if (in_array($_SESSION['og_last']->nid, $node->og_groups)) {
-          $group_node = node_load($_SESSION['og_last']->nid);
+        if (in_array($_SESSION['og_last'], $node->og_groups)) {
+          $group_node = node_load($_SESSION['og_last']);
           $custom_theme = $group_node->og_theme;
         }
         else {
@@ -1031,7 +1031,7 @@ function theme_og_picture_grid($result, $column_count = 5) {
   }
   $content .= '</table>';
   
-  if ($content) {
+  if ($total) {
     return $content;
   }
 }
@@ -2185,7 +2185,7 @@ function og_block_notifications() {
       
         $l3[] = array('title' => t('Feed'), 'href' => 'group/tracker/feed');
         $l3[] = array('title' => t('Page'), 'href' => 'group/tracker');
-        $links['all_posts'] = array('data' => t('All posts:') .' '. theme('links', $l3, $inline));
+        $links['all_posts'] = t('All posts:') .' '. theme('links', $l3, $inline);
         $content .= theme('item_list', $links);
       }
       $block['content'] = $content;
