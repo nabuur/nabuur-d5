@@ -90,11 +90,10 @@ Language dependent variables
         'user_mail_pass_body',
         // Primary and secondary links
         'menu_primary_menu',
-        'menu_secondary_menu';
+        'menu_secondary_menu',
         // Theme settings. This is an 'all or nothing' for each theme
         // This is for 'garland' theme, for other theme it would be 'theme_[themename]_settings'
-		    'theme_garland_settings',
-    
+		'theme_garland_settings',    
     );
     
   These are only some suggested ones, but you can add as many Drupal variables as you want to the array.

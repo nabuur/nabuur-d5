@@ -1,6 +1,23 @@
-5-x-2-2 to
+// $Id: CHANGELOG.txt,v 1.15.2.2.2.4 2008/07/23 16:56:00 jareyero Exp $
+
+5-x-2-3 to 5-x-2-4
+---------------------
+- Fixed database compatibility issue with i18ncontent query by omo, #135387
+- Fixed warning with profile fields by bitstream, #129262
+- Fixed typo in INSTALL.txt by serkanarikusu, #206172
+- Added i18npanels module contributed by JacobSingh, #159926
+- Added description to translated items by JacobSingh, #197977 
+- Rename i18n blocks by incrn8, #246014
+- Link to translate node changes site language by Jaza, TBarregren, #149108
+- Added "translate own nodes" permission by rblomme, christopher_skauss, #41580
+- Fixed synchronization warning on content type by yettyn, #166101
+- Applied postgres compatibility patch by ivanSB, #183593
+- Added token support for language code by knseibert, #176449
+
+5-x-2-2 to 5-x-2-3
 ------------------------------------
-Fixed missing dependency on ttext module, http://drupal.org/node/217760
+- Multiple bug fixes and security update, http://drupal.org/node/250344
+- Fixed missing dependency on ttext module, http://drupal.org/node/217760
 
 4-7-4 to 5-0
 --------------

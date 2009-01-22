@@ -1,5 +1,5 @@
 <?php
-// $Id: translation.module,v 1.3.2.15.2.1 2008/04/23 19:18:49 jareyero Exp $
+// $Id: translation.module,v 1.3.2.15.2.5 2009/01/14 23:33:20 snpower Exp $
 
 /**
  * Internationalization (i18n) package.
@@ -78,8 +78,8 @@ function translation_menu($may_cache) {
       'type' => MENU_DEFAULT_LOCAL_TASK, 'weight' => -10);
   }
   else {
-    if (arg(0) == 'node' && is_numeric(arg(1)) && variable_get('i18n_node_'.translation_get_node_type(arg(1)), 0)) {
-      $access = user_access('translate nodes');
+    if (arg(0) == 'node' && is_numeric(arg(1)) && ($node = node_load(arg(1))) && variable_get('i18n_node_'.translation_get_node_type(arg(1)), 0)) {
+      $access = translation_access($node) && node_access('view', $node);
       $type = MENU_LOCAL_TASK;      
       $items[] = array(
         'path' => 'node/'. arg(1) .'/translation', 
@@ -113,11 +113,20 @@ function translation_menu($may_cache) {
 }
 
 /**
- * Implementation of hook_perm
+ * Implementation of hook_perm().
  */
 function translation_perm(){
-  return array('translate nodes');
+  return array('translate nodes', 'translate own nodes');
 }
+
+/**
+ * Implementation of hook_access().
+ */
+function translation_access($node) {
+        global $user;
+        return user_access('translate nodes') || $node->uid == $user->uid && user_access('translate own nodes');
+}
+
 
 /**
  * Form builder function: settings form
@@ -154,7 +163,7 @@ function translation_admin_settings(){
  */
 function translation_block($op = 'list', $delta = 0) {
   if ($op == 'list') {
-    $blocks[0]['info'] = t('Translations');
+    $blocks[0]['info'] = t('Translations for Content');
   }
   elseif($op == 'view') {
     $blocks['subject'] = t('Languages');
@@ -180,13 +189,14 @@ function translation_form_alter($form_id, &$form) {
     if ($node->nid && $node->translation) {
       $translations = $node->translation;
     }
-    elseif (isset($_GET['translation']) && user_access('translate nodes')) {
-      // We are translating a node: node/add/type/translation/nid/lang
-      $translation_nid = $_GET['translation'];
-      $language = $_GET['language'];
-      
-      // Load the node to be translated and populate fields
-      $trans = node_load($translation_nid);
+    elseif (isset($node->translation_source) && translation_access($node->translation_source)) {
+      // We are translating a node: node/add/$type?translation=$nid&language=$language
+      $translation_nid = $node->translation_nid;
+      $language = $node->language;
+
+      // Get the node to be translated and populate fields
+      $trans = $node->translation_source;
+
       $form['i18n']['translation_nid'] = array('#type' => 'hidden', '#value' => $translation_nid);
       $form['i18n']['language']['#default_value'] = $language;
       
@@ -283,10 +293,10 @@ function translation_nodeapi(&$node, $op, $arg = 0) {
         }
         break;
       case 'prepare': // When creating a translation 
-        if (!$node->nid && isset($_GET['translation']) && ($nid = $_GET['translation']) && ($language = $_GET['language']) && user_access('translate nodes')) {
+        if (empty($node->nid) && isset($_GET['translation']) && is_numeric($_GET['translation']) && !empty($_GET['language'])) {
           // We are translating a node from a source node
           // Load the node to be translated and populate fields
-          translation_node_prepare($node, $nid, $language);
+          translation_node_prepare($node, $_GET['translation'], $_GET['language']);
         }
         break;        
     }
@@ -365,10 +375,21 @@ function translation_nat_get_terms($nid) {
  * Prepare node for translation
  */
 function translation_node_prepare(&$node, $sourcenid, $language) {
+  // Validate source and language.
+  $source = node_load($sourcenid);
+  if (empty($source) || !translation_access($source) || !node_access('view', $source)) {
+    // Source node not found or no access to view.
+    return;
+  }
+  $language_list = i18n_node_language_list($node);
+  if (!isset($language_list[$language]) || ($source->language == $language)) {
+    // If not supported language, or same language as source node, break.
+    return;
+  }
+
+  $node->translation_source = drupal_clone($source);
   $node->translation_nid = $sourcenid;
   $node->language = $language;
-  $source = $node->translation_source = node_load($node->translation_nid);
-  
   // Taxonomy translation
   if(is_array($source->taxonomy)) {
     // Set translated taxonomy terms
@@ -393,9 +414,14 @@ function translation_node_prepare(&$node, $sourcenid, $language) {
   // Translations are taken from source node          
   $node->translation = $source->translation;
   $node->translation[$source->language] = $source;
-  
+
+  // Only copy the body if the translator can access the format.
+  if (filter_access($source->format)) {
+    $node->body = $source->body;
+  }
   // Rest of fields. Unset some known ones not to be copied over
-  unset($source->nid, $source->vid, $source->path, $source->language, $source->files);
+  unset($source->nid, $source->vid, $source->path, $source->language, $source->files, $source->body);
+ 
   foreach($source as $field => $value) {
     if (!isset($node->$field)) {
       $node->$field = $value; 
@@ -506,19 +532,23 @@ function translation_admin_nodes() {
   $params = $filter['args'];
   $join = $filter['join'];
   
+  // Now we add in conditions from the node admin filter subform
   $filter = node_build_filter_query();
-  // Remove WHERE 
-  if($filter['where']) {
-  	$where += array(str_replace('WHERE', '', $filter['where']));
+
+  // Remove WHERE and merge all conditions. The WHERE part from node filter was a string with 'WHERE..'
+  if (!empty($filter['where'])) {
+    $where += array_merge($where, array(str_replace('WHERE', '', $filter['where'])));
   }
-
-  $params = array_merge($params, $filter['args']);
-
-  $join .= $filter['join'];
+  if (!empty($filter['args'])) {
+    $params = array_merge($params, $filter['args']);
+  }
+  if (!empty($filter['join'])) {
+    $join .= ' ' . $filter['join'];
+  }
   
   $sql = "SELECT n.nid, n.type, n.title, n.status, u.name, u.uid, i.language, i2.nid AS translation_nid, i2.status AS translation_status ".
     "FROM {node} n INNER JOIN {users} u ON n.uid = u.uid INNER JOIN {i18n_node} i ON n.nid = i.nid ".
-    "LEFT JOIN {i18n_node} i2 ON i.trid = i2.trid AND 0 != i2.trid AND i.language != i2.language $join".
+    "LEFT JOIN {i18n_node} i2 ON i.trid = i2.trid AND 0 <> i2.trid AND i.language <> i2.language $join".
     (count($where) ? ' WHERE '.implode(' AND ', $where) : '');
  
   // Fetch data
@@ -549,7 +579,8 @@ function translation_admin_nodes() {
       if($language == $node->language) {
       	$form['operations'][$node->nid] = array('#value' => '--');
       } else {
-        $form['operations'][$node->nid] = array('#value' => l(t('create translation'), 'node/add/'.$node->type, array(), "translation=$node->nid&language=$language").
+        $prefix = variable_get('i18n_translation_links', 0) ? i18n_get_lang() : $language;
+        $form['operations'][$node->nid] = array('#value' => l(t('create translation'), $prefix.'/node/add/'.$node->type, array(), "translation=$node->nid&language=$language").
         ' | '.l(t('select node'), "node/$node->nid/translation/select/$language", array(), $destination));   
       }
     }
@@ -712,7 +743,8 @@ function translation_node_overview($node) {
       $status = $trnode->status ? t('Published') : t('Not published');
 	} else {
 	  $title = t('Not translated');
-	  $options[] = l(t('create translation'), $createlink, array(), "translation=$node->nid&language=$lang");
+	  $prefix = variable_get('i18n_translation_links', 0) ? i18n_get_lang() : $lang;
+      $options[] = l(t('create translation'), $prefix . '/' . $createlink , array(), "translation=$node->nid&language=$lang");
 	  $status = '--';
     }
 	$options[] = l(t('select node'), "node/$node->nid/translation/select/$lang");
@@ -865,10 +897,10 @@ function translation_node_get_translations($params, $getall = TRUE) {
     $values[] = $value;
   }
   if(!$getall){ // If not all, a parameter must be nid
-    $conds[] = "n.nid != %d";
+    $conds[] = "n.nid <> %d";
     $values[] = $params['nid'];
   }
-  $conds[] = "b.trid != 0";
+  $conds[] = "b.trid <> 0";
   $sql = 'SELECT n.nid, n.title, n.status, a.language FROM {node} n INNER JOIN {i18n_node} a ON n.nid = a.nid INNER JOIN {i18n_node} b ON a.trid = b.trid WHERE '. implode(' AND ', $conds);
 
   i18n_selection_mode('off');
@@ -1052,10 +1084,10 @@ function translation_term_get_translations($params, $getall = TRUE) {
     $values[] = $value;
   }
   if(!$getall){ // If not all, a parameter must be tid
-    $conds[] = "t.tid != %d";
+    $conds[] = "t.tid <> %d";
     $values[] = $params['tid'];
   }
-  $conds[] = "t.trid != 0";
+  $conds[] = "t.trid <> 0";
   $sql = 'SELECT t.* FROM {term_data} t INNER JOIN {term_data} i ON t.trid = i.trid WHERE '. implode(' AND ', $conds);;
   $result = db_query($sql, $values);
   $items = array();
@@ -1105,7 +1137,7 @@ function translation_url($url, $lang) {
  *   Translated node nid if exists, or $default
  */
 function translation_node_nid($nid, $language = NULL, $default = NULL) {
-  $translation = db_result(db_query("SELECT n.nid FROM {i18n_node} n INNER JOIN {i18n_node} a ON n.trid = a.trid AND n.nid != a.nid WHERE a.nid = %d AND n.language = '%s' AND n.trid", $nid, $language ? $language : i18n_get_lang()));
+  $translation = db_result(db_query("SELECT n.nid FROM {i18n_node} n INNER JOIN {i18n_node} a ON n.trid = a.trid AND n.nid <> a.nid WHERE a.nid = %d AND n.language = '%s' AND n.trid is not null", $nid, $language ? $language : i18n_get_lang()));
   return $translation ? $translation : $default;
 }
 
@@ -1122,7 +1154,7 @@ function translation_node_nid($nid, $language = NULL, $default = NULL) {
  *   Translated term tid if exists, or $default
  */
 function translation_term_tid($tid, $language = NULL, $default = NULL) {
-  $translation = db_result(db_query("SELECT t.tid FROM {term_data} t INNER JOIN {term_data} a ON t.trid = a.trid AND t.tid != a.tid WHERE a.tid = %d AND t.language = '%s' AND t.trid", $tid, $language ? $language : i18n_get_lang()));
+  $translation = db_result(db_query("SELECT t.tid FROM {term_data} t INNER JOIN {term_data} a ON t.trid = a.trid AND t.tid <> a.tid WHERE a.tid = %d AND t.language = '%s' AND t.trid is not null", $tid, $language ? $language : i18n_get_lang()));
   return $translation ? $translation : $default;
 }
 

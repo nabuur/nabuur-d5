@@ -1,5 +1,5 @@
 <?php
-// $Id: i18nsync.module,v 1.1.2.6.2.1 2007/12/04 20:17:43 jareyero Exp $
+// $Id: i18nsync.module,v 1.1.2.6.2.2 2008/04/28 10:05:29 jareyero Exp $
 
 /**
  * @file
@@ -43,18 +43,19 @@ function i18nsync_form_alter($form_id, &$form) {
       // Each set provides title and options. We build a big checkboxes control for it to be
       // saved as an array. Special themeing for group titles.
       foreach (i18nsync_node_available_fields($type) as $group => $data) {
-        $title = $data['#title'];
-        if (is_array($data['#options'])) { // prevents error on empty CCK array
-        foreach ($data['#options'] as $field => $name) {
-          $form['workflow']['i18n']['i18nsync_nodeapi'][$field] = array(
-            '#group_title' => $title,
-            '#title' => $name,
-            '#type' => 'checkbox',
-            '#default_value' => in_array($field, $current),
-            '#theme' => 'i18nsync_workflow_checkbox',
-          );
-          $title = '';  
-        }}  
+        if (array_key_exists('#options', $data)) {
+	      $title = $data['#title'];
+          foreach ($data['#options'] as $field => $name) {
+            $form['workflow']['i18n']['i18nsync_nodeapi'][$field] = array(
+              '#group_title' => $title,
+              '#title' => $name,
+              '#type' => 'checkbox',
+              '#default_value' => in_array($field, $current),
+              '#theme' => 'i18nsync_workflow_checkbox',
+            );
+            $title = '';  
+          }     
+        }
       }
 
       break;

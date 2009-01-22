@@ -1,5 +1,5 @@
 <?php
-// $Id: i18nmenu.module,v 1.4.2.1 2007/04/02 20:41:02 jareyero Exp $
+// $Id: i18nmenu.module,v 1.4.2.1.2.1 2008/04/28 11:59:10 jareyero Exp $
 
 /**
  * Internationalization (i18n) submodule: Menu translation
@@ -31,6 +31,7 @@ function i18nmenu_translate_all(){
   foreach($_menu['items'] as $mid => $item) {
     if($item['type'] & MENU_CREATED_BY_ADMIN) {
       $_menu['items'][$mid]['title'] = t($_menu['items'][$mid]['title']);
+      $_menu['items'][$mid]['description'] = t($_menu['items'][$mid]['description']);
     }
   }
   // Update cache

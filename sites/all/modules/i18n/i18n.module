@@ -1,5 +1,5 @@
 <?php
-// $Id: i18n.module,v 1.36.2.16.2.1 2007/12/04 20:17:44 jareyero Exp $
+// $Id: i18n.module,v 1.36.2.16.2.4 2008/07/23 16:56:00 jareyero Exp $
 
 /**
  * @file
@@ -52,7 +52,7 @@ function _i18n_init(){
  */
 function i18n_block($op = 'list', $delta = 0) {
   if ($op == 'list') {
-    $blocks[0]['info'] = t('Language switcher');
+    $blocks[0]['info'] = t('Language switcher (Interface only)');
   }
   elseif($op == 'view') {
     $blocks['subject'] = t('Languages');
@@ -697,7 +697,7 @@ function theme_i18n_language_icon($lang){
  * If so, path rewriting won't work properly but at least it won't break Drupal
  */
 
-if(!function_exists('custom_url_rewrite')) {
+if (!function_exists('custom_url_rewrite')) {
   function custom_url_rewrite($type, $path, $original) {
     return i18n_url_rewrite($type, $path, $original);
   }
@@ -707,7 +707,7 @@ if(!function_exists('custom_url_rewrite')) {
  * Rewrites path with current language and removes prefix if searching for source path
  */
 function i18n_url_rewrite($type, $path, $original){
-  if ($type == 'alias' && !i18n_get_lang_prefix($path) ){
+  if ($type == 'alias' && !strpos($path, '://') && !i18n_get_lang_prefix($path)){
     return $path ? i18n_get_lang() . '/'. $path : i18n_get_lang();
   } elseif ($type == 'source') {
     if ($path == $original) {
@@ -928,6 +928,35 @@ function i18n_form_alter($form_id, &$form) {
 function i18n_perm() {
   return array('administer all languages');
 }
+
+/**
+ * Implementation of hook_token_values().
+ */
+function i18n_token_values($type, $object = NULL) {
+  $values = array();
+  switch ($type) {
+    case 'node':
+    case 'taxonomy':
+      $values['lang'] = i18n_node_get_lang($object->nid, '');
+      break;
+  }
+  return $values;
+}
+
+/**
+ * Implementation of hook_token_list().
+ */
+function i18n_token_list($type = 'all') {
+  $tokens = array();
+  if ($type == 'node' || $type == 'all') {
+    $tokens['node']['lang'] = t("Language code of the document.");
+  }
+  if ($type == 'taxonomy' || $type == 'all') {
+    $tokens['taxonomy']['lang'] = t("Language code of the document.");
+  }
+  return $tokens;
+}
+
 /**
  * Process menu and menu item add/edit form submissions.
  */

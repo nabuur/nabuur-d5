@@ -1,5 +1,5 @@
 <?php
-// $Id: i18nprofile.module,v 1.3.2.1 2007/03/19 12:55:44 jareyero Exp $
+// $Id: i18nprofile.module,v 1.3.2.1.2.1 2008/07/23 16:56:00 jareyero Exp $
 
 /**
  * Internationalization (i18n) submodule: Profile translation
@@ -64,21 +64,21 @@ function i18nprofile_profile_alter($account, &$fields) {
   // var_dump($fields['Personal information']);
   // Remove translated categories
   $categories = i18nprofile_categories(TRUE);
-  foreach($categories as $category => $translation) {
+  foreach ($categories as $category => $translation) {
     // Translate field titles and names
     $i18nfields = i18nprofile_fields($category);
-    foreach($i18nfields as $name => $field){
-      if(isset($fields[$category][$name])) {
-        if($field->title) {
+    foreach ($i18nfields as $name => $field){
+      if (isset($fields[$category][$name])) {
+        if ($field->title) {
           $fields[$category][$name]['title'] = $field->title;
         }
-        if($field->type == 'selection'  && $options = unserialize($field->options)) {
+        if ($field->type == 'selection'  && $options = unserialize($field->options)) {
           $value = $fields[$category][$name]['value'];
           $fields[$category][$name]['value'] = isset($options[$value]) ? $options[$value] : $value;
         }
       }
     }
-    if($translation && $category != $translation) {
+    if ($translation && $category != $translation && isset($fields[$category])) {
       $fields[$translation] = $fields[$category];
       unset($fields[$category]);
     }
@@ -89,10 +89,10 @@ function i18nprofile_profile_alter($account, &$fields) {
  * Implementation of hook_form_alter()
  */
 function i18nprofile_form_alter($form_id, &$form) {
-  if($form_id == 'user_edit' && $category = $form['_category']['#value']) {
+  if ($form_id == 'user_edit' && $category = $form['_category']['#value']) {
     //drupal_set_message("DEBUG:i18nprofile_form_alter, form_id=$form_id, category=$category");
     i18nprofile_form_translate($form_id, $form, $category);
-  } elseif($form_id == 'user_register') {
+  } elseif ($form_id == 'user_register') {
     i18nprofile_form_translate_all($form_id, $form);
   }
 }
