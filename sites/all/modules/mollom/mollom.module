@@ -1,5 +1,5 @@
 <?php
-// $Id: mollom.module,v 1.1.2.21 2008/07/06 20:27:13 dries Exp $
+// $Id: mollom.module,v 1.1.2.35 2008/12/01 06:49:16 dries Exp $
 
 define('MOLLOM_API_VERSION', '1.0');
 
@@ -76,7 +76,7 @@ function mollom_menu($may_cache) {
         'type' => MENU_CALLBACK);
     $items[] = array(
         'path' => 'admin/settings/mollom',
-        'description' => t('Mollom is a webservice that helps you manage your community.'),
+        'description' => t('Mollom is a web service that helps you manage your community.'),
         'title' => t('Mollom'),
         'callback' => 'drupal_get_form',
         'callback arguments' => array('mollom_admin_settings'),
@@ -113,14 +113,11 @@ function mollom_ajax_callback($type, $session_id) {
     $response = mollom('mollom.getAudioCaptcha', array('author_ip' => _mollom_ip_address(), 'session_id' => $session_id));
 
     if ($response) {
-      $output  = '<object type="audio/mpeg" data="'. check_plain($response['url']) .'" width="120" height="30">';
-      $output .= ' <param name="autoplay" value="false" />';
-      $output .= ' <param name="controller" value="true" />';
-      $output .= '</object>';
+      $output  = '<embed src="'. check_plain($response['url']) .'" autostart="true" width="120" height="30" />';
       $output .= ' (<a href="#" id="image-captcha">'. t('use image CAPTCHA') .'</a>)';
     }
   }
-  
+
   if ($type == 'image') {
     $response = mollom('mollom.getImageCaptcha', array('author_ip' => _mollom_ip_address(), 'session_id' => $session_id));
 
@@ -169,7 +166,7 @@ function _mollom_feedback_options() {
       'unwanted' => t('Report as unwanted, taunting or off-topic content'),
   ),
     '#default_value' => 'none',
-    '#description' => t("Mollom is a webservice that helps you moderate your site's content: see <a href=\"http://mollom.com\">http://mollom.com</a> for more information.  By sending feedback to Mollom, you teach Mollom what content you like and what content you dislike.  Like that, Mollom can do a better job helping you to moderate your site's content."),
+    '#description' => t("Mollom is a web service that helps you moderate your site's content: see <a href=\"http://mollom.com\">http://mollom.com</a> for more information.  By sending feedback to Mollom, you teach Mollom what content you like and what content you dislike.  Like that, Mollom can do a better job helping you to moderate your site's content. If you want to report multiple posts at once, you can use Mollom's bulk operations on the content and comment administration pages."),
   );
 
 }
@@ -274,7 +271,7 @@ function mollom_report_contact($session) {
   $form['feedback'] = _mollom_feedback_options();
   
   return confirm_form($form,
-      t('Are you sure you want to report the e-mail as inappropriate?'),
+      t('Are you sure you want to report the e-mail message as inappropriate?'),
       $_GET['destination'] ? $_GET['destination'] : '',
       t('This action cannot be undone.'),
       t('Report as inappropriate'), t('Cancel'));
@@ -359,7 +356,7 @@ function mollom_comment_admin_overview_submit($form_id, $form_values) {
             db_query("UPDATE {comments} SET status = %d WHERE cid = %d", COMMENT_NOT_PUBLISHED, $cid);
             _comment_update_node_statistics($comment->nid);
           }
-          else if ($operation == 'delete') {
+          elseif ($operation == 'delete') {
             _comment_delete_thread($comment);
             _comment_update_node_statistics($comment->nid);
           }
@@ -393,9 +390,9 @@ function mollom_node_admin_overview_submit($form_id, $form_values) {
         
         if ($node = node_load($nid)) {
           if ($operation == 'unpublish') {
-            db_query("UPDATE {node} SET status = 0 WHERE nid = %d", $nid);
+            db_query('UPDATE {node} SET status = 0 WHERE nid = %d', $nid);
           }
-          else if ($operation == 'delete') {
+          elseif ($operation == 'delete') {
             node_delete($nid);
           }
         }
@@ -506,6 +503,14 @@ function mollom_data_node_form($form_values) {
 function mollom_validate($form_id, $form_values) {
   $data = array();
 
+  // Retrieve the mode of protection that is required for this form:
+  $mode = _mollom_get_mode($form_id);
+
+  // Don't process the form at all if we don't need to.
+  if ($mode == MOLLOM_MODE_DISABLED) {
+    return;
+  }
+
   $pos = strpos($form_id, '_node_form');
   if ($pos !== FALSE) {
     // The node forms use dynamic form IDs so we had to create a special
@@ -519,8 +524,7 @@ function mollom_validate($form_id, $form_values) {
     }
   }
 
-  // Retreive the mode of protection that is required for this form:
-  $mode = _mollom_get_mode($form_id);
+  // Protect the form according to the mode.
   if ($mode == MOLLOM_MODE_ANALYSIS) {
     mollom_protect_form_analysis($form_values, $data);
   }
@@ -635,7 +639,7 @@ function mollom_admin_settings() {
         '#collapsible' => TRUE,
         );
     $form['statistics']['message'] = array(
-        '#value' => '<div><embed src="http://mollom.com/statistics.swf?key='. check_plain(variable_get('mollom_public_key', '')) .'" quality="high" width="100%" height="430" name="Mollom" align="sessiondle" play="true" loop="false" allowScriptAccess="sameDomain" type="application/x-shockwave-flash" pluginspage="http://www.adobe.com/go/getflashplayer"></embed></div>'
+        '#value' => '<div><embed src="http://mollom.com/statistics.swf?key='. check_plain(variable_get('mollom_public_key', '')) .'" quality="high" width="100%" height="430" name="Mollom" align="middle" play="true" loop="false" allowScriptAccess="sameDomain" type="application/x-shockwave-flash" pluginspage="http://www.adobe.com/go/getflashplayer"></embed></div>'
        );
     
     $form['spam'] = array(
@@ -662,7 +666,6 @@ function mollom_admin_settings() {
         '#type' => 'fieldset',
         '#title' => t('Server settings'),
         '#collapsible' => TRUE,
-        '#collapsed' => $keys,
         );
     $form['server']['mollom_fallback'] = array(
         '#type' => 'radios',
@@ -672,7 +675,7 @@ function mollom_admin_settings() {
           MOLLOM_FALLBACK_BLOCK  => t('Block all submissions on the protected forms until the server problems are resolved'),
           MOLLOM_FALLBACK_ACCEPT => t('Leave all forms unprotected and accept all submissions') 
          ),
-        '#description' => t('In the event that Mollom stopped servicing your requests, i.e. because a certain usage quota was reached, your Drupal site will use the configured fallback strategy.  You can choose to blindly accept all submissions without spam checking, or you can choose to block all submissions until this problem is resolved.')
+        '#description' => t('In the event that Mollom stopped servicing your requests, i.e. because a certain usage quota was reached, your Drupal site will use the configured fallback strategy.  You can choose to blindly accept all submissions without spam checking, or you can choose to block all submissions until this problem is resolved.  You can also <a href="@pricing">upgrade to Mollom Plus</a>: paying customers automatically get access to <a href="@sla">Mollom\'s high-availability backend infrastructure</a> not available to free users.', array('@pricing' => 'http://mollom.com/pricing', '@sla' => 'http://mollom.com/standard-service-level-agreement'))
         );
   }
   
@@ -790,6 +793,8 @@ function mollom_protect_form_captcha(&$form, $data) {
     }
   }
   else {
+    form_set_error('captcha', t('The form data has been altered, the session-id field is required.'));
+
     // Generate a new CAPTCHA:
     $GLOBALS['mollom_captcha'] = mollom('mollom.getImageCaptcha', array('author_ip' => _mollom_ip_address()));
   }
@@ -836,12 +841,12 @@ function mollom_captcha_prerender($form_id, &$form) {
           '#name' => 'captcha-solution',
           '#id' => 'edit-captcha-solution',
           '#parents' => array(),
-          '#title' => t('CAPTCHA'),
-          '#prefix' => '<div id="captcha"><a href="http://mollom.com"><img src="'. url($response['url']) .'" alt="Mollom CAPTCHA" /></a> (<a href="#" id="audio-captcha">play audio CAPTCHA</a>)</div>',
+          '#title' => t('Word verification'),
+          '#field_prefix' => '<div id="captcha"><a href="http://mollom.com"><img src="'. url($response['url']) .'" alt="Mollom CAPTCHA" /></a> (<a href="#" id="audio-captcha">'. t('play audio CAPTCHA') .'</a>)</div>',
           '#required' => TRUE,
           '#size' => 10,
           '#value' => $form['#post']['captcha'],
-          '#description' => t("Type in the characters shown in the above; if you can't read them, submit the form and a new image will be generated."),
+          '#description' => t("Type the characters shown in the picture above; if you can't read them, submit the form and a new image will be generated."),
           '#weight' => min($form['submit']['#weight'], $form['preview']['#weight']) + 1);
 
       // Move the preview and/or submit button below the captcha:
@@ -875,62 +880,106 @@ function _mollom_verify_key() {
 function _mollom_ip_address() {
   return $_SERVER['REMOTE_ADDR'];
 }
- 
+
+/**
+ * This function is used to refresh the list of servers that can be used to contact Mollom.
+ */
+function _mollom_retrieve_server_list() {
+  // Start from a hard coded list of servers:
+  $servers = array('http://xmlrpc1.mollom.com', 'http://xmlrpc2.mollom.com', 'http://xmlrpc3.mollom.com');
+
+  // Use the list of servers to retrieve a list of servers from mollom.com:
+  foreach ($servers as $server) {
+    $result = xmlrpc($server .'/'. MOLLOM_API_VERSION, 'mollom.getServerList', _mollom_authentication());
+    if (!xmlrpc_errno()) {
+      return $result;
+    }
+    else {
+      watchdog('mollom', t('Error @errno: %server - %message - mollom.getServerList', array('@errno' => xmlrpc_errno(), '%server' => $server, '%message' => xmlrpc_error_msg()), WATCHDOG_ERROR));
+      
+      // Reset the XMLRPC error:
+      xmlrpc_error(0);  // FIXME: this is crazy.
+    }
+  }
+
+  return array();
+}
+
 /**
  * Call a remote procedure at the Mollom server.  This function will
  * automatically add the information required to authenticate against
  * Mollom.
  */
 function mollom($method, $data = array()) {
+  // Initialize refresh variable:
+  $refresh = FALSE;
   
-  // Construct the server URL:
-  $public_key = variable_get('mollom_public_key', '');
-
   // Retrieve the list of Mollom servers from the database:
   $servers = variable_get('mollom_servers', NULL);
  
   if ($servers == NULL) {
-    // Retrieve a list of valid Mollom servers from mollom.com: 
-    $servers = xmlrpc('http://xmlrpc.mollom.com/'. MOLLOM_API_VERSION, 'mollom.getServerList', _mollom_authentication());
+    // Retrieve a list of servers:
+    $servers = _mollom_retrieve_server_list();
 
     // Store the list of servers in the database:
     variable_set('mollom_servers', $servers);
   }
 
   if (is_array($servers)) { 
-    // Send the request to the first server, if that fails, try the other servers in the list:
-    foreach ($servers as $server) {
+    reset($servers);
+    while ($server = current($servers)) {
       $result = xmlrpc($server .'/'. MOLLOM_API_VERSION, $method, $data + _mollom_authentication());
 
       if ($errno = xmlrpc_errno()) {
-        watchdog('mollom', t('Error @errno: %server - %message - %method - <pre>@data</pre>', array('@errno' => xmlrpc_errno(), '%server' => $server, '%message' => xmlrpc_error_msg(), '%method' => $method, '@data' => print_r($data, TRUE))), WATCHDOG_ERROR);
-
         if ($errno == MOLLOM_REFRESH) {
-          // Retrieve a list of valid Mollom servers from mollom.com: 
-          $servers = xmlrpc('http://xmlrpc.mollom.com/'. MOLLOM_API_VERSION, 'mollom.getServerList', _mollom_authentication());
+          if (!$refresh) { // Safety pal to avoid endless loops
+            // Retrieve a list of valid Mollom servers from mollom.com:
+            $servers = _mollom_retrieve_server_list();
 
-          // Store the updated list of servers in the database:
-          variable_set('mollom_servers', $servers);
+            // Reset the list of servers so we start from the first server in the list:
+            reset($servers);
+
+            // Store the updated list of servers in the database:
+            variable_set('mollom_servers', $servers);
+
+            // Log this for debuging purposes:
+            watchdog('mollom', t('The list of available Mollom servers was refreshed: @servers.', array('@servers' => print_r($servers, TRUE))));
+
+            // Mark that we have refreshed the list:
+            $refresh = TRUE;
+          }
         }
-        else if ($errno == MOLLOM_ERROR) {
-          return $result;
+        elseif ($errno == MOLLOM_REDIRECT) {
+          // If this is a network error, we go to the next server in the list.
+          $next = next($servers);
+
+          // Do nothing, we automatically select the next server.
+          watchdog('mollom', t('The Mollom server %server asked to use the next Mollom server in the list: %next.', array('%server' => $server, '%next' => $next)));
         }
-        else if ($errno == MOLLOM_REDIRECT) {
-          // Do nothing, we select the next client automatically.
+        else {
+          watchdog('mollom', t('Error @errno from %server: %message - %method - <pre>@data</pre>', array('@errno' => xmlrpc_errno(), '%server' => $server, '%message' => xmlrpc_error_msg(), '%method' => $method, '@data' => print_r($data, TRUE)), WATCHDOG_ERROR));
+
+          // If it is a 'clean' Mollom error we return instantly.
+          if ($errno == MOLLOM_ERROR) {
+            return $result;
+          }
+
+          // If this is a network error, we go to the next server in the list.
+          next($servers);
         }
 
         // Reset the XMLRPC error:
         xmlrpc_error(0);  // FIXME: this is crazy.
       }
       else {
-        return $result; 
+        return $result;
       }
     }
   }
 
   // If none of the servers worked, activate the fallback mechanism:
   _mollom_fallback();
-  
+
   // If everything failed, we reset the server list to force Mollom to request a new list:
   variable_set('mollom_servers', array());
 
@@ -969,9 +1018,9 @@ function _mollom_authentication() {
 
   // Calculate a HMAC-SHA1 according to RFC2104 (http://www.ietf.org/rfc/rfc2104.txt):
   $hash = base64_encode(
-    pack("H*", sha1((str_pad($private_key, 64, chr(0x00)) ^ (str_repeat(chr(0x5c), 64))) .
-    pack("H*", sha1((str_pad($private_key, 64, chr(0x00)) ^ (str_repeat(chr(0x36), 64))) .
-    $time . ':' . $nonce . ':' . $private_key))))
+    pack('H*', sha1((str_pad($private_key, 64, chr(0x00)) ^ (str_repeat(chr(0x5c), 64))) .
+    pack('H*', sha1((str_pad($private_key, 64, chr(0x00)) ^ (str_repeat(chr(0x36), 64))) .
+    $time .':'. $nonce .':'. $private_key))))
   );
 
   // Store everything in an array. Elsewhere in the code, we'll add the
@@ -983,4 +1032,3 @@ function _mollom_authentication() {
   
   return $data;
 }
-
