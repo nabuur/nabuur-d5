@@ -1,0 +1,11 @@
+<?php
+
+function nabuur_stats_install() {
+  return TRUE;
+}
+
+function nabuur_stats_update_5120() {
+  $ret[] = array('success' => TRUE, 'query' => 'Menu has been rebuilt.');
+  menu_rebuild();
+  return $ret;
+}

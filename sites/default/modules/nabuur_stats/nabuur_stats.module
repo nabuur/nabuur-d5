@@ -20,8 +20,67 @@ function nabuur_stats_menu($may_cache) {
       'callback arguments' => 'nabuur_stats_settings',
       'access' => user_access('administer site configuration'),
     );
+    $items[] = array(
+      'path' => 'admin/logs/nabuur/villages',
+      'title' => t('Report: Villages, Local Reps and Facilitators'),
+      'description' => t('Prints a report of all villages, with their local reps and facilitators names'),
+      'callback' => 'nabuur_stats_report_villages',
+      'access' => user_access('administer site configuration'),
+    );
   }
   return $items;
+}
+
+function nabuur_stats_report_villages() {
+  $csv = arg(4) == 'csv' ? TRUE : FALSE;
+  if ($csv) {
+    $output = "'village', 'local rep', 'facilitators'\n";
+  }
+  else {
+    $output = '<p>'. t('List of <em>public</em> villages with their local reps and facilitators.'). '</p>';
+    $output .= '<p>'. l(t('Download as CSV file.'), 'admin/logs/nabuur/villages/csv') .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
+    $header = array('village', 'local rep', 'facilitators');
+  }
+
+  $query = "SELECT v.nid as village_nid, v.title as village_title, lr.nid as local_rep_nid, lr.title as local_rep_title, f.nid as facilitator_nid, f.title as facilitator_title"
+  ." FROM {node} v"
+  ." INNER JOIN {og} og ON og.nid = v.nid AND og.private = 0"
+  ." LEFT JOIN {node} lr ON lr.uid = v.uid AND lr.uid != 0 AND lr.type = 'individual_profile'"
+  ." LEFT JOIN {og_uid} o ON v.nid = o.nid AND o.is_admin = 1"
+  ." LEFT JOIN {node} f ON f.uid = o.uid AND f.uid != lr.uid AND f.uid != 0 AND f.type = 'individual_profile'"
+  ." WHERE v.type = 'village' AND v.status = 1";
+
+  $result = db_query($query);
+
+  $villages = array();
+  while ($row = db_fetch_array($result)) {
+    if ($csv) {
+      $villages[$row['village_nid']]['title'] = $row['village_title'];
+      $villages[$row['village_nid']]['local_rep'] = $row['local_rep_title'];
+      $villages[$row['village_nid']]['facilitator'] .= ($villages[$row['village_nid']]['facilitator'] && $row['facilitator_title'] != '') ? ', ' : '';
+      $villages[$row['village_nid']]['facilitator'] .= $row['facilitator_title'];
+    }
+    else {
+      $villages[$row['village_nid']]['title'] = l($row['village_title'], 'node/'. $row['village_nid']);
+      $villages[$row['village_nid']]['local_rep'] = l($row['local_rep_title'], 'node/'. $row['local_rep_nid']);
+      $villages[$row['village_nid']]['facilitator'] .= ($villages[$row['village_nid']]['facilitator'] && $row['facilitator_title'] != '') ? ', ' : '';
+      $villages[$row['village_nid']]['facilitator'] .= $row['facilitator_title'] != '' ? l($row['facilitator_title'], 'node/'. $row['facilitator_nid']) : '';
+    }
+  }
+
+  if ($csv) {
+    foreach ($villages as $village) {
+      $output .= implode(', ', $village) ."\n";
+    }
+    drupal_set_header('Content-Type: text/csv');
+    print $output;
+    exit;
+  }
+  else {
+    $output .= theme('table', $header, $villages);
+  }
+
+  return $output;
 }
 
 /**
