@@ -57,8 +57,11 @@ function nabuur_og_form_alter($form_id, &$form) {
  * Creates a chatroom node for each og.
  */
 function nabuur_og_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  if ($op == 'insert') {
+    // drupal_set_message('<pre>'. var_export($node, true) .'</pre>');
+  }
   if ($op == 'insert' && og_is_group_type($node->type)) {
-    $chat = new stdClass;
+/*  $chat = new stdClass;
     $chat->uid = $node->uid;
     $chat->type = 'chatroom';
     $chat->title = t('@group chat', array('@group' => $node->title));
@@ -75,9 +78,57 @@ function nabuur_og_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
     $chat->og_initial_groups = array();
     $chat->og_groups = array($node->nid);
     $chat->og_public = ! $node->og_private;
+    node_save($chat); */
 
+    $project = new stdClass;
+    $project->uid = $node->uid;
+    $project->type = 'project_outline';
+    $project->title = t('Village talk');
+    $project->body = t("This Village is just taking its first steps on NABUUR.com. The local community is eager to build a global network of Neighbours like you. Feel free to leave a message in 'Meet the Neighbours' or share your ideas in the discussion.");
+    $project->format = FILTER_FORMAT_DEFAULT;
+    $project->status = $node->status;
+    $project->promote = 1;
+    $project->sticky = 0;
+    $project->og_initial_groups = array();
+    $project->og_groups = array($node->nid);
+    $project->og_public = ! $node->og_private;
+    $project->taxonomy = array(6 => array(165));
+    node_save($project);
 
-    node_save($chat);
+    $task = new stdClass;
+    $task->uid = $node->uid;
+    $task->type = 'task';
+    $task->title = t('In our village the most important issue is: <issue>');
+    $task->body = t('Share your ideas in this discussion');
+    $task->format = FILTER_FORMAT_DEFAULT;
+    $task->status = $node->status;
+    $task->promote = 1;
+    $task->sticky = 0;
+    $task->og_initial_groups = array();
+    $task->og_groups = array($node->nid);
+    $task->og_public= ! $node->og_private;
+    $task->taxonomy = array(6 => array(165));
+    $task->field_step = array (0 => array ( 'value' => '1', ), );
+    $task->parent = $project->nid;
+    $task->parent_node = $project->nid;
+    node_save($task);
+
+    $meet = new stdClass;
+    $meet->uid = $node->uid;
+    $meet->type = 'task';
+    $meet->title = t('Meet the neighbours');
+    $meet->body = t('Become a Neighbour of this Village and introduce yourself here!');
+    $meet->format = FILTER_FORMAT_DEFAULT;
+    $meet->status = $node->status;
+    $meet->promote = 0;
+    $meet->sticky = 0;
+    $meet->og_initial_groups = array();
+    $meet->og_groups = array($node->nid);
+    $meet->og_public= ! $node->og_private;
+    $meet->taxonomy = array(6 => array(165));
+    $meet->parent = $project->nid;
+    $meet->parent_node = $project->nid;
+    node_save($meet);
   }
 }
 
@@ -188,7 +239,13 @@ function nabuur_og_block_details() {
     elseif ($node->og_selective == OG_CLOSED) {
       $links['closed'] = t('This is a @closed group. The group administrators add/remove members as needed.', array('@closed' => t('closed')));
     }
-
+    if ($node->type=='village') {
+      $sql = "SELECT (node.nid) FROM node node JOIN og_ancestry oga ON oga.nid = node.nid WHERE node.type LIKE 'task' AND node.title LIKE 'Meet the neighbours' AND oga.group_nid = %d";
+      $task = db_fetch_object(db_query($sql, "$node->nid"));
+      if (is_object($task)) {
+        $links['meet'] = l(t('Meet the neighbours'), "node/$task->nid");
+      }
+    }
     $block['content'] = theme('item_list', $links). $post;
     $block['subject'] = l($node->title, "node/$node->nid");
     return $block;
