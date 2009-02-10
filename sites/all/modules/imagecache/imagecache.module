@@ -1,5 +1,5 @@
 <?php
-// $Id: imagecache.module,v 1.68.2.3 2008/05/11 23:58:47 dopry Exp $
+// $Id: imagecache.module,v 1.68.2.11 2009/01/05 22:29:52 drewish Exp $
 
 /**
  * @file
@@ -119,6 +119,15 @@ function imagecache_imagecache_actions() {
     'imagecache_rotate' => array(
       'name' => 'Rotate',
       'description' => 'Rotate an image.',
+      'file' => 'imagecache_actions.inc',
+    ),
+    'imagecache_sharpen' => array(
+      'file' => 'imagecache_actions.inc',
+      'arguments' => array('element' => NULL),
+    ),
+    'imagecache_sharpen' => array(
+      'name' => 'Sharpen',
+      'description' => 'Sharpen an image using unsharp masking.',
       'file' => 'imagecache_actions.inc',
     ),
   );
@@ -424,34 +433,6 @@ function _imagecache_cache_set_cache_headers($fileinfo, &$headers) {
 }
 
 /**
- * A recursive mkdir.
- */
-function _imagecache_mkdir($dir) {
-  $folders = explode('/', $dir);
-
-  foreach ($folders as $folder) {
-    $dirs[] = $folder;
-    $path = implode('/', $dirs);
-    if (is_dir($path)) {
-      continue;
-    }
-    if (is_file($path)) {
-      watchdog('imagecache', t('file exists where we would like a directory: %path', array('%path' => $path)), WATCHDOG_ERROR);
-      return false;
-    } 
-    if (!@mkdir($path)) {
-      watchdog('imagecache', t('Could not create destination: %dir halted at: %path', array('%dir' => $dir, '%path' => $path)), WATCHDOG_ERROR);
-      return false;
-    }
-    if (!@chmod($path, 0775)) {
-      watchdog('imagecache', t('Could not set permissons on created directory: %dir halted at: %path', array('%dir' => $dir, '%path' => $path)), WATCHDOG_ERROR);
-      return false;
-    } 
-  }
-  return true;
-}
- 
-/**
  * build an image cache derivative
  * 
  * @param $actions  Array of imagecache actions.
@@ -465,7 +446,7 @@ function imagecache_build_derivative($actions, $src, $dst) {
   $dir = dirname($dst);
 
   // Build the destination folder tree if it doesn't already exists.
-  if (!file_check_directory($dir) && !_imagecache_mkdir($dir)) {
+  if (!file_check_directory($dir) && !mkdir($dir, 0775, true)) {
     watchdog('imagecache', t('Failed to create imagecache directory: %dir', array('%dir' => $dir)), WATCHDOG_ERROR);
     return false;
   }
@@ -503,8 +484,19 @@ function imagecache_build_derivative($actions, $src, $dst) {
   return true;
 }
 
-  
-
+/**
+ * Implementation of hook_user().
+ */
+function imagecache_user($op, &$edit, &$account, $category = NULL) {
+  // Flush cached old user picture.
+  if ($op == 'update' && !empty($account->picture)) {
+    imagecache_image_flush($account->picture);
+  }
+}
+ 
+/**
+ * Implementation of hook_imagefield_file().
+ */
 function imagecache_imagefield_file($op, $file) {
   switch ($op) {
     // Delete imagecache presets when imagecache images are deleted.
@@ -562,17 +554,20 @@ function imagecache_field_formatter($field, $item, $formatter, $node) {
     $item = $field['default_image']; 
   }
   // Views does not load the file for us, while CCK display fields does.
-  if (!isset($item['filepath'])) {
-    $item = array_merge($item,  _imagecache_file_load($item['fid']));
+  if (empty($item['filepath'])) {
+    $item = array_merge($item,  _imagefield_file_load($item['fid']));
   }
 
+  // If there is no filepath at this point, do nothing.
+  if (empty($item['filepath'])) {
+    return;
+  }
 
   $parts =  explode('_', $formatter);
   $style = array_pop($parts);
   $presetname = implode('_', $parts);
  
   $class = "imagecache imagecache-$presetname imagecache-$style imagecache-$formatter";
-  
   if ($preset = imagecache_preset_by_name($presetname)) {
     $item['filepath'] = $item['fid'] == 'upload' ? $item['preview'] : $item['filepath'];
     switch ($style) {
@@ -597,16 +592,6 @@ function imagecache_field_formatter($field, $item, $formatter, $node) {
   }
   return '<!-- imagecache formatter preset('. $presetname .') not found! -->';
 }
-
-function _imagecache_file_load($fid = null) {
-  // Don't bother if we weren't passed an fid.
-  if (isset($fid) && is_numeric($fid)) {
-    $result = db_query('SELECT * FROM {files} WHERE fid = %d', $fid);
-    $file = db_fetch_array($result);
-  }
-  return ($file) ? $file : array();
-}
-
 
 /**
  * Filter key word values such as 'top', 'right', 'center', and also percentages.
@@ -669,15 +654,24 @@ function _imagecache_keyword_filter($value, $current_pixels, $new_pixels) {
  * @param string $path
  *   A filepath relative to file_directory_path.
  */
-function _imagecache_recursive_delete($dir) {
-  $d = dir($dir);
-  while (($entry = $d->read()) !== false) {
-    if ($entry == '.' || $entry == '..') continue;
-    $path = $dir .'/'. $entry;
-    if (is_file($path)) unlink($path);
-    if (is_dir($path)) _imagecache_recursive_delete($path);
+function _imagecache_recursive_delete($path) {
+  if (is_file($path) || is_link($path)) {
+    unlink($path);
   }
-  rmdir($dir);
+  elseif (is_dir($path)) {
+    $d = dir($path);
+    while (($entry = $d->read()) !== false) {
+      if ($entry == '.' || $entry == '..') continue;
+      $entry_path = $path .'/'. $entry;
+      _imagecache_recursive_delete($entry_path);
+    }
+    $d->close();
+    rmdir($path);
+  }
+  else {
+    watchdog('imagecache', t('Unknown file type(%path) stat: %stat ',
+              array('%path' => $path,  '%stat' => print_r(stat($path),1))), WATCHDOG_ERROR);
+  }
 }
 
 /**
@@ -746,11 +740,9 @@ function theme_imagecache_resize($element) {
 /**
  *  ImageCache 2.x API
  *
- *  The API for imagecache has changed. There is a compatibility layer for 
- *  imagecache 1.x. Please see the imagecache_compat.module
- * 
- *  The 2.x API returns more structured data, has shorter function names, and 
- *  implements more aggressive metadata caching.
+ *  The API for imagecache has changed.  The 2.x API returns more structured 
+ *  data, has shorter function names, and implements more aggressive metadata 
+ *  caching.
  *
  */
 

@@ -3,9 +3,3 @@ name = FeedAPI Node
 description = "Creates nodes from feed items."
 dependencies = feedapi
 package = FeedAPI Default
-
-; Information added by drupal.org packaging script on 2008-10-10
-version = "5.x-1.4"
-project = "feedapi"
-datestamp = "1223654422"
-

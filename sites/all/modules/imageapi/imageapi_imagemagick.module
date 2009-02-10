@@ -1,4 +1,4 @@
-<?php  // $Id: imageapi_imagemagick.module,v 1.10.2.1 2008/05/07 19:25:40 dopry Exp $
+<?php  // $Id: imageapi_imagemagick.module,v 1.10.2.7 2009/01/05 23:00:00 drewish Exp $
 
 /**
  * @file
@@ -22,14 +22,14 @@ function imageapi_imagemagick_settings_form() {
   $form['imageapi_imagemagick_quality'] = array(
     '#type' => 'textfield',
     '#title' => t('Compression Quality'),
-    '#description' => t('Ranges from 1 to 100. Higher values mean better image quality, but bigger files.'),
+    '#description' => t('Ranges from 0 to 100. Higher values mean better image quality, but bigger files.'),
     '#size' => 10,
     '#maxlength' => 3,
     '#default_value' => variable_get('imageapi_imagemagick_quality', 75),
     '#field_suffix' => '%',
     '#validate' => array('imageapi_imagemagick_quality_element_validate' => array()),
   );
-  
+
   $form['imageapi_imagemagick_binary'] = array(
     '#type' => 'fieldset',
     '#title' => t('ImageMagick Binary'),
@@ -53,7 +53,7 @@ function imageapi_imagemagick_settings_form() {
     '#type' => 'checkbox',
     '#title' => t('Display debugging information'),
     '#default_value' => variable_get('imageapi_imagemagick_debugging', 0),
-    '#description' => t('Checking this option will display the ImageMagick commands and ouput to users with the <em>administer site configuration</em> permission.'),
+    '#description' => t('Checking this option will display the ImageMagick commands and output to users with the <em>administer site configuration</em> permission.'),
   );
   return system_settings_form($form);
 }
@@ -89,28 +89,19 @@ function _imageapi_imagemagick_validate_path($element) {
   return true;
 }
 
-function imageapi_imagemagick_quality_element_validate($element) {  
+function imageapi_imagemagick_quality_element_validate($element) {
   if ($element['#value'] < 0 || $element['#value'] > 100) {
-    form_set_error($element['#name'], t('Compression Quality must be a value between 1 and 100.'));
+    form_set_error($element['#name'], t('Compression Quality must be a value between 0 and 100.'));
   }
 }
 
 function imageapi_imagemagick_image_open($image) {
-  $ext = array_pop(explode('.', $image->source));
-  $image->res = tempnam(file_directory_temp(), 'imageapi_imagemagick_') .".$ext";
-  if (!file_copy($image->source, $image->res)) {
-    return false;
-  }
   $image->ops = array();
-  register_shutdown_function('file_delete', $image->res);
   return $image;
 }
 
 function imageapi_imagemagick_image_close($image, $dst) {
-  if (!_imageapi_imagemagick_convert($image->res, $image->res, $image->ops)) {
-    return false;
-  }
-  return file_move($image->res, $dst);
+  return _imageapi_imagemagick_convert($image->source, $dst, $image->ops);
 }
 
 function imageapi_imagemagick_image_crop(&$image, $x, $y, $width, $height) {
@@ -128,10 +119,21 @@ function imageapi_imagemagick_image_resize(&$image, $width, $height) {
 }
 
 function imageapi_imagemagick_image_rotate(&$image, $degrees, $bgcolor) {
-  $bgcolor = str_replace('0x', '#', $bgcolor); 
+  if (is_numeric($bgcolor)) {
+    $bgcolor = '#'. str_pad(dechex($bgcolor), 6, 0);
+  }
+  else {
+    $bgcolor = str_replace('0x', '#', $bgcolor);
+  }
   $image->ops[] = '-rotate '. (float) $degrees .' -background '. escapeshellarg($bgcolor) ;
   return true;
-} 
+}
+
+function imageapi_imagemagick_image_sharpen(&$image, $radius, $sigma, $amount, $threshold) {
+  $unsharp_arg = $radius .'x'. $sigma .'+'. $amount/100 .'+'. $threshold;
+  $image->ops[] = '-unsharp '. $unsharp_arg;
+  return true;
+}
 
 function imageapi_imagemagick_image_desaturate(&$image) {
   $image->ops[] = '-colorspace GRAY';
@@ -143,10 +145,10 @@ function imageapi_imagemagick_image_desaturate(&$image) {
  */
 function _imageapi_imagemagick_convert($source, $dest, $args) {
   $args['quality'] = '-quality '. escapeshellarg(variable_get('imageapi_imagemagick_quality', 75));
-  $args[] = escapeshellarg($source);
-  $args[] = escapeshellarg($dest);
-
-  $command = implode(' ', $args);
+  // To make use of ImageMagick 6's parenthetical command grouping we need to make
+  // the $source image the first parameter and $dest the last.
+  // See http://www.imagemagick.org/Usage/basics/#cmdline for more info.
+  $command = escapeshellarg($source) .' '. implode(' ', $args) .' '. escapeshellarg($dest);
 
   if (0 != _imageapi_imagemagick_convert_exec($command, $output, $errors)) {
     return false;
@@ -163,7 +165,7 @@ function _imageapi_imagemagick_check_path($path) {
     $errors[] = t('The specified ImageMagick path %file is not executable.', array('%file' => $path));
   }
   if ($errors && $open_basedir = ini_get('open_basedir')) {
-    $errors[] = t('PHP\'s <a href="!open-basedir">open_basedir</a> security resriction is set to %open-basedir, which may be interfering with attempts to locate ImageMagick.', array('%file' => $path, '%open-basedir' => $open_basedir, '!info-link' => url('http://php.net/features.safe-mode#ini.open-basedir')));
+    $errors[] = t('PHP\'s <a href="!open-basedir">open_basedir</a> security restriction is set to %open-basedir, which may be interfering with attempts to locate ImageMagick.', array('%file' => $path, '%open-basedir' => $open_basedir, '!info-link' => url('http://php.net/features.safe-mode#ini.open-basedir')));
   }
   return $errors;
 }

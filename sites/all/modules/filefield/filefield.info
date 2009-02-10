@@ -3,9 +3,3 @@ name = File Field
 description = Defines a file field type.
 dependencies = content mimedetect
 package = CCK
-
-; Information added by drupal.org packaging script on 2008-06-03
-version = "5.x-2.3"
-project = "filefield"
-datestamp = "1212463506"
-

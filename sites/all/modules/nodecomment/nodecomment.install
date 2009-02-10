@@ -1,5 +1,5 @@
 <?php
-// $Id: nodecomment.install,v 1.1.1.2 2008/06/13 14:56:17 kester Exp $
+// $Id: nodecomment.install,v 1.1.2.6 2008/07/30 19:28:04 sirkitree Exp $
 
 function nodecomment_install() {
   db_query("CREATE TABLE {node_comments} (
@@ -15,10 +15,6 @@ function nodecomment_install() {
     KEY lid (nid)
   ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
 
-  // During install profiles, node and user modules aren't yet loaded.
-  // Ensure they're loaded before calling node_get_types().
-  include_once './'. drupal_get_path('module', 'node') .'/node.module';
-  include_once './'. drupal_get_path('module', 'user') .'/user.module';
   $types = node_get_types();
   $types = array_change_key_case($types, CASE_LOWER);
 

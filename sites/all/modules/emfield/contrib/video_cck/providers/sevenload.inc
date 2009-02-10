@@ -1,5 +1,5 @@
 <?php
-// $Id: sevenload.inc,v 1.3 2007/09/06 22:18:25 aaron Exp $
+// $Id: sevenload.inc,v 1.4 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_SEVENLOAD_MAIN_URL', 'http://www.sevenload.com/');
 
@@ -68,7 +68,7 @@ function video_cck_sevenload_extract($embed = '') {
  *    a string containing the URL to view the video at the original provider's site
  */
 function video_cck_sevenload_video_link($video_code) {
-  return 'http://www.sevenload.com/videos/' . $video_code;
+  return 'http://www.sevenload.com/videos/'. $video_code;
 }
 
 function video_cck_sevenload_thumbnail($field, $item, $formatter, $node, $width, $height) {

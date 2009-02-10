@@ -1,5 +1,5 @@
 <?php
-// $Id: emthumb.module,v 1.9 2008/05/11 03:56:54 alexua Exp $
+// $Id: emthumb.module,v 1.10 2008/05/12 04:10:53 alexua Exp $
 
 function emthumb_menu($maycache) {
   $items = array();
@@ -7,7 +7,7 @@ function emthumb_menu($maycache) {
     // Add handlers for previewing new uploads.
     foreach ($_SESSION['emthumb'] as $fieldname => $files) {
       if (is_array($files)) {
-        foreach($files as $delta => $file) {
+        foreach ($files as $delta => $file) {
           if ($file['preview']) {
             $items[] = array(
               'path' => $file['preview'],
@@ -58,7 +58,7 @@ function _emthumb_preview() {
  */
 function emthumb_file_insert($node, &$file, $field) {
   $fieldname = $field['field_name'];
-  $filepath = file_create_path($field['widget']['emthumb_image_path']) . '/' . $file['filename'];
+  $filepath = file_create_path($field['widget']['emthumb_image_path']) .'/'. $file['filename'];
 
   if (emthumb_check_directory($field['widget']['emthumb_image_path']) && $file = file_save_upload((object)$file, $filepath)) {
     $file = (array)$file;
@@ -84,7 +84,7 @@ function emthumb_file_insert($node, &$file, $field) {
 function emthumb_file_update($node, &$file, $field) {
   $file = (array)$file;
   if ($file['flags']['delete'] == TRUE) {
-    if(_emthumb_file_delete($file, $field['field_name'])) {
+    if (_emthumb_file_delete($file, $field['field_name'])) {
       return array();
     }
   }
@@ -201,9 +201,9 @@ function emthumb_emfield_widget_settings_extra($op, $widget) {
         '#title' => t('Custom thumbnail description'),
         '#default_value' => $widget['emthumb_description'] ? $widget['emthumb_description'] : t('If you upload a custom thumbnail, then this will be displayed when the @field thumbnail is called for, overriding any automatic thumbnails by custom providers.', array('@field' => $widget['label'])),
         '#description' => t('This description will be displayed when uploading a custom thumbnail.'),
-		'#maxlength' => 512,
+  '#maxlength' => 512,
       );
-      $form['emthumb']['emthumb_max_resolution'] = array (
+     $form['emthumb']['emthumb_max_resolution'] = array(
         '#type' => 'textfield',
         '#title' => t('Maximum resolution for Images'),
         '#default_value' => $widget['emthumb_max_resolution'] ? $widget['emthumb_max_resolution'] : 0,
@@ -251,9 +251,9 @@ function emthumb_emfield_widget_extra($op, &$node, $field, &$items) {
       }
 
       // Attach new files
-      if ($file = file_check_upload($fieldname . '_upload')) {
+      if ($file = file_check_upload($fieldname .'_upload')) {
         $file = (array)$file;
-        if (strpos($file['filemime'],'image') !== FALSE) {
+        if (strpos($file['filemime'], 'image') !== FALSE) {
           $file = _emthumb_scale_image($file, $field['widget']['emthumb_max_resolution']);
 
           // Create the filepath for the image preview
@@ -262,7 +262,7 @@ function emthumb_emfield_widget_extra($op, &$node, $field, &$items) {
             if (strpos($filepath, file_directory_path()) !== FALSE) {
               $filepath = trim(substr($filepath, strlen(file_directory_path())), '\\/');
             }
-            $filepath = 'system/files/' . $filepath;
+            $filepath = 'system/files/'. $filepath;
           }
 
           $file['fid'] = 'upload';
@@ -285,7 +285,7 @@ function emthumb_emfield_widget_extra($op, &$node, $field, &$items) {
 
       // Load files from preview state. before committing actions.
       if (is_array($_SESSION['emthumb'][$fieldname]) && count($_SESSION['emthumb'][$fieldname])) {
-        foreach($_SESSION['emthumb'][$fieldname] as $delta => $file) {
+        foreach ($_SESSION['emthumb'][$fieldname] as $delta => $file) {
           $items[$delta-1]['data']['emthumb'] = $file;
 //          $items[$delta-1] = array_merge($items[$delta-1], $file);
 //           $items[$delta-1] = $file;
@@ -327,8 +327,8 @@ function _emthumb_widget_form($node, $field, $items) {
   $form['upload'] = array(
     '#type' => 'button',
     '#value' => t('Upload'),
-    '#name' => 'emthumb_'.$fieldname.'_op',
-    '#attributes' => array('id' => $fieldname.'-attach-button'),
+    '#name' => 'emthumb_'. $fieldname .'_op',
+    '#attributes' => array('id' => $fieldname .'-attach-button'),
     '#tree' => FALSE,
     '#weight' => 10,
   );
@@ -338,7 +338,7 @@ function _emthumb_widget_form($node, $field, $items) {
 //   drupal_set_message('file:<pre>' . print_r($file) . '</pre>');
 //   print_r($node);
   if ($file['filepath'] && !$file['flags']['delete']) {
-    $form['emthumb'] = array (
+    $form['emthumb'] = array(
       '#theme' => 'emthumb_edit_image_row',
     );
 
@@ -358,7 +358,7 @@ function _emthumb_widget_form($node, $field, $items) {
   //drupal_set_message('imagefield['. $fieldname .'] '. $op .' node field: <pre>'. print_r($items, true) .'</pre>');
     $form['emthumb']['description'] = array(
       '#type' => 'markup',
-      '#value' => '<strong>' . t('Filename: ') . '</strong>' . $file['filename'],
+      '#value' => '<strong>'. t('Filename: ') .'</strong>'. $file['filename'],
     );
 
     $form['emthumb']['emthumb_alt'] = array(
@@ -426,7 +426,7 @@ function _emthumb_widget_form($node, $field, $items) {
  *   The form element containing the name of the directory to check.
  */
 function emthumb_form_check_directory($form_element) {
-  if(!empty($form_element['#value'])) {
+  if (!empty($form_element['#value'])) {
     emthumb_check_directory($form_element['#value'], $form_element);
   }
   return $form_element;
@@ -442,9 +442,9 @@ function emthumb_form_check_directory($form_element) {
  *   A form element to throw an error on if the directory is not writable
  */
 function emthumb_check_directory($directory, $form_element = array()) {
-  foreach(explode('/', $directory) as $dir) {
+  foreach (explode('/', $directory) as $dir) {
     $dirs[] = $dir;
-    $path = file_create_path(implode($dirs,'/'));
+    $path = file_create_path(implode($dirs, '/'));
     file_check_directory($path, FILE_CREATE_DIRECTORY, $form_element['#parents'][0]);
   }
   return true;
@@ -511,8 +511,8 @@ function emthumb_clear_field_session($fieldname) {
 
 function emthumb_thumbnail_url($item) {
   if ($item['data']['emthumb']['filepath']) {
-		return file_create_url($item['data']['emthumb']['filepath']);
-	}
+    return file_create_url($item['data']['emthumb']['filepath']);
+  }
 }
 
 function theme_emthumb_view_image($file, $alt = '', $title = '', $attributes = NULL, $getsize = TRUE) {

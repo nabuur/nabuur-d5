@@ -1,14 +1,15 @@
 <?php
-// $Id: taxonomy_image_blocks.module,v 1.1.4.7 2008/04/12 16:23:57 nancyw Exp $
+// $Id: taxonomy_image_blocks.module,v 1.1.4.11 2008/11/11 19:07:22 nancyw Exp $
 
 /**
  * Implementation of hook_block().
  */
 function taxonomy_image_block($op = 'list', $delta = 0, $edit = array()) {
   global $user;
+  drupal_add_css(drupal_get_path('module', 'taxonomy_image') .'/taxonomy_image.css');
   switch ($op) {
     case 'list':
-      $blocks[0]['info'] = t('Node Images');
+      $blocks[0]['info'] = t('Taxonomy Image: Node Images');
       return $blocks;
 
     case 'view':
@@ -24,19 +25,22 @@ function taxonomy_image_block($op = 'list', $delta = 0, $edit = array()) {
           $max = variable_get('taxonomy_image_block_max_images', 3);
           $suppress = variable_get('taxonomy_image_block_suppress', false);
           $size = variable_get('taxonomy_image_block_max_size', 32);
+          $imagecache_preset = variable_get('taxonomy_image_block_imagecache_preset', 'ORIGINAL');
           if ($node = node_load($nid)) {
             foreach ($node->taxonomy as $term) {
-              $img = taxonomy_image_display($term->tid, array(), 'ORIGINAL', array('resize' => 1, 'width' => $size, 'height' => $size));
+              if ($size == 'ORIGINAL') {
+                $img = taxonomy_image_display($term->tid, array(), $imagecache_preset);
+              }
+              else {
+                $img = taxonomy_image_display($term->tid, array(), 'ORIGINAL', array('resize' => 1, 'width' => $size, 'height' => $size));
+              }
               if ($img || !$suppress) {
                 $term_path = drupal_get_path_alias(taxonomy_term_path($term));
-                $name_link = l($term->name, $term_path);
+                $name_link = '<div class="taxonomy-image-block-name">'. l($term->name, $term_path) .'</div>';
                 if (user_access('administer taxonomy')) {
-                  $name_link .= '<br/>'. l('edit term', 'admin/content/taxonomy/edit/term/'. $term->tid, array('class' => 'links inline'));
+                  $name_link .= '<div class="taxonomy-image-block-edit">'. l('edit term', 'admin/content/taxonomy/edit/term/'. $term->tid, array('class' => 'links inline')) .'</div>';
                 }
-                $rows[] = array(
-                  l($img, $term_path, array(), null, null, false, true),
-                  $name_link,
-                  );
+                $rows[] = array(l($img, $term_path, array(), null, null, false, true) . $name_link . $edit_link);
                 ++$count;
               }
               // Have we hit the limit?
@@ -85,11 +89,23 @@ function taxonomy_image_block($op = 'list', $delta = 0, $edit = array()) {
             '#default_value' => variable_get('taxonomy_image_block_suppress', false),
             );
 
+            if (module_exists('imagecache')) {
+              $form['ti']['taxonomy_image_block_imagecache_preset'] = array(
+                '#type' => 'radios',
+                '#title' => t('Imagecache Preset'),
+                '#description' => t('The Imagecache module is available. If you select one of these presets, or provide one in your call, then Taxonomy Image will use Imagecache to process the image and ignore the following settings. "ORIGINAL" effectively disables Imagecache and uses the following settings.'),
+                '#options' => drupal_map_assoc(_taxonomy_image_presets()),
+                '#default_value' => variable_get('taxonomy_image_block_imagecache_preset', null),
+                '#prefix' => '<div class="taxonomy_image_radios">',
+                '#suffix' => '</div>',
+                );
+            }
+
           $form['ti']['taxonomy_image_block_max_size'] = array(
             '#type' => 'radios',
-            '#options' => drupal_map_assoc(array(16, 24, 32, 48, 64, 80, 96)),
+            '#options' => drupal_map_assoc(array('ORIGINAL', 16, 24, 32, 48, 64, 80, 96)),
             '#title' => t('Maximum size'),
-            '#description' => t('This limits the size of images that appear in the "Node Images" block. This is the size, in pixels, of the longer side of the image.'),
+            '#description' => t('This limits the size of images that appear in the "Node Images" block. This is the size, in pixels, of the longer side of the image. Selecting "ORIGINAL" will keep the image at it\'s original size.'),
             '#default_value' => variable_get('taxonomy_image_block_max_size', 32),
             '#prefix' => '<div class="taxonomy_image_radios">',
             '#suffix' => '</div>',
@@ -107,6 +123,7 @@ function taxonomy_image_block($op = 'list', $delta = 0, $edit = array()) {
           variable_set('taxonomy_image_block_max_images', $edit['taxonomy_image_block_max_images']);
           variable_set('taxonomy_image_block_suppress', $edit['taxonomy_image_block_suppress']);
           variable_set('taxonomy_image_block_max_size', $edit['taxonomy_image_block_max_size']);
+          variable_set('taxonomy_image_block_imagecache_preset', $edit['taxonomy_image_block_imagecache_preset']);
           variable_set('taxonomy_image_block_title', $edit['title']);
           // Don't let blocks.module have the real title.
           db_query("UPDATE {blocks} SET title='' WHERE module='taxonomy_image' AND delta=0");

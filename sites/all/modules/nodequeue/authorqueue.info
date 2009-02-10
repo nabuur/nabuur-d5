@@ -1,0 +1,6 @@
+; $Id: authorqueue.info,v 1.1.2.1 2008/04/25 19:50:19 merlinofchaos Exp $
+name = Smart Queue Author
+description = Creates a node queue for each node author
+package = Node Queue
+dependencies = nodequeue
+

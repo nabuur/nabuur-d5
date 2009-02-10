@@ -1,5 +1,5 @@
 <?php
-// $Id: relativity.module,v 1.41.2.11 2008/01/12 02:28:10 darius Exp $
+// $Id: relativity.module,v 1.41.2.12 2008/03/18 22:37:15 darius Exp $
 
 /**
  * @file
@@ -1284,8 +1284,8 @@ function relativity_handle_view_links(&$field, &$view, $nid, &$node){
  */
 function relativity_token_values($type, $object = NULL) {
   if ($type == 'node') {
-    // load the node just to avoid problems with module weights
-    $node = node_load($object->nid);
+
+    $node = $object;
 
     $tokens = array();
     // check if the node has parents
@@ -1298,36 +1298,36 @@ function relativity_token_values($type, $object = NULL) {
         $parent = node_load($node->parent_node);
       }
 
-      $values['parent-nid']            = $parent->nid;
-      $values['parent-title']          = check_plain($parent->title);
-      $values['parent-type']           = $parent->type;
-      $values['parent-type-name']      = node_get_types('name', $parent->type);
-      $values['parent-author-uid']     = $parent->uid;
-      $values['parent-author-name']    = check_plain($parent->name);
-      $values['parent-yyyy']           = date('y', $parent->created);
-      $values['parent-yy']             = date('y', $parent->created);
-      $values['parent-month']          = date('f', $parent->created);
-      $values['parent-mon']            = date('m', $parent->created);
-      $values['parent-mm']             = date('m', $parent->created);
-      $values['parent-m']              = date('n', $parent->created);
-      $values['parent-ww']             = date('w', $parent->created);
-      $values['parent-date']           = date('n', $parent->created);
-      $values['parent-day']            = date('l', $parent->created);
-      $values['parent-ddd']            = date('d', $parent->created);
-      $values['parent-dd']             = date('d', $parent->created);
-      $values['parent-d']              = date('j', $parent->created);
-      $values['parent-mod-yyyy']       = date('y', $parent->changed);
-      $values['parent-mod-yy']         = date('y', $parent->changed);
-      $values['parent-mod-month']      = date('f', $parent->changed);
-      $values['parent-mod-mon']        = date('m', $parent->changed);
-      $values['parent-mod-mm']         = date('m', $parent->changed);
-      $values['parent-mod-m']          = date('n', $parent->changed);
-      $values['parent-mod-ww']         = date('w', $parent->changed);
-      $values['parent-mod-date']       = date('n', $parent->changed);
-      $values['parent-mod-day']        = date('l', $parent->changed);
-      $values['parent-mod-ddd']        = date('d', $parent->changed);
-      $values['parent-mod-dd']         = date('d', $parent->changed);
-      $values['parent-mod-d']          = date('j', $parent->changed);
+      $tokens['parent-nid']            = $parent->nid;
+      $tokens['parent-title']          = check_plain($parent->title);
+      $tokens['parent-type']           = $parent->type;
+      $tokens['parent-type-name']      = node_get_types('name', $parent->type);
+      $tokens['parent-author-uid']     = $parent->uid;
+      $tokens['parent-author-name']    = check_plain($parent->name);
+      $tokens['parent-yyyy']           = date('y', $parent->created);
+      $tokens['parent-yy']             = date('y', $parent->created);
+      $tokens['parent-month']          = date('f', $parent->created);
+      $tokens['parent-mon']            = date('m', $parent->created);
+      $tokens['parent-mm']             = date('m', $parent->created);
+      $tokens['parent-m']              = date('n', $parent->created);
+      $tokens['parent-ww']             = date('w', $parent->created);
+      $tokens['parent-date']           = date('n', $parent->created);
+      $tokens['parent-day']            = date('l', $parent->created);
+      $tokens['parent-ddd']            = date('d', $parent->created);
+      $tokens['parent-dd']             = date('d', $parent->created);
+      $tokens['parent-d']              = date('j', $parent->created);
+      $tokens['parent-mod-yyyy']       = date('y', $parent->changed);
+      $tokens['parent-mod-yy']         = date('y', $parent->changed);
+      $tokens['parent-mod-month']      = date('f', $parent->changed);
+      $tokens['parent-mod-mon']        = date('m', $parent->changed);
+      $tokens['parent-mod-mm']         = date('m', $parent->changed);
+      $tokens['parent-mod-m']          = date('n', $parent->changed);
+      $tokens['parent-mod-ww']         = date('w', $parent->changed);
+      $tokens['parent-mod-date']       = date('n', $parent->changed);
+      $tokens['parent-mod-day']        = date('l', $parent->changed);
+      $tokens['parent-mod-ddd']        = date('d', $parent->changed);
+      $tokens['parent-mod-dd']         = date('d', $parent->changed);
+      $tokens['parent-mod-d']          = date('j', $parent->changed);
 
       // Now get the menu related information.
       global $_menu;
@@ -1341,49 +1341,49 @@ function relativity_token_values($type, $object = NULL) {
       }
 
       if (isset($trail)) {
-        $values['parent-menupath']     = check_plain(implode('/', $trail));
-        $values['parent-menu']         = check_plain(array_shift($trail));
+        $tokens['parent-menupath']     = check_plain(implode('/', $trail));
+        $tokens['parent-menu']         = check_plain(array_shift($trail));
       }
       else {
-        $values['parent-menu']         = '';
-        $values['parent-menupath']     = '';
+        $tokens['parent-menu']         = '';
+        $tokens['parent-menupath']     = '';
       }
     } 
     else {
-      $values['parent-nid']            = ''; 
-      $values['parent-title']          = ''; 
-      $values['parent-type']           = ''; 
-      $values['parent-type-name']      = ''; 
-      $values['parent-author-uid']     = ''; 
-      $values['parent-author-name']    = ''; 
-      $values['parent-yyyy']           = ''; 
-      $values['parent-yy']             = ''; 
-      $values['parent-month']          = ''; 
-      $values['parent-mon']            = ''; 
-      $values['parent-mm']             = ''; 
-      $values['parent-m']              = ''; 
-      $values['parent-ww']             = ''; 
-      $values['parent-date']           = ''; 
-      $values['parent-day']            = ''; 
-      $values['parent-ddd']            = ''; 
-      $values['parent-dd']             = ''; 
-      $values['parent-d']              = ''; 
-      $values['parent-mod-yyyy']       = ''; 
-      $values['parent-mod-yy']         = ''; 
-      $values['parent-mod-month']      = ''; 
-      $values['parent-mod-mon']        = ''; 
-      $values['parent-mod-mm']         = ''; 
-      $values['parent-mod-m']          = ''; 
-      $values['parent-mod-ww']         = ''; 
-      $values['parent-mod-date']       = ''; 
-      $values['parent-mod-day']        = ''; 
-      $values['parent-mod-ddd']        = ''; 
-      $values['parent-mod-dd']         = ''; 
-      $values['parent-mod-d']          = ''; 
-      $values['parent-menu']         = '';
-      $values['parent-menupath']     = '';
+      $tokens['parent-nid']            = ''; 
+      $tokens['parent-title']          = ''; 
+      $tokens['parent-type']           = ''; 
+      $tokens['parent-type-name']      = ''; 
+      $tokens['parent-author-uid']     = ''; 
+      $tokens['parent-author-name']    = ''; 
+      $tokens['parent-yyyy']           = ''; 
+      $tokens['parent-yy']             = ''; 
+      $tokens['parent-month']          = ''; 
+      $tokens['parent-mon']            = ''; 
+      $tokens['parent-mm']             = ''; 
+      $tokens['parent-m']              = ''; 
+      $tokens['parent-ww']             = ''; 
+      $tokens['parent-date']           = ''; 
+      $tokens['parent-day']            = ''; 
+      $tokens['parent-ddd']            = ''; 
+      $tokens['parent-dd']             = ''; 
+      $tokens['parent-d']              = ''; 
+      $tokens['parent-mod-yyyy']       = ''; 
+      $tokens['parent-mod-yy']         = ''; 
+      $tokens['parent-mod-month']      = ''; 
+      $tokens['parent-mod-mon']        = ''; 
+      $tokens['parent-mod-mm']         = ''; 
+      $tokens['parent-mod-m']          = ''; 
+      $tokens['parent-mod-ww']         = ''; 
+      $tokens['parent-mod-date']       = ''; 
+      $tokens['parent-mod-day']        = ''; 
+      $tokens['parent-mod-ddd']        = ''; 
+      $tokens['parent-mod-dd']         = ''; 
+      $tokens['parent-mod-d']          = ''; 
+      $tokens['parent-menu']         = '';
+      $tokens['parent-menupath']     = '';
     }
-    return $values;
+    return $tokens;
   }
 }
 

@@ -3,9 +3,3 @@ name = FeedAPI Inherit
 description = "Passes on group and taxonomy information from feed to feed items. Requires FeedAPI Node processor."
 dependencies = feedapi feedapi_node
 package = "FeedAPI Add On"
-
-; Information added by drupal.org packaging script on 2008-10-10
-version = "5.x-1.4"
-project = "feedapi"
-datestamp = "1223654422"
-

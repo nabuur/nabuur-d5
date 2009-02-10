@@ -1,10 +1,5 @@
-; $Id: sms_email_gateway.info,v 1.1.2.1 2008/08/13 09:02:59 kester Exp $
+; $Id: sms_email_gateway.info,v 1.1.2.1 2008/07/22 05:07:33 diggersf Exp $
 name = E-mail Gateway
 description = "Allows the SMS Framework to use E-mail gateways."
 dependencies = sms
 package = SMS Framework
-; Information added by drupal.org packaging script on 2008-08-07
-version = "5.x-1.x-dev"
-project = "smsframework"
-datestamp = "1218067859"
-

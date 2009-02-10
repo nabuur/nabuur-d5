@@ -1,5 +1,5 @@
 <?php
-// $Id: date_popup.module,v 1.27.2.8 2008/03/01 17:30:21 karens Exp $
+// $Id: date_popup.module,v 1.27.2.40 2008/11/30 15:50:51 karens Exp $
 /**
  * @file
  * A module to enable jquery calendar and time entry popups.
@@ -46,6 +46,40 @@ function date_popup_menu($may_cache) {
   return $items;
 }
 
+/**
+ * Create a unique CSS class name and output a single inline JS block
+ * for each unique combination of startup function to call and
+ * settings array to pass it.  This allows the dynamic use of any
+ * number of custom settings without requiring a duplicate copy for
+ * every element that uses them.
+ *
+ * @param $pfx
+ *   The CSS class prefix to search the DOM for.
+ * @param $func
+ *   The jQuery function to invoke on each DOM element containing the
+ * returned CSS class.
+ * @param $settings
+ *   The settings array to pass to the jQuery function.
+ * @returns
+ *   The CSS class name to assign to an element that should have
+ * $func($settings) invoked on it.
+ */
+function date_popup_js_settings_class($pfx, $func, $settings) {
+  static $cache = array();
+  static $cnt = 0;
+  
+  $serial = serialize($settings);
+  $key = $pfx .':'. $func;
+  if (! isset($cache[$key][$serial])) {
+    $class = $cache[$key][$serial] = $pfx .'-'. $cnt++;
+    drupal_add_js('// Global Killswitch
+    if (Drupal.jsEnabled) {
+      $(document).ready(function() {$(\'.'. $class .'\').'. $func .'({'. $settings. '});
+      })}', 'inline');
+  }
+  return $cache[$key][$serial];
+}
+  
 /**
  * Implementation of hook_elements().
  *
@@ -99,69 +133,28 @@ function date_popup_elements() {
 }
 
 /**
- * Implementation of hook_form_alter().
- *
- * Add popup to node and comment dates. Although the data in these
- * fields is stored in the database as a unix timestamp, the value
- * has been massaged into Y-m-d H:i by the time it gets to the form
- * and the node and comment modules will expect that format when
- * they save the data.
- */
-function date_popup_form_alter($form_id, &$form) {
-  // jscalendar overloads these fields, so must not try to do this
-  // if jscalendar is installed.
-  if (!module_exists('jscalendar')) {
-    if ($form_id == 'comment_form' && isset($form['admin']) && $form['admin']['#access']) {
-      $form['admin']['date'] = date_popup_system_date_form($form['admin']['date']);
-    }
-    elseif (isset($form['type']) && $form['type']['#value'] .'_node_form' == $form_id
-    && isset($form['author']) && $form['author']['#access'] && empty($form['#node']->cck_dummy_node_form)) {
-      $form['author']['date'] = date_popup_system_date_form($form['author']['date']);
-    }
-  }
-}
-
-/**
- * Rework a system date form to use the date_popup element.
- *
- * Create a date object by undoing the core method of adjusting a date
- * by the timezone offset. Set default value back to the database value,
- * then adjust it using the timezone name.
- */
-function date_popup_system_date_form($element, $edit = NULL) {
-  $element['#type'] = 'date_popup';
-  $element['#date_format'] = 'Y-m-d H:i:s O';
-  $element['#date_timezone'] = date_default_timezone_name();
-
-  // Wipe out the description to use the popup description instead.
-  $element['#description'] = '';
-  if (!empty($element['#default_value'])) {
-    $value = strtotime($element['#default_value']);
-    $date = date_make_date($value, 'GMT', DATE_UNIX);
-    date_timezone_set($date, timezone_open($element['#date_timezone']));
-    $element['#default_value'] = date_format($date, $element['#date_format']);
-  }
-  else {
-    $date = date_now(date_default_timezone_name());
-    $element['#default_value'] = date_format($date, $element['#date_format']);
-  }
-  unset($element['#maxlength']);
-  return $element;
-}
-
-/**
  * Javascript popup element processing.
  * Add popup attributes to $element.
+ * 
+ * In regular FAPI processing $element['#value'] will contain a string
+ * value before the form is submitted, and an array during submission.
+ * 
+ * In regular FAPI processing $edit is empty until the form is submitted
+ * when it will contain an array.
+ * 
+ * When used as a Views widget, $edit is always empty, and the validation
+ * step is bypassed. $element['#value'] is the only available value,
+ * but it is a string before submission and an array afterward.
+ * 
  */
 function date_popup_process($element, $edit = NULL) {
   date_popup_load();
-  include_once(drupal_get_path('module', 'date_api') .'/date_api_elements.inc');
+  require_once('./'. drupal_get_path('module', 'date_api') .'/date_api_elements.inc');
 
-  // There are some cases, like when using this as a Views form element,
-  // where $edit is empty and $element['#value'] holds an array of input values.
-  // This happens when the processing bypasses the element validation step
-  // that resets the value from the date and time
-  // subparts.
+  if (empty($edit)) {
+    $edit = date_views_filter_value($element);
+  }
+  $date = NULL;
   if (!empty($edit) || is_array($element['#value'])) {
     if (empty($edit)) {
       $edit = $element['#value'];
@@ -173,13 +166,30 @@ function date_popup_process($element, $edit = NULL) {
   elseif (!empty($element['#value'])) {
     $date = date_make_date($element['#value'], $element['#date_timezone']);
   }
-  elseif ($element['#required']) {
-    $date = date_now($element['#date_timezone']);
-  }
   date_increment_round($date, $element['#date_increment']);
+  $granularity = date_format_order($element['#date_format']);
   $element['#tree'] = TRUE;
+  $element['#granularity'] = $granularity;
   $element['date'] = date_popup_process_date($element, $edit, $date);
   $element['time'] = date_popup_process_time($element, $edit, $date);
+
+  // Add #date_float to allow date parts to float together on the same line. 
+  $class = 'container-inline-date';
+  if (empty($element['#date_float'])) {
+    $class .= ' date-clear-block';
+  }
+  if (isset($element['#attributes']) || isset($element['#attributes']['class'])) {
+    $element['#attributes']['class'] .= ' '. $class;
+  }
+  else {
+    $element['#attributes'] = array('class' => $class);
+  }
+  if (isset($element['#validate'])) {
+    array_push($element['#validate'], array('date_popup_validate' => array()));
+  }
+  else {
+    $element['#validate'] = array('date_popup_validate' => array());
+  }
   return $element;
 }
 
@@ -187,7 +197,7 @@ function date_popup_process($element, $edit = NULL) {
  * Process the date portion of the element.
  */
 function date_popup_process_date(&$element, $edit = NULL, $date = NULL) {
-  $granularity = date_format_order($element['#date_format']);
+  $granularity = $element['#granularity'];
   $date_granularity = array_intersect($granularity, array('month', 'day', 'year'));
   $time_granularity = array_intersect($granularity, array('hour', 'minute', 'second'));
   $date_format = (date_limit_format($element['#date_format'], $date_granularity));
@@ -197,23 +207,22 @@ function date_popup_process_date(&$element, $edit = NULL, $date = NULL) {
   // Center the range around the current year, but expand it far
   // enough so it will pick up the year value in the field in case
   // the value in the field is outside the initial range.
+  // The datepicker can't handle zero or negative values like 0:+1
+  // even though the Date API can handle them, so rework the value
+  // we pass to the datepicker to use defaults it can accept.
   $this_year = date_format(date_now(), 'Y');
   $value_year = is_object($date) ? date_format($date, 'Y') : $this_year;
-  if (!empty($value_year) && $this_year != $value_year) {
-    $range = explode(':', $element['#date_year_range']);
-    $min_year = min($value_year, $this_year + $range[0]);
-    $max_year = max($value_year, $this_year + $range[1]);
-    $year_range = sprintf('%+d', $min_year - $this_year) .':'. sprintf('%+d', $max_year - $this_year);
-  }
-  else {
-    $year_range = $element['#date_year_range'];
-  }
-  $settings =  "\n". //"prevText:'&lt;". t('Prev') ."', \n".
+  $range = explode(':', $element['#date_year_range']);
+  $min_year = min($value_year, $this_year + $range[0]);
+  $max_year = max($value_year, $this_year + $range[1]);
+  $year_range = sprintf('%+d', $min_year - $this_year) .':'. sprintf('%+d', $max_year - $this_year);
+    
+  $settings =  "\n". "prevText:'&lt;". t('Prev') ."', \n".
     "nextText:'". t('Next') ."&gt;', \n".
     "currentText:'". t('Today') ."', \n".
     "clearText:'". t('Clear') ."', \n".
     "closeText:'". t('Close') ."', \n".
-    "firstDate:". variable_get('date_first_day', 0) .", \n".
+    "firstDay:". variable_get('date_first_day', 0) .", \n".
     "dayNames: new Array('". implode("','", date_week_days_abbr(TRUE, TRUE, 1)) ."'), \n".
     "monthNames:new Array('". implode("','", date_month_names(TRUE)) ."'), \n".
     // Can't get the image to float to the right of the input element,
@@ -235,18 +244,14 @@ function date_popup_process_date(&$element, $edit = NULL, $date = NULL) {
     "maxDate: (input.id == 'dFrom' ? getDate($('#dTo').val()) : null) ";
   }
 
-  drupal_add_js('// Global Killswitch
-    if (Drupal.jsEnabled) {
-      $(document).ready(function() {$(\'.jquery-calendar-'. $element['#id'] .'\').calendar({'. $settings. '});
-      })}', 'inline');
-
   // Create a unique class for each element so we can use custom settings.
+  $class = date_popup_js_settings_class('jquery-calendar', 'calendar', $settings);
   $sub_element = array(
     '#type' => 'textfield',
-    '#default_value' => is_object($date) ? date_format($date, $date_format) : '',
-    '#attributes' => array('class' => 'jquery-calendar-'. $element['#id']),
-    '#size' => 20,
-    '#maxlength' => 20,
+    '#default_value' => (!empty($element['#value']['date']) || !empty($edit['date'])) && is_object($date) ? date_format($date, $date_format) : '',
+    '#attributes' => array('class' => $class),
+    '#size' => !empty($element['#size']) ? $element['#size'] : 20,
+    '#maxlength' => !empty($element['#maxlength']) ? $element['#maxlength'] : 30,
     );
   // TODO, figure out exactly when we want this description. In many places it is not desired.
   $element['#description'] .= t(' Format: @date', array('@date' => date($date_format, time())));
@@ -257,7 +262,7 @@ function date_popup_process_date(&$element, $edit = NULL, $date = NULL) {
  * Process the time portion of the element.
  */
 function date_popup_process_time(&$element, $edit = NULL, $date = NULL) {
-  $granularity = date_format_order($element['#date_format']);
+  $granularity = $element['#granularity'];
   $time_granularity = array_intersect($granularity, array('hour', 'minute', 'second'));
   $time_format = date_popup_format_to_popup_time(date_limit_format($element['#date_format'], $time_granularity));
   if (empty($time_granularity)) return array();
@@ -275,16 +280,11 @@ function date_popup_process_time(&$element, $edit = NULL, $date = NULL) {
     "maxTime: (input.id == 'tFrom' ? getTime($('#tTo').val()) : null)} ";
   }
 
-  drupal_add_js('// Global Killswitch
-    if (Drupal.jsEnabled) {
-      $(document).ready(function() {$(\'.jquery-timeentry-'. $element['#id'] .'\').timeEntry({' .$settings. '});
-      })}', 'inline');
-
-  // Create a unique class for each element so we can use custom settings.
-  $sub_element = array(
+  // Create a unique class for each set of custom settings.
+  $class = date_popup_js_settings_class('jquery-timeentry', 'timeEntry', $settings);  $sub_element = array(
     '#type' => 'textfield',
-    '#default_value' => is_object($date) ? date_format($date, $time_format) : '',
-    '#attributes' => array('class' => 'jquery-timeentry-'. $element['#id']),
+    '#default_value' => (!empty($element['#value']['time']) || !empty($edit['time'])) && is_object($date) ? date_format($date, $time_format) : '',
+    '#attributes' => array('class' => $class),
     '#size' => 10,
     '#maxlength' => 10,
     );
@@ -297,38 +297,47 @@ function date_popup_process_time(&$element, $edit = NULL, $date = NULL) {
  * Massage the input values back into a single date.
  */
 function date_popup_validate($element) {
-  include_once(drupal_get_path('module', 'date_api') .'/date_api_elements.inc');
-  date_popup_load();
-  $valid_value = date_popup_input_value($element);
-  if (!empty($valid_value)) {
-    form_set_value($element, $valid_value);
+  $granularity = $element['#granularity'];
+  $date_granularity = array_intersect($granularity, array('month', 'day', 'year'));
+  $time_granularity = array_intersect($granularity, array('hour', 'minute', 'second'));
+  
+  // If the field is empty and not required, set it to empty and return.
+  // If the field is empty and required, set error message and return.
+  $error_field = implode('][', $element['#parents']);
+  if (empty($element['#value']['date']) && empty($element['#value']['time'])) {
+    if ($element['#required']) {
+      // Set message on both date and time to get them highlighted properly.
+      $message = t('%field is required.', array('%field' => $element['#title']));
+      if (!empty($date_granularity)) {
+        form_set_error($error_field .'][date', $message);  
+        $message = ' ';
+      }
+      if (!empty($time_granularity)) {
+        form_set_error($error_field .'][time', $message);  
+      }
+    }
+    form_set_value($element, NULL);
     return;
   }
-  $error_field = implode('][', $element['#parents']);
-  if (isset($element['#value']['date'])) {
-    $message = NULL;
-    if (!empty($element['#value']['date'])) {
-      $message = t('The %label %date %time is not valid.', array('%label' => $element['#title'], '%date' => $element['#value']['date'], '%time' => $element['#value']['time']));
-    }
-    elseif ($element['#required']) {
-      $message = t('The %label date cannot be empty.', array('%label' => $element['#title']));
-    }
-    if (!empty($message)) {
-      form_set_error($error_field .'][date', $message);
-    }
+
+  require_once('./'. drupal_get_path('module', 'date_api') .'/date_api_elements.inc');
+  date_popup_load();
+  $value = date_popup_input_value($element);
+  
+  // If the created date is valid, set it.
+  if (!empty($value)) {
+    form_set_value($element, $value, $form_state);
+    return;
   }
-  if (isset($element['#value']['time'])) {
-    if (!empty($element['#value']['time']) && !empty($element['#value']['date'])) {
-      // We already displayed a message about this, but need another message
-      // here just to set the error field, so don't repeat the previous
-      // message.
-      $message = t('Please check the %label values.', array('%label' => $element['#title']));
+  else {
+    // Set message on both date and time to get them highlighted properly.
+    $message = t('%field is invalid.', array('%field' => $element['#title']));
+    if (!empty($date_granularity)) {
+      form_set_error($error_field .'][date', $message);  
+      $message = ' ';
     }
-    elseif ($element['#required']) {
-      $message = t('The %label time cannot be empty.', array('%label' => $element['#title']));
-    }
-    if (!empty($message)) {
-      form_set_error($error_field .'][time', $message);
+    if (!empty($time_granularity)) {
+      form_set_error($error_field .'][time', $message);  
     }
   }
   form_set_value($element, NULL);
@@ -336,20 +345,33 @@ function date_popup_validate($element) {
 
 /**
  * Helper function for extracting a date value out of user input.
+ * 
+ * @param autocomplete
+ *   Should we add a time value to complete the date if there is no time?
+ *   Useful anytime the time value is optional. 
  */
-function date_popup_input_value($element) {
-  $input = $element['#value']['date'];
-  if (!empty($element['#value']['time'])) {
-    $input .= ' '. $element['#value']['time'];
-  }
+function date_popup_input_value($element, $auto_complete = FALSE) {
   date_popup_load();
   $granularity = date_format_order($element['#date_format']);
-  $value = date_convert_from_custom($input, date_limit_format($element['#date_format'], $granularity));
+  $format = $element['#date_format'];
+  $format = strtr($format, timepicker_format_replacements());
+  $format = date_limit_format($format, $granularity);
+  // Evaluate date and time parts separately since we can't know or care
+  // how they're combined in the complete date format.
+  $time_format = date_limit_format($format, array('hour', 'minute', 'second'));
+  $date_format = date_limit_format($format, array('year', 'month', 'day'));
+  $value = '';
+  if (is_array($element['#value']) && !empty($element['#value']['date'])) {
+    $date = date_convert_from_custom(trim(!empty($element['#value']['date']) ? $element['#value']['date'] : ''), $date_format);
+    $time = date_convert_from_custom(trim(!empty($element['#value']['time']) ? $element['#value']['time'] : ''), $time_format);
+    $value = trim(substr($date, 0, 10) .' '. substr($time, 11, 8));
+  }
   if (date_is_valid($value, DATE_DATETIME)) {
     $date = date_make_date($value, $element['#date_timezone'], DATE_DATETIME);
     $value = date_convert($date, DATE_OBJECT, DATE_DATETIME);
     return $value;
   }
+  return NULL;
   return NULL;
 }
 
@@ -423,11 +445,17 @@ function date_popup_format_to_popup_time($format) {
   if (empty($format)) {
     $format = 'H:i';
   }
-  $format = str_replace(array('G'), 'H', $format);
-  $format = str_replace(array('g'), 'h', $format);
-  $format = str_replace(array('a'), 'A', $format);
-  $format = str_replace(array(' ', '/', '-', '.', 'l', 'z', 'w', 'W', 'd', 'j', 'm', 'n', 'y', 'Y'), '', $format);
+  $format = strtr($format, timepicker_format_replacements());
+  $format = str_replace(array(' ', '/', '-', '.', ',', 'F', 'M', 'l', 'z', 'w', 'W', 'd', 'j', 'm', 'n', 'y', 'Y'), '', $format);
   return $format;
+}
+
+function timepicker_format_replacements() {
+  return array(
+    'G' => 'H',
+    'g' => 'h',
+    'a' => 'A',
+    );
 }
 
 /**
@@ -450,5 +478,15 @@ function date_popup_popup_to_format($format) {
  * Use a class that will float date and time next to each other.
  */
 function theme_date_popup($element) {
-  return '<div class="container-inline-date clear-block">'. theme('form_element', $element, $element['#children']) .'</div>';
+  $output = '';
+  $class = 'container-inline-date';
+  // Add #date_float to allow date parts to float together on the same line. 
+  if (empty($element['#date_float'])) {
+    $class .= ' date-clear-block';
+  }
+  $element['#attributes']['class'] .= $class;
+  if (isset($element['#children'])) {
+    $output = $element['#children'];
+  }
+  return '<div '. drupal_attributes($element['#attributes']) .'>'. theme('form_element', $element, $output) .'</div>';
 }

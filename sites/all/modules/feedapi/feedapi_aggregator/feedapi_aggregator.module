@@ -1,5 +1,5 @@
 <?php
-// $Id: feedapi_aggregator.module,v 1.1.2.38 2008/08/21 15:14:03 aronnovak Exp $
+// $Id: feedapi_aggregator.module,v 1.1.2.39 2008/10/27 10:43:03 aronnovak Exp $
 
 /**
  * @abstract This module emulates aggregator module with the feedapi framework.
@@ -436,7 +436,7 @@ function _feedapi_aggregator_save($feed_item, $feed_nid, $settings = array()) {
   }
   if ($feed_item->title && $feed_item->options->original_url) {
     $feed_item->fiid = db_next_id('{feedapi_aggregator_item}_iid');
-    db_query("INSERT INTO {feedapi_aggregator_item} (iid, feed_nid, title, link, author, description, timestamp, guid) VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s')", $feed_item->fiid, $feed_nid, $feed_item->title, $feed_item->options->original_url, $feed_item->options->author, $feed_item->description, $feed_item->options->timestamp, $feed_item->options->guid);
+    db_query("INSERT INTO {feedapi_aggregator_item} (iid, feed_nid, title, link, author, description, timestamp, guid) VALUES (%d, %d, '%s', '%s', '%s', '%s', %d, '%s')", $feed_item->fiid, $feed_nid, $feed_item->title, $feed_item->options->original_url, is_object($feed_item->options->original_author) ? $feed_item->options->original_author->name : $feed_item->options->original_author, $feed_item->description, $feed_item->options->timestamp, $feed_item->options->guid);
     // file the items in the categories indicated by the feed
     $categories = db_query('SELECT cid FROM {feedapi_aggregator_category_feed} WHERE feed_nid = %d', $feed_nid);
     while ($category = db_fetch_object($categories)) {
@@ -460,7 +460,7 @@ function _feedapi_aggregator_update($feed_item, $feed_nid, $settings = array()) 
     $feed_item->fiid = db_result(db_query("SELECT iid FROM {feedapi_aggregator_item} WHERE feed_nid = %d AND title = '%s'", $feed_nid, $feed_item->title));
   }
   if (is_numeric($feed_item->fiid) && isset($feed_item->title)) {
-    db_query("UPDATE {feedapi_aggregator_item} SET title = '%s', link = '%s', author = '%s', description = '%s', guid = '%s', timestamp = %d WHERE iid = %d", $feed_item->title, $feed_item->options->original_url, $feed_item->options->author, $feed_item->description, $feed_item->options->guid, $feed_item->options->timestamp, $feed_item->fiid);
+    db_query("UPDATE {feedapi_aggregator_item} SET title = '%s', link = '%s', author = '%s', description = '%s', guid = '%s', timestamp = %d WHERE iid = %d", $feed_item->title, $feed_item->options->original_url, is_object($feed_item->options->original_author) ? $feed_item->options->original_author->name : $feed_item->options->original_author, $feed_item->description, $feed_item->options->guid, $feed_item->options->timestamp, $feed_item->fiid);
     $categories = db_query('SELECT cid FROM {feedapi_aggregator_category_feed} WHERE feed_nid = %d', $feed_nid);
     while ($category = db_fetch_object($categories)) {
       if (0 == db_result(db_query("SELECT COUNT(*) FROM {feedapi_aggregator_category_item} WHERE cid = %d AND iid = %d", $category->cid, $feed_item->fiid))) {

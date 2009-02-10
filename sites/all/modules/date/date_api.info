@@ -2,9 +2,3 @@
 name = Date API
 description = A Date API that can be used by other modules.
 package = Date/Time
-
-; Information added by drupal.org packaging script on 2008-03-11
-version = "5.x-2.0-rc"
-project = "date"
-datestamp = "1205242805"
-

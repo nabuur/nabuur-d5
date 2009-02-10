@@ -1,26 +1,23 @@
 <?php
-// $Id: date.install,v 1.21.2.12 2008/03/11 13:16:02 karens Exp $
-
-// Updates happen in random order, whether or not the module is enabled,
-// so include critical code here just to be sure.
-include_once('./'. drupal_get_path('module', 'content') .'/content.module');
-include_once('./'. drupal_get_path('module', 'content') .'/content_admin.inc');
-include_once('./'. drupal_get_path('module', 'date_api') .'/date_api.module');
-include_once('./'. drupal_get_path('module', 'date') .'/date.module');
-include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+// $Id: date.install,v 1.21.2.36 2008/12/04 10:56:21 karens Exp $
+function date_install_clear() {
+  cache_clear_all('date_', 'cache', '*');
+  if (db_table_exists('cache_views')) {
+    cache_clear_all('date_browser_views', 'cache_views');
+  }
+  drupal_load('module', 'content');
+  content_clear_type_cache();
+}
 
 /**
  * Implementation of hook_install().
  */
-
 /**
  * Implementation of hook_install().
  * Reset the date caches.
  */
 function date_install() {
-  $ret = array();
-  date_clear_all();
-  return $ret;
+  date_install_clear();
 }
 
 /**
@@ -28,10 +25,7 @@ function date_install() {
  *
  */
 function date_uninstall() {
-  $ret = array();
-  // Empty the date caches.
-  date_clear_all(TRUE);
-  return $ret;
+  date_install_clear();
 }
 
 /**
@@ -39,7 +33,7 @@ function date_uninstall() {
  * Reset the calendar caches.
  */
 function date_enable() {
-  date_clear_all();
+  date_install_clear();
 }
 
 /**
@@ -47,7 +41,7 @@ function date_enable() {
  * Empty the date caches.
  */
 function date_disable() {
-  date_clear_all(TRUE);
+  date_install_clear();
 }
 
 function date_update_1() {
@@ -103,6 +97,7 @@ function date_update_3() {
   if (!db_table_exists('node_field_date_data')) {
     return $ret;
   }
+  drupal_load('module', 'content');
   content_clear_type_cache();
   $fields = content_fields();
 
@@ -141,6 +136,7 @@ function date_update_3() {
 
 function date_update_4() {
   $ret = array();
+  drupal_load('module', 'content');
   content_clear_type_cache();
   $fields = content_fields();
 
@@ -198,6 +194,7 @@ function date_update_7() {
  */
 function date_update_5100() {
   $ret = array();
+  drupal_load('module', 'content');
   $fields = content_fields();
   foreach ($fields as $field) {
     if (strstr($field['type'], 'date')) {
@@ -284,7 +281,7 @@ function date_update_5100() {
       // because the query must be run immediately so we can rebuild the cache.
       db_query("UPDATE {node_field} SET global_settings = '%s' WHERE field_name='%s'", serialize($field_settings), $field['field_name']);
       db_query("UPDATE {node_field_instance} SET widget_settings = '%s' WHERE field_name='%s'", serialize($widget_settings), $field['field_name']);
-      $ret[] = array('success' => TRUE, 'query' => 'field settings updated to '. serialize($field_settings) .'<br>widget settings updated to '. serialize($widget_settings));
+      $ret[] = array('success' => TRUE, 'query' => 'field settings updated to '. serialize($field_settings) .'<br />widget settings updated to '. serialize($widget_settings));
     }
   }
   // Rebuild the cache.
@@ -343,6 +340,7 @@ function date_update_5200() {
   // No longer using the cached formats.
   cache_clear_all('date_formats', 'cache', TRUE);
 
+  drupal_load('module', 'content');
   // Granularity names have been changed to conform with keys used in date arrays.
   $replace = array('Y' => 'year', 'M' => 'month', 'D' => 'day', 'H' => 'hour', 'N' => 'minute', 'S' => 'second');
   $fields = content_fields();
@@ -358,22 +356,18 @@ function date_update_5200() {
       db_query("UPDATE {node_field} SET global_settings = '%s' WHERE field_name='%s'", serialize($field_settings), $field['field_name']);
     }
   }
+ date_install_clear();
  content_clear_type_cache();
  return $ret;
 }
 
 /**
- * Get rid of jscalendar popup and use jQuery popup instead.
+ * The original code was not working right, repeat this in update_5207.
  *
  * @return unknown
  */
 function date_update_5201() {
   $ret = array();
-  if (db_result(db_query("SELECT COUNT(*) FROM {node_field_instance} WHERE widget_type = 'date_js'"))) {
-    module_enable(array('date_popup'));
-  }
-  $ret[] = update_sql("UPDATE {node_field_instance} SET widget_type = 'date_popup' WHERE widget_type = 'date_js'");
-  content_clear_type_cache();
   return $ret;
 }
 
@@ -388,7 +382,177 @@ function date_update_5202() {
  * Data integrity update, supercedes most previous data integrity updates.
  */
 function date_update_5203() {
-  return date_data_integrity('5203');
+  //return date_data_integrity('5203');
+  $ret = array();
+  return $ret;
+}
+
+/**
+ * Get rid of deprecated timezone names.
+ */
+function date_update_5204() {
+  $ret = array();
+  drupal_load('module', 'content');
+  $fields = content_fields();
+  foreach ($fields as $field) {
+    if (($field['type'] == 'date' || $field['type'] == 'datestamp') && $field['tz_handling'] == 'date') {
+      $db_info = content_database_info($field);
+      $table = $db_info['table'];
+      $column = $db_info['columns']['timezone']['column'];
+      $results = db_query("SELECT DISTINCT $column FROM {$table} ORDER BY $column");
+      while($row = db_fetch_object($results)) {
+        if (!empty($row->timezone_name)) {
+          $new = date_timezone_replacement($row->timezone_name);
+          if (!empty($new) && $new != $old) {
+            db_query("UPDATE {$table} SET $column = '%s' WHERE $column = '%s'", $new, $row->timezone_name);
+          }
+        }
+      }
+    }
+  }
+  return $ret;
+}
+
+function date_update_5205() {
+  $ret = array();
+  drupal_load('module', 'content');
+  $fields = content_fields();
+  foreach ($fields as $field) {
+    if (strstr($field['type'], 'date')) {
+      $field_settings = unserialize(db_result(db_query("SELECT global_settings from {node_field} where field_name = '%s'", $field['field_name'])));
+      foreach ($field_settings as $key => $value) {
+        if ($key == 'tz_handling' && $value == 'gmt') {
+          $field_settings[$key] = 'utc';
+        }
+      }
+      db_query("UPDATE {node_field} SET global_settings = '%s' WHERE field_name = '%s'", serialize($field_settings), $field['field_name']);
+    }
+  }
+  return $ret;
+}
+
+/**
+ * Granularity options were not saved correctly by CCK if created using checkboxes.
+ * Checkboxes have been changed back to a select and we need to fix the values
+ * stored in the settings.
+ * 
+ * The bad values would have been stored in the form
+ *   array(
+ *     'year' => 'year'
+ *     'month' => 'month',
+ *     'day' => 0,
+ *     'hour' => 0,
+ *     'minute' => 0,
+ *     'second' => 0,
+ *   );
+ * 
+ * Good values would have been stored in the form
+ *   array(
+ *     'year' => 'year',
+ *     'month' => 'month',
+ *   );
+ *
+ * @return unknown
+ */
+function date_update_5206() {
+  $ret = array();
+  $result = db_query("SELECT field_name, global_settings from {node_field} where type LIKE 'date_%'");
+  while ($field = db_fetch_array($result)) {
+    // Change the format to one date_popup can use.
+    $field_settings = unserialize($field['global_settings']);
+    $granularity = array_filter($field_settings['granularity']);
+    $field_settings['granularity'] = $granularity;
+    db_query("UPDATE {node_field} SET global_settings = '%s' WHERE field_name = '%s'", serialize($field_settings), $field['field_name']);
+  }
+  date_install_clear();
+  return $ret;
+}
+
+/**
+ * Get rid of jscalendar popup widget.
+ * Originally update_5201, but that was broken.
+ */
+function date_update_5207() {
+  drupal_load('module', 'content');
+  $ret = array();
+  if (db_result(db_query("SELECT COUNT(*) FROM {node_field_instance} WHERE widget_type = 'date_js'"))) {
+    $replace = module_exists('date_popup') ? 'date_popup' : 'date_text';
+    $result = db_query("SELECT field_name, type_name, widget_type from {node_field_instance} where widget_type = 'date_js'");
+    while ($widget = db_fetch_array($result)) {
+      db_query("UPDATE {node_field_instance} SET widget_type = '$replace' WHERE field_name = '%s' AND type_name = '%s'", $widget['field_name'], $widget['type_name']);
+    }
+    drupal_set_message(t('All date fields using the jscalendar widget have been changed to use the text widget instead, since the jscalendar widget is no longer supported. Enable the Date Popup module to make a jQuery popup calendar available and edit the field settings to select it.'));
+    content_clear_type_cache();
+  }
+  return $ret;
+}
+
+/**
+ * Swap out the generic Content field handlers for the new
+ * date field handlers.
+ */
+function date_update_5208() {
+  $ret = array();
+  if (!module_exists('views')) {
+    return $ret;
+  }
+  drupal_load('module', 'views');
+  views_load_cache();
+  $view_fields = _views_get_fields();
+  $date_types = array(DATE_ISO, DATE_UNIX);
+  foreach ($view_fields as $name => $view_field) {
+    if (isset($view_field['content_field']) && in_array($view_field['content_field']['type'], $date_types)) {
+      $bits = explode('.', $name);
+      $sql = "UPDATE {view_tablefield} SET handler = REPLACE(handler, 'content_views_field_handler_', 'date_views_field_handler_') WHERE tablename = '%s' AND field = '%s'";
+      db_query($sql, $bits[0], $bits[1]);
+    }
+  }
+  cache_clear_all('*', 'cache_views', true);
+  return $ret;    
+}
+
+/**
+ * Update all repeating date delta values with the RRULE
+ * so we can use that info in Views when we pull individual items
+ * out in a query.
+ */
+function date_update_5209() {
+  $ret = array();
+  drupal_load('module', 'content');
+  $fields = content_fields();
+  foreach ($fields as $field) {
+    if (strstr($field['type'], 'date') && !empty($field['repeat'])) {
+      $db_info = content_database_info($field);
+      $table = $db_info['table'];
+      $column = $field['field_name'] .'_rrule';
+      $result = db_query("SELECT DISTINCT nid, vid, $column FROM {". $table ."} WHERE $column <> ''");
+      while ($row = db_fetch_array($result)) {
+        $ret[] = update_sql("UPDATE {". $table ."} SET $column='". $row[$column] ."' WHERE nid=". $row['nid'] ." AND vid=". $row['vid']);
+      }
+    }    
+  }
+  return $ret;    
+}
+
+/**
+ * Empty the stored db for timezones that use timezone 'none'.
+ */
+function date_update_5210() {
+  $ret = array();
+  drupal_load('module', 'content');
+  $fields = content_fields();
+  foreach ($fields as $field) {
+    if (strstr($field['type'], 'date') && !empty($field['tz_handling']) && $field['tz_handling'] == 'none') {
+      $row = db_result(db_query("SELECT global_settings FROM {node_field} WHERE field_name='". $field['field_name'] ."'"));
+      $settings = unserialize($row);
+      $settings['timezone_db'] = '';
+      $settings = serialize($settings);
+      db_query("UPDATE {node_field} SET global_settings='%s' WHERE field_name='%s'", $settings, $field['field_name']);
+    }    
+  }
+  drupal_set_message(t("The database has been updated to correct the stored timezone for fields using timezone 'none'."));
+  content_clear_type_cache();
+  return $ret;    
 }
 
 /**
@@ -408,6 +572,8 @@ function date_column_exists($table, $column) {
 
 function date_db_integrity($name) {
   $ret = array();
+  drupal_load('module', 'content');
+  require_once('./'. drupal_get_path('module', 'content') .'/content_admin.inc');
   $fields = content_fields();
   foreach ($fields as $field) {
     $db_info = content_database_info($field);
@@ -479,15 +645,8 @@ function date_data_integrity($name, $force_recalc = FALSE) {
   $debug = TRUE;
 
   $ret = array();
-  $update_name = 'date_update_'. $name;
-  // Make sure Date API module is installed before proceeding.
-  if (!module_exists('date_api')) {
-    drupal_install_modules(array('date_api'));
-  }
-  if (!module_exists('content')) {
-    drupal_install_modules(array('content'));
-  }
-
+  drupal_load('module', 'content');
+  require_once('./'. drupal_get_path('module', 'content') .'/content_admin.inc');
   // See if being called for the first time
   if (!isset($_SESSION[$update_name]) || empty($_SESSION[$update_name]['search'])) {
     // Find all nids that have date fields and store them in an array.
@@ -551,13 +710,13 @@ function date_data_integrity($name, $force_recalc = FALSE) {
             if (empty($item['offset']) || empty($item['timezone']) || $force_recalc) {
               $needs_fix = TRUE;
               $timezone = date_get_timezone($field['tz_handling'], $item['timezone']);
-              $date = date_make_date($item['value'], 'GMT', $field['type']);
+              $date = date_make_date($item['value'], 'UTC', $field['type']);
               if (!empty($date) && !empty($timezone)) {
                 date_timezone_set($date, timezone_open($timezone));
                 $add[$delta]['timezone'] = $field['required'] || $item['value'] ? $timezone : NULL;
                 $add[$delta]['offset']   = $field['required'] || $item['value'] ? date_offset_get($date) : NULL;
               }
-              $date = date_make_date($item['value2'], 'GMT', $field['type']);
+              $date = date_make_date($item['value2'], 'UTC', $field['type']);
               if (!empty($date) && !empty($timezone)) {
                 date_timezone_set($date, timezone_open($timezone));
                 $add[$delta]['offset2']   = $field['required'] || $item['value'] ? date_offset_get($date) : NULL;
@@ -572,7 +731,7 @@ function date_data_integrity($name, $force_recalc = FALSE) {
       $_SESSION[$update_name]['counted'] ++;
 
       if ($needs_fix) {
-        node_submit($node);
+        //node_submit($node);
         node_save($node);
         $_SESSION[$update_name]['changed'][] = $node->nid . ($node->vid != $node->nid ? ':'. $node->vid : '');
       }
@@ -589,8 +748,8 @@ function date_data_integrity($name, $force_recalc = FALSE) {
     $progress = floatval($_SESSION[$update_name]['counted'] / $_SESSION[$update_name]['count_total']);
     if ($debug) {
       $message = 'Date data integrity check. Total nodes checked: '. $_SESSION[$update_name]['counted'] .
-        '<br>Updated nodes: '. implode(', ', $_SESSION[$update_name]['changed']) .
-        '<br>Unchanged nodes: '. implode(', ', $_SESSION[$update_name]['unchanged']);
+        '<br />Updated nodes: '. implode(', ', $_SESSION[$update_name]['changed']) .
+        '<br />Unchanged nodes: '. implode(', ', $_SESSION[$update_name]['unchanged']);
     }
     if ($debug) {
       return array('#finished' => $progress, array('success' => TRUE, 'query' => $message));
@@ -604,8 +763,8 @@ function date_data_integrity($name, $force_recalc = FALSE) {
     drupal_set_message(t('All nodes with date fields have been checked.'));
     $message = 'Date data integrity check. Total nodes checked: '. $_SESSION[$update_name]['counted'];
     if ($debug) {
-      $message .= '<br>Updated nodes: '. implode(', ', $_SESSION[$update_name]['changed']) .
-        '<br>Unchanged nodes: '. implode(', ', $_SESSION[$update_name]['unchanged']);
+      $message .= '<br />Updated nodes: '. implode(', ', $_SESSION[$update_name]['changed']) .
+        '<br />Unchanged nodes: '. implode(', ', $_SESSION[$update_name]['unchanged']);
     }
     unset($_SESSION[$update_name]);
     content_clear_type_cache();

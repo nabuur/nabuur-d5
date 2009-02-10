@@ -2,9 +2,3 @@
 name = CAPTCHA
 description = "Base CAPTCHA module for adding challenges to arbitrary forms."
 package = "Spam control"
-
-; Information added by drupal.org packaging script on 2007-12-03
-version = "5.x-3.1"
-project = "captcha"
-datestamp = "1196645403"
-

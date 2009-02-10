@@ -1,5 +1,5 @@
 <?php
-// $Id: zzz_custom_url.inc,v 1.3 2008/05/11 03:56:54 alexua Exp $
+// $Id: zzz_custom_url.inc,v 1.4 2008/05/12 04:10:54 alexua Exp $
 
 function _video_cck_zzz_custom_url_default_types() {
   return array('wmv', 'wma', 'swf', 'flv', 'mov', 'rm');
@@ -48,7 +48,7 @@ function _video_cck_zzz_custom_url_implode_types() {
 
 function video_cck_zzz_custom_url_extract($embed = '') {
   $types = _video_cck_zzz_custom_url_implode_types();
-  if (preg_match('@\.(' . $types . ')@i', $embed, $matches)) {
+  if (preg_match('@\ .('. $types .')@i', $embed, $matches)) {
     return $embed;
   }
   return false;
@@ -69,7 +69,7 @@ function video_cck_zzz_custom_url_data($field, $item) {
   }
   // @todo replace ['type'] with converted mime info if available
   $types = _video_cck_zzz_custom_url_implode_types();
-  $regex = '@\.(' . $types . ')@i';
+  $regex = '@\.('. $types .')@i';
   if (preg_match($regex, $item['embed'], $matches)) {
     $data['type'] = $matches[1];
   }
@@ -110,18 +110,18 @@ function theme_video_cck_zzz_custom_url_embedded_video($type, $url, $width, $hei
       case 'wmv':
       case 'wma':
         $autostart = $autoplay ? '1' : '0';
-        return '<embed src="' . $url . '" width="' . $width . '" height="' . $height . '" autostart="' . $autostart . '" showcontrols="1" type="application/x-mplayer2" pluginspage="http://www.microsoft.com/windows/windowsmedia/download/"> </embed>';
+        return '<embed src="'. $url .'" width="'. $width .'" height="'. $height .'" autostart="'. $autostart .'" showcontrols="1" type="application/x-mplayer2" pluginspage="http://www.microsoft.com/windows/windowsmedia/download/"> </embed>';
       case 'mov':
         $autostart = $autoplay ? 'true' : 'false';
-        return '<embed src="' . $url . '" width="' . $width . '" height="' . $height . '" autoplay="' . $autostart . '" controller="true" type="video/quicktime" scale="tofit" pluginspage="http://www.apple.com/quicktime/download/"> </embed>';
+        return '<embed src="'. $url .'" width="'. $width .'" height="'. $height .'" autoplay="'. $autostart .'" controller="true" type="video/quicktime" scale="tofit" pluginspage="http://www.apple.com/quicktime/download/"> </embed>';
       case 'rm':
         $autostart = $autoplay ? 'true' : 'false';
-        return '<embed type="audio/x-pn-realaudio-plugin" src="' . $url . '" width="' . $width . '" height="' . $height . '" autostart="' . $autostart . '" controls="imagewindow" nojava="true" console="c1183760810807" pluginspage="http://www.real.com/"></embed><br><embed type="audio/x-pn-realaudio-plugin" src="' . $url . '" width="' . $width . '" height="26" autostart="' . $autostart . '" nojava="true" controls="ControlPanel" console="c1183760810807"> </embed>';
+        return '<embed type="audio/x-pn-realaudio-plugin" src="'. $url .'" width="'. $width .'" height="'. $height .'" autostart="'. $autostart .'" controls="imagewindow" nojava="true" console="c1183760810807" pluginspage="http://www.real.com/"></embed><br><embed type="audio/x-pn-realaudio-plugin" src="'. $url .'" width="'. $width .'" height="26" autostart="'. $autostart .'" nojava="true" controls="ControlPanel" console="c1183760810807"> </embed>';
       case 'swf':
-        return '<embed src="' . $url . '" width="' . $width . '" height="' . $height . '" quality="high" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
+        return '<embed src="'. $url .'" width="'. $width .'" height="'. $height .'" quality="high" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
       case 'flv':
         $autostart = $autoplay ? 'true' : 'false';
-        return '<embed src="http://freevideocoding.com/flvplayer.swf?file=' . $url . '&autoStart=' . $autostart . '" width="' . $width . '" height="' . $height . '" quality="high" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
+        return '<embed src="http://freevideocoding.com/flvplayer.swf?file='. $url .'&autoStart='. $autostart .'" width="'. $width .'" height="'. $height .'" quality="high" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
     }
   }
 }

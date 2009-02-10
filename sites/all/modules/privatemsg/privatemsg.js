@@ -1,4 +1,4 @@
-// $Id: privatemsg.js,v 1.1.1.1 2008/05/23 12:23:44 kester Exp $
+// $Id: privatemsg.js,v 1.3.2.4 2008/06/13 05:11:48 litwol Exp $
 
 if (Drupal.jsEnabled) {
   $(document).ready(

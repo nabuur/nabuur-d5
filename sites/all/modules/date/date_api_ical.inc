@@ -1,5 +1,5 @@
 <?php
-/* $Id: date_api_ical.inc,v 1.21.2.10 2008/03/11 11:58:51 karens Exp $ */
+/* $Id: date_api_ical.inc,v 1.21.2.23 2008/11/11 14:29:34 karens Exp $ */
 /**
  * @file
  * Parse iCal data.
@@ -85,7 +85,7 @@ function date_ical_import($filename) {
     $icaldatafetch = drupal_http_request($filename);
     // Check the return result
     if ($icaldatafetch->error) {
-      drupal_set_message('Request Error: '. $icaldatafetch->error, 'error');
+      watchdog('date ical', 'Request Error importing !filename: !error', array('!filename' => $filename, '!error' => $icaldatafetch->error));
       return false;
     }
     // Break the return result into one array entry per lines
@@ -94,14 +94,27 @@ function date_ical_import($filename) {
   else {
     $icaldatafolded = @file($filename, FILE_IGNORE_NEW_LINES);
     if ($icaldatafolded === FALSE) {
-      drupal_set_message('Failed to open file: '. $filename, 'error');
+      watchdog('date ical', 'Failed to open file: !filename', array('!filename' => $filename));
       return false;
     }
   }
+  return date_ical_parse($icaldatafolded);
+}
 
+/**
+ * Return an array of iCalendar information from an iCalendar file.
+ *
+ * As date_ical_import() but different param.
+ *
+ * @param $icaldatafolded
+ *   an array of lines from an ical feed.
+ * @return array
+ *   An array with all the elements from the ical.
+ */
+function date_ical_parse($icaldatafolded = array()) {
   // Verify this is iCal data
   if (trim($icaldatafolded[0]) != 'BEGIN:VCALENDAR') {
-    drupal_set_message('Invalid calendar file:'. $filename, 'error');
+    watchdog('date ical', 'Invalid calendar file: !filename', array('!filename' => $filename));
     return false;
   }
 
@@ -306,6 +319,13 @@ function date_ical_import($filename) {
  *   It will take more work to figure how to support that.
  */
 function date_ical_parse_date($field, $data) {
+  $items = array('datetime' => '', 'all_day' => '', 'tz' => '');
+  if (empty($data)) {
+    return $items;
+  }
+  // Make this a little more whitespace independent
+  $data = trim($data);
+
   // Turn the properties into a nice indexed array of
   // array(PROPERTYNAME => PROPERTYVALUE);
   $field_parts = preg_split('/[;:]/', $field);
@@ -353,6 +373,10 @@ function date_ical_parse_date($field, $data) {
     $tz = $properties['TZID'];
     // Fix commonly used alternatives like US-Eastern which should be US/Eastern.
     $tz = str_replace('-', '/', $tz);
+    // Unset invalid timezone names.
+    if (!date_timezone_is_valid($tz)) {
+      $tz = '';
+    }
   }
   // If declared as UTC with terminating 'Z', use that timezone
   else if (strpos($data, 'Z') !== false) {
@@ -382,6 +406,10 @@ function date_ical_parse_rrule($field, $data) {
   $rrule = explode(';', $data);
   foreach ($rrule as $key => $value) {
     $param = explode('=', $value);
+    // Must be some kind of invalid data.
+    if (count($param) != 2) {
+      continue;
+    }
     if ($param[0] == 'UNTIL') {
       $values = date_ical_parse_date('', $param[1]);
     }
@@ -428,13 +456,13 @@ function date_ical_parse_duration(&$subgroup) {
   $items = $subgroup['DURATION'];
   $data  = $items['DATA'];
   preg_match('/^P(\d{1,4}[Y])?(\d{1,2}[M])?(\d{1,2}[W])?(\d{1,2}[D])?([T]{0,1})?(\d{1,2}[H])?(\d{1,2}[M])?(\d{1,2}[S])?/', $data, $duration);
-  $items['year'] = str_replace('Y', '', $duration[1]);
-  $items['month'] = str_replace('M', '', $duration[2]);
-  $items['week'] = str_replace('W', '', $duration[3]);
-  $items['day'] = str_replace('D', '', $duration[4]);
-  $items['hour'] = str_replace('H', '', $duration[6]);
-  $items['minute'] = str_replace('M', '', $duration[7]);
-  $items['second'] = str_replace('S', '', $duration[8]);
+  $items['year'] = isset($duration[1]) ? str_replace('Y', '', $duration[1]) : '';
+  $items['month'] = isset($duration[2]) ?str_replace('M', '', $duration[2]) : '';
+  $items['week'] = isset($duration[3]) ?str_replace('W', '', $duration[3]) : '';
+  $items['day'] = isset($duration[4]) ?str_replace('D', '', $duration[4]) : '';
+  $items['hour'] = isset($duration[6]) ?str_replace('H', '', $duration[6]) : '';
+  $items['minute'] = isset($duration[7]) ?str_replace('M', '', $duration[7]) : '';
+  $items['second'] = isset($duration[8]) ?str_replace('S', '', $duration[8]) : '';
   $start_date = array_key_exists('DTSTART', $subgroup) ? $subgroup['DTSTART']['datetime'] : date_format(date_now(), DATE_FORMAT_ISO);
   $timezone = array_key_exists('DTSTART', $subgroup) ? $subgroup['DTSTART']['tz'] : variable_get('date_default_timezone_name', NULL);
   if (empty($timezone)) {
@@ -447,14 +475,14 @@ function date_ical_parse_duration(&$subgroup) {
       date_modify($date2, '+'. $count .' '. $item);
     }
   }
-  $format = $subgroup['DTSTART']['type'] == 'DATE' ? 'Y-m-d' : 'Y-m-d H:i:s';
+  $format = isset($subgroup['DTSTART']['type']) && $subgroup['DTSTART']['type'] == 'DATE' ? 'Y-m-d' : 'Y-m-d H:i:s';
   $subgroup['DTEND'] = array(
     'datetime' => date_format($date2, DATE_FORMAT_DATETIME),
-    'all_day' => $subgroup['DTSTART']['all_day'],
+    'all_day' => isset($subgroup['DTSTART']['all_day']) ? $subgroup['DTSTART']['all_day'] : 0,
     'tz' => $timezone,
     );
- $items['DURATION'] = date_format($date2, 'U') - date_format($date, 'U');
- $subgroup['DURATION'] = $items;
+  $items['DURATION'] = date_format($date2, 'U') - date_format($date, 'U');
+  $subgroup['DURATION'] = $items;
 }
 
 /**
@@ -494,9 +522,122 @@ function date_ical_date($ical_date, $to_tz = FALSE) {
   }
   $date = date_make_date($ical_date['datetime'], $from_tz);
   if ($to_tz && $ical_date['tz'] != '' && $to_tz != $ical_date['tz']) {
-    $date = date_timezone_set($date, timezone_open($to_tz));
+    date_timezone_set($date, timezone_open($to_tz));
   }
   return $date;
+}
+
+/**
+ * Escape #text elements for safe iCal use
+ *
+ * @param $text
+ *   Text to escape
+ *
+ * @return
+ *   Escaped text
+ *
+ */
+function date_ical_escape_text($text) {
+  //$text = strip_tags($text);
+  $text = str_replace('"', '\"', $text);
+  $text = str_replace("\\", "\\\\", $text);
+  $text = str_replace(",", "\,", $text);
+  $text = str_replace(":", "\:", $text);
+  $text = str_replace(";", "\;", $text);
+  $text = str_replace("\n", "\n ", $text);
+  return trim($text);
+}
+
+/**
+ * Build an iCal RULE from $form_values.
+ *
+ * @param $form_values
+ *   an array constructed like the one created by date_ical_parse_rrule()
+ *
+ *     [RRULE] => Array (
+ *       [FREQ] => Array (
+ *         [0] => MONTHLY
+ *       )
+ *       [BYDAY] => Array (
+ *         [0] => 1SU
+ *         [1] => -1SU
+ *       )
+ *       [UNTIL] => Array (
+ *         [datetime] => 1997-21-31 09:00:00
+ *         [all_day] => 0
+ *         [tz] => US/Eastern
+ *       )
+ *     )
+ *     [EXDATE] => Array (
+ *       [0] = Array (
+ *         [datetime] => 1997-09-21 09:00:00
+ *         [all_day] => 0
+ *         [tz] => US/Eastern
+ *       )
+ *       [1] = Array (
+ *         [datetime] => 1997-10-05 09:00:00
+ *         [all_day] => 0
+ *         [tz] => US/Eastern
+ *       )
+ *     )
+ *
+ */
+function date_api_ical_build_rrule($form_values) {
+  //grab the RRULE data and put them into iCal RRULE format
+  $RRULE = 'RRULE:FREQ='. (!array_key_exists('FREQ', $form_values) ? 'DAILY' : $form_values['FREQ']);
+  $RRULE .= ';INTERVAL='. (!array_key_exists('INTERVAL', $form_values) ? 1 : $form_values['INTERVAL']);
+
+  // Unset the empty 'All' values.
+  if (array_key_exists('BYDAY', $form_values)) unset($form_values['BYDAY']['']);
+  if (array_key_exists('BYMONTH', $form_values)) unset($form_values['BYMONTH']['']);
+  if (array_key_exists('BYMONTHDAY', $form_values)) unset($form_values['BYMONTHDAY']['']);
+
+  if (array_key_exists('BYDAY', $form_values) && $BYDAY = implode(",", $form_values['BYDAY'])) {
+    $RRULE .= ';BYDAY='. $BYDAY;
+  }
+  if (array_key_exists('BYMONTH', $form_values) && $BYMONTH = implode(",", $form_values['BYMONTH'])) {
+    $RRULE .= ';BYMONTH='. $BYMONTH;
+  }
+  if (array_key_exists('BYMONTHDAY', $form_values) && $BYMONTHDAY = implode(",", $form_values['BYMONTHDAY'])) {
+    $RRULE .= ';BYMONTHDAY='. $BYMONTHDAY;
+  }
+  // The UNTIL date is supposed to always be expressed in UTC.
+  if (array_key_exists('UNTIL', $form_values) && array_key_exists('datetime', $form_values['UNTIL'])) {
+    $until = date_ical_date($form_values['UNTIL'], 'UTC');
+    $RRULE .= ';UNTIL='. date_format($until, DATE_FORMAT_ICAL) .'Z';
+  }
+  // Our form doesn't allow a value for COUNT, but it may be needed by
+  // modules using the API, so add it to the rule.
+  if (array_key_exists('COUNT', $form_values)) {
+    $RRULE .= ';COUNT='. $form_values['COUNT'];
+  }
+  // iCal rules presume the week starts on Monday unless otherwise specified,
+  // so we'll specify it.
+  if (array_key_exists('WKST', $form_values)) {
+    $RRULE .= ';WKST='. $form_values['WKST'];
+  }
+  else {
+    $RRULE .= ';WKST='. date_repeat_dow2day(variable_get('date_first_day', 1));
+  }
+
+  // Exceptions dates go last, on their own line.
+  if (isset($form_values['EXDATE']) && is_array($form_values['EXDATE'])) {
+    $ex_dates = array();
+    foreach ($form_values['EXDATE'] as $value) {
+      $ex_date = date_convert($value['datetime'], DATE_DATETIME, DATE_ICAL);
+      if (!empty($ex_date)) {
+        $ex_dates[] = $ex_date;
+      }
+    }
+    if (!empty($ex_dates)) {
+      sort($ex_dates);
+      $RRULE .= chr(13) . chr(10) .'EXDATE:'. implode(',', $ex_dates);
+    }
+  }
+  elseif (!empty($form_values['EXDATE'])) {
+    $RRULE .= chr(13) . chr(10) .'EXDATE:'. $form_values['EXDATE'];
+  }
+  return $RRULE;
 }
 
 /**
@@ -563,111 +704,4 @@ function date_ical_export($events, $calname = NULL) {
   }
   $output .= "END:VCALENDAR\n";
   return $output;
-}
-
-/**
- * Escape #text elements for safe iCal use
- *
- * @param $text
- *   Text to escape
- *
- * @return
- *   Escaped text
- *
- */
-function date_ical_escape_text($text) {
-  //$text = strip_tags($text);
-  $text = str_replace('"', '\"', $text);
-  $text = str_replace("\\", "\\\\", $text);
-  $text = str_replace(",", "\,", $text);
-  $text = str_replace(":", "\:", $text);
-  $text = str_replace(";", "\;", $text);
-  $text = str_replace("\n", "\n ", $text);
-  return $text;
-}
-
-/**
- * Build an iCal RULE from $form_values.
- *
- * @param $form_values
- *   an array constructed like the one created by date_ical_parse_rrule()
- *
- *     [RRULE] => Array (
- *       [FREQ] => Array (
- *         [0] => MONTHLY
- *       )
- *       [BYDAY] => Array (
- *         [0] => 1SU
- *         [1] => -1SU
- *       )
- *       [UNTIL] => Array (
- *         [datetime] => 1997-21-31 09:00:00
- *         [all_day] => 0
- *         [tz] => US/Eastern
- *       )
- *     )
- *     [EXDATE] => Array (
- *       [0] = Array (
- *         [datetime] => 1997-09-21 09:00:00
- *         [all_day] => 0
- *         [tz] => US/Eastern
- *       )
- *       [1] = Array (
- *         [datetime] => 1997-10-05 09:00:00
- *         [all_day] => 0
- *         [tz] => US/Eastern
- *       )
- *     )
- *
- */
-function date_api_ical_build_rrule($form_values) {
-  //grab the RRULE data and put them into iCal RRULE format
-  $RRULE = 'RRULE:FREQ='. $form_values['FREQ'];
-  $RRULE .= ';INTERVAL='. $form_values['INTERVAL'];
-
-  // Unset the empty 'All' values.
-  unset($form_values['BYDAY']['']);
-  unset($form_values['BYMONTH']['']);
-  unset($form_values['BYMONTHDAY']['']);
-
-  if ($form_values['BYDAY']) {
-    $RRULE .= ';BYDAY='. implode(",", $form_values['BYDAY']);
-  }
-  if ($form_values['BYMONTH']) {
-    $RRULE .= ';BYMONTH='. implode(",", $form_values['BYMONTH']);
-  }
-  if ($form_values['BYMONTHDAY']) {
-    $RRULE .= ';BYMONTHDAY='. implode(",", $form_values['BYMONTHDAY']);
-  }
-  if ($form_values['UNTIL']['datetime']) {
-    $RRULE .= ';UNTIL='. date_convert($form_values['UNTIL']['datetime'], DATE_DATETIME, DATE_ICAL);
-  }
-
-  // iCal rules presume the week starts on Monday unless otherwise specified,
-  // so we'll specify it.
-  if (isset($form_values['WKST'])) {
-    $RRULE .= ';WKST='. $form_values['WKST'];
-  }
-  else {
-    $RRULE .= ';WKST='. date_repeat_dow2day(variable_get('date_first_day', 1));
-  }
-
-  // Exceptions dates go last, on their own line.
-  if (is_array($form_values['EXDATE'])) {
-    $ex_dates = array();
-    foreach ($form_values['EXDATE'] as $value) {
-      $ex_date = date_convert($value['datetime'], DATE_DATETIME, DATE_ICAL);
-      if (!empty($ex_date)) {
-        $ex_dates[] = $ex_date;
-      }
-    }
-    if (!empty($ex_dates)) {
-      sort($ex_dates);
-      $RRULE .= chr(13) . chr(10) .'EXDATE:'. implode(',', $ex_dates);
-    }
-  }
-  elseif (!empty($form_values['EXDATE'])) {
-    $RRULE .= chr(13) . chr(10) .'EXDATE:'. $form_values['EXDATE'];
-  }
-  return $RRULE;
 }

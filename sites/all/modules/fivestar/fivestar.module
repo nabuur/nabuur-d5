@@ -1,5 +1,5 @@
 <?php
-// $Id: fivestar.module,v 1.2.2.87 2008/04/15 08:55:05 quicksketch Exp $
+// $Id: fivestar.module,v 1.2.2.99 2008/08/23 05:17:06 quicksketch Exp $
 
 /**
  * @file
@@ -31,6 +31,7 @@ function fivestar_menu($may_cache) {
     $items[] = array(
       'path'     => 'admin/settings/fivestar',
       'title'    => t('Fivestar'),
+      'description' => t('Configure site-wide widgets used for Fivestar rating.'),
       'callback' => 'drupal_get_form',
       'callback arguments' => array('fivestar_settings'),
       'type'     => MENU_NORMAL_ITEM,
@@ -65,14 +66,11 @@ function fivestar_menu($may_cache) {
  * IS compatible with agressive caching, we just need a way to annouce that.
  */
 function fivestar_init() {
-  // ensure we are not serving a cached page
+  // Ensure we are not serving a cached page.
   if (function_exists('drupal_set_content')) {
     if (module_exists('content')) {
       include_once(drupal_get_path('module', 'fivestar') .'/fivestar_field.inc');
     }
-  }
-  if (module_exists('comment')) {
-    include_once(drupal_get_path('module', 'fivestar') .'/fivestar_comment.inc');
   }
 }
 
@@ -270,11 +268,6 @@ function fivestar_form_alter($form_id, &$form) {
 
     $form['#submit']['fivestar_node_type_form_submit'] = array();
   }
-
-  // Add comment form modifications.
-  if (module_exists('comment')) {
-    fivestar_comment_form_alter($form_id, $form);
-  }
 }
 
 /**
@@ -335,7 +328,7 @@ function theme_fivestar_node_type_form($form) {
   $output .= drupal_render($form['direct']);
 
   // Comment settings form.
-  if (module_exists('comment')) {
+  if (module_exists('fivestar_comment')) {
     $comment = '';
     $comment .= '<div id="fivestar-comment-form">';
     $comment .= drupal_render($form['comment']['fivestar_comment']);
@@ -343,7 +336,7 @@ function theme_fivestar_node_type_form($form) {
     $comment .= '<div id="fivestar-comment-preview">';
     $comment .= drupal_render($form['comment']['fivestar_comment_preview']);
     $comment .= '</div>';
-  
+
     $form['comment']['#children'] = $comment;
     $output .= drupal_render($form['comment']);
   }
@@ -534,7 +527,8 @@ function theme_fivestar_preview_widget($css_file) {
 function fivestar_preview_color() {
   include_once(drupal_get_path('module', 'fivestar') .'/fivestar_color.inc');
   $args = func_get_args();
-  $filename = array_pop($args);
+  // Remove query string if it gets passed in as argument.
+  $filename = preg_replace('/\?.*$/', '', array_pop($args));
   $type = array_pop($args);
   $widget = array_pop($args);
 
@@ -639,6 +633,10 @@ function fivestar_vote($type, $cid, $value, $tag = 'vote') {
 
   _fivestar_cast_vote($type, $cid, $value, $tag);
   $result = votingapi_recalculate_results($type, $cid);
+  // Retrieve cached result if recalculation is not set to immediate.
+  if (!is_array($result)) {
+    $result = votingapi_get_voting_results($type, $cid);
+  }
 
   if ($type == 'node') {
     $node = node_load($cid);
@@ -732,13 +730,13 @@ function _fivestar_cast_vote($type, $cid, $value, $tag = NULL, $uid = NULL) {
         votingapi_delete_vote($old_vote);
       }
       else {
-        votingapi_change_vote($old_vote, $value);
+        $vote = votingapi_change_vote($old_vote, $value);
       }
     }
     elseif ($value != 0) {
       $vote = votingapi_add_vote($type, $cid, $value, 'percent', $tag, $uid);
     }
-    return votingapi_recalculate_results($type, $cid);
+    return $vote;
   }
   else {
     return array();
@@ -822,12 +820,13 @@ function fivestar_nodeapi(&$node, $op, $teaser, $page) {
               );
               break;
             } // Fall through to static if not allowed to rate.
+            $position .= '_static';
           case 'above_static':
           case 'below_static':
             $stars = variable_get('fivestar_stars_'. $node->type, 5);
             $node->content['fivestar_widget'] = array(
               '#value' => fivestar_static('node', $node->nid, $node->type),
-              '#weight' => $position == 'above_static' ? -10 : 50,
+              '#weight' => strpos($position, 'above') === 0 ? -10 : 50,
             );
             break;
           default:
@@ -853,7 +852,7 @@ function fivestar_link($type, $node = NULL, $teaser = FALSE) {
         'title' => t('Rate'),
         'href' => 'node/'. $node->nid,
         'fragment' => 'fivestar-form-node-'. $node->nid,
-        'attributes' => array('title' => t('Rate this @type', array('@type', node_get_types('name', $node->type)))),
+        'attributes' => array('title' => t('Rate this @type', array('@type' => node_get_types('name', $node->type)))),
       );
     }
   }
@@ -875,8 +874,8 @@ function fivestar_block($op = 'list', $delta = 0, $edit = array()) {
           if (_fivestar_validate_target('node', $node->nid)) {
             $block['subject'] = t('Rate This');
             $block['content'] = fivestar_widget_form($node);
+            return $block;
           }
-          return $block;
         }
       }
       break;
@@ -941,7 +940,7 @@ function fivestar_form($content_type, $content_id) {
     'stars' => variable_get('fivestar_stars_'. $node->type, 5),
     'allow_clear' => variable_get('fivestar_unvote_'. $node->type, FALSE),
     'style' => variable_get('fivestar_style_'. $node->type, 'average'),
-    'text' => variable_get('fivestar_text_'. $node->type, 'combo'),
+    'text' => variable_get('fivestar_text_'. $node->type, 'dual'),
     'content_type' => $content_type,
     'content_id' => $content_id,
     'autosubmit' => TRUE,
@@ -1296,6 +1295,7 @@ function theme_fivestar_static($rating, $stars = 5) {
 
 function theme_fivestar_summary($user_rating, $average_rating, $votes, $stars = 5, $feedback = TRUE) {
   $output = '';
+  $div_class = '';
   if (isset($user_rating)) {
     $div_class = isset($votes) ? 'user-count' : 'user';
     $user_stars = round(($user_rating * $stars) / 100, 1);
@@ -1466,7 +1466,7 @@ function fivestar_expand($element) {
   $label_class = $element['#labels_enable'] ? ' fivestar-labels-hover' : '';
 
   $element['#id'] = 'edit-vote-'. $fivestar_id;
-  $element['#prefix'] = '<div class="fivestar-form-item '. $element['#attributes']['class'] . $label_class .'">';
+  $element['#prefix'] = '<div class="fivestar-form-item '. (isset($element['#attributes']['class']) ? $element['#attributes']['class'] : '') . $label_class .'">';
   $element['#suffix'] = '</div>';
 
   // Add validation function that considers a 0 value as empty.
@@ -1542,7 +1542,7 @@ function fivestar_views_widget_handler($op, $filter, $value, &$query, $summary) 
     // If the user has setup this content type to use smart stars, display
     // the smart version instead of just the average.
     'style' => variable_get('fivestar_style_'. $node_type, 'average') != 'smart' ? 'average' : 'smart',
-    'text' => $summary ? variable_get('fivestar_text_'. $node_type, 'combo') : 'none',
+    'text' => $summary ? variable_get('fivestar_text_'. $node_type, 'dual') : 'none',
     'content_type' => $content_type,
     'content_id' => $content_id,
     'autosubmit' => TRUE,

@@ -1,10 +1,19 @@
+/* Reset link properties and then override them with !important */
+#calendar_div a, .calendar_inline a {
+	cursor: pointer;
+	margin: 0;
+	padding: 0;
+	background-color: #fff;
+	color: #000;
+}
+
 /* Main Style Sheet for jQuery Calendar */
 #calendar_div, .calendar_inline {
 	font-family: Arial, Helvetica, sans-serif;
 	font-size: 14px;
 	padding: 0;
 	margin: 0;
-	background: #fff;
+	background-color: #fff;
 }
 #calendar_div {
 	display: none;
@@ -34,7 +43,7 @@ img.calendar_trigger {
 	float: left;
 	width: 181px;
 	padding: 2px;
-	background: #ddd;
+	background-color: #ddd;
 	color: #000;
 }
 * html .calendar_prompt {
@@ -46,15 +55,20 @@ img.calendar_trigger {
 	color: #000;
 }
 .calendar_control, .calendar_header {
-	background: #eee;
+	background-color: #eee;
 }
 .calendar_links {
-	background: #fff;
+	background-color: #fff;
 }
 .calendar_control, .calendar_links {
 	font-size: 80%;
 	letter-spacing: 1px;
-	background: #eee;
+	background-color: #eee;
+}
+#calendar_div .calendar_control a, 
+#calendar_div .calendar_links a, 
+#calendar_div .calendar_header a {
+  background-color: #eee;
 }
 .calendar_links label { /* disabled links */
 	padding: 2px 5px;
@@ -74,16 +88,16 @@ img.calendar_trigger {
 	width: 35px;
 }
 .calendar_header {
-	background: #ddd;
+	background-color: #ddd;
 	text-align: center;
 }
 .calendar_header select {
-	background: #ddd;
+	background-color: #ddd;
 	color: #000;
 	border: 0px;
 }
 .calendar {
-	background: #fff;
+	background-color: #fff;
 	text-align: center;
 	font-size: 100%;
 }
@@ -92,10 +106,10 @@ img.calendar_trigger {
 	width: 100%;
 }
 .calendar .calendar_titleRow {
-	background: #eee;
+	background-color: #eee;
 }
 .calendar .calendar_daysRow {
-	background: #fff;
+	background-color: #fff;
 	color: #666;
 }
 .calendar .calendar_daysCell {
@@ -106,32 +120,25 @@ img.calendar_trigger {
 	display: block;
 }
 .calendar .calendar_weekEndCell {
-	background: #fff;
+	background-color: #fff;
 }
 .calendar .calendar_daysCellOver {
-	background: #fff;
+	background-color: #fff;
 	border: 1px solid #777;
 }
 .calendar .calendar_unselectable {
 	color: #333;
 }
 .calendar_today {
-	background: #eee !important;
+	background-color: #eee !important;
 }
 .calendar_currentDay {
-	background: #ddd !important;
+	background-color: #ddd !important;
 }
 
 /* ________ CALENDAR LINKS _______
 
-** Reset link properties and then override them with !important */
-#calendar_div a, .calendar_inline a {
-	cursor: pointer;
-	margin: 0;
-	padding: 0;
-	background: none;
-	color: #000;
-}
+
 .calendar_inline .calendar_links a {
 	padding: 0 5px !important;
 }
@@ -143,11 +150,11 @@ img.calendar_trigger {
 	color: #333 !important;
 }
 .calendar_control a:hover {
-	background: #eee !important;
+	background-color: #eee !important;
 	color: #333 !important;
 }
 .calendar_links a:hover, .calendar_titleRow a:hover {
-	background: #eee !important;
+	background-color: #eee !important;
 	color: #333 !important;
 }
 
@@ -161,6 +168,24 @@ img.calendar_trigger {
     filter: mask(); /*must have*/
     top: -4px; /*must have*/
     left: -4px; /*must have*/
-    width: 193px; /*must have to match width and borders*/
+    width: 185px; /*must have to match width and borders*/
     height: 200px; /*must have to match maximum height*/
+}
+
+/* Fixes for date popup css so it will behave in Drupal */
+#calendar_div, #calendar_div td, #calendar_div th {
+  margin:0;
+  padding:0;
+}
+#calendar_div, 
+.calendar_control, 
+.calendar_links, 
+.calendar_header, 
+.calendar {
+  width: 185px;
+  border-collapse: separate;
+  margin: 0;
+}
+.calendar td {
+  padding: 0;
 }

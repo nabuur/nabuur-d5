@@ -1,5 +1,5 @@
 <?php
-//$Id: date_admin.inc,v 1.21.2.11 2008/03/11 10:30:49 karens Exp $
+//$Id: date_admin.inc,v 1.21.2.29 2008/11/29 14:12:55 karens Exp $
 /**
  * @file
  * Date administration code.
@@ -31,8 +31,22 @@ function _date_widget_settings($op, &$field) {
           form_set_error('default_value_code2', t('The Strtotime default value for the To Date is invalid.'));
         }
       }
-      if ($field['widget']['type'] == 'date_select' && !preg_match('@\-[0-9]*:[\+|\-][0-9]*@', $field['year_range'])) {
+      if ($field['widget_type'] == 'date_select' && !preg_match('@\-[0-9]*:[\+|\-][0-9]*@', $field['year_range'])) {
         form_set_error('year_range', t('Years back and forward must be in the format -9:+9.'));
+      }
+      if ($field['widget_type'] == 'date_popup') {
+        // Only a limited set of formats is available for the Date Popup module
+        if (!empty($field['input_format_custom']) || !in_array($field['input_format'], date_popup_formats())) {
+          form_set_value(array('#parents' => array('input_format_custom')), NULL);
+          form_set_value(array('#parents' => array('input_format')), DATE_FORMAT_DATETIME);
+        }
+        // The jQuery calendar requires year, month, and day or it won't work.
+        $date_parts = array('year', 'month', 'day');
+        $intersection = array_intersect($date_parts, $field['granularity']);
+        if ($intersection != $date_parts) {
+          form_set_error('granularity', t('The Date Popup widget will not work unless granularity includes year, month, and day.'));
+          
+        }
       }
       if (isset($field['advanced']['label_position'])) {
         form_set_value(array('#parents' => array('label_position')), $field['advanced']['label_position']);
@@ -96,13 +110,21 @@ function date_widget_settings_form($widget) {
     '#options' => $options,
     '#description' => t('Set the order and format for the date parts in the input form. The format will be adapted to remove values not in the granularity for this field.'),
   );
-
-  $form['input']['format']['input_format_custom'] = array(
-    '#type' => 'textfield',  '#title' => t('*Custom input format'),
-    '#default_value' => $widget['input_format_custom'] ? $widget['input_format_custom'] : '',
-    '#description' => t('The custom format, if provided, will override the input format selected above. See more about custom date formats below.'),
-  );
-  if ($widget['type'] == 'date_select' || $widget['type'] == 'date_popup') {
+  // Only a limited set of formats is available for the Date Popup module
+  if ($widget['type'] != 'date_popup') {
+    $form['input']['format']['input_format_custom'] = array(
+      '#type' => 'textfield',  '#title' => t('*Custom input format'),
+      '#default_value' => $widget['input_format_custom'] ? $widget['input_format_custom'] : '',
+      '#description' => t('The custom format, if provided, will override the input format selected above. See more about custom date formats below.'),
+    );
+  }
+  else {
+    $form['input']['format']['input_format_custom'] = array(
+      '#type' => 'hidden',
+      '#value' => '',
+      );
+  }
+  if (in_array($widget['type'], array('date_select', 'date_popup', 'date_select_repeat', 'date_popup_repeat'))) {
     $form['input']['year_range'] = array(
       '#type' => 'textfield',
       '#title' => t('Years back and forward'),
@@ -198,7 +220,7 @@ function _date_field_settings($op, $field) {
 
     case 'validate':
       if (!in_array('year', $field['granularity'])) {
-        form_set_error('granularity', t('Input granularity must include a year.'));
+        form_set_error('granularity', t('Granularity must include a year.'));
       }
       if ($field['tz_handling'] != 'none' && !in_array('hour', array_filter($field['granularity']))) {
         form_set_error('tz_handling', t('Dates without hours granularity must not use any timezone handling.'));
@@ -207,7 +229,7 @@ function _date_field_settings($op, $field) {
 
     case 'save':
 
-      $options = array('granularity', 'timezone_db', 'tz_handling', 'todate', 'repeat');
+      $options = array('granularity', 'timezone_db', 'tz_handling', 'todate', 'repeat', 'repeat_collapsed');
       for ($i = 0; $i <= 3; $i++) {
         switch ($i) {
         case(1):
@@ -232,12 +254,18 @@ function _date_field_settings($op, $field) {
       return date_columns($field);
 
     case 'arguments':
-      include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+      require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
       return _date_views_arguments($field);
 
     case 'filters':
+      require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
       return date_views_filters($field);
       break;
+      
+    case 'tables':
+      require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+      return date_views_field_tables($field);
+      break;  
   }
 }
 
@@ -256,6 +284,12 @@ function date_field_settings_validate($element) {
   else {
     form_set_value($element['repeat'], 0);
   }
+  if ($form_values['tz_handling'] == 'none') {
+    form_set_value($element['timezone_db'], '');
+  }
+  else {
+    form_set_value($element['timezone_db'], date_get_timezone_db($form_values['tz_handling']));
+  }
 }
 
 /**
@@ -266,7 +300,7 @@ function date_columns($field) {
     $db_columns['value'] = array('type' => 'varchar', 'length' => 20, 'not null' => FALSE, 'sortable' => TRUE);
   }
   elseif ($field['type'] == 'datestamp') {
-    $db_columns['value'] = array('type' => 'integer', 'length' => 11, 'not null' => FALSE, 'sortable' => TRUE);
+    $db_columns['value'] = array('type' => 'integer', 'not null' => FALSE, 'sortable' => TRUE);
   }
   // If a second date is needed for 'To date', just make a copy of the first one.
   if ($field['todate']) {
@@ -275,8 +309,8 @@ function date_columns($field) {
   // timezone and offset columns are used only if date-specific dates are chosen.
   if ($field['tz_handling'] == 'date') {
     $db_columns['timezone'] = array('type' => 'varchar', 'length' => 50, 'not null' => FALSE, 'sortable' => TRUE);
-    $db_columns['offset'] = array('type' => 'integer', 'length' => 10, 'not null' => FALSE, 'sortable' => TRUE);
-    if ($field['todate']) $db_columns['offset2'] = array('type' => 'integer', 'length' => 10, 'not null' => FALSE, 'sortable' => TRUE);
+    $db_columns['offset'] = array('type' => 'integer', 'not null' => FALSE, 'sortable' => TRUE);
+    if ($field['todate']) $db_columns['offset2'] = array('type' => 'integer', 'not null' => FALSE, 'sortable' => TRUE);
   }
   if ($field['repeat']) {
     $db_columns['rrule'] = array('type' => 'text', 'not null' => FALSE, 'sortable' => FALSE);
@@ -296,8 +330,9 @@ function date_field_settings_form($field) {
 
   if (module_exists('date_repeat')) {
     $options += array(99 => t('Repeating'));
-    $description .= t(' Repeating dates display options to allow the user to select when and how often the date will repeat.');
+    $description .= t(' Repeating dates will allow the user to select when and how often the date will repeat.');
   }
+  $description .= date_data_loss_warning('Multiple');
   $form['repeat'] = array(
     '#type' => 'value',
     '#value' => $field['repeat'],
@@ -309,19 +344,27 @@ function date_field_settings_form($field) {
     '#default_value' => !empty($field['repeat']) ? 99 : $field['multiple'],
     '#description' => $description,
   );
-
+  $description = t("Display a matching second date field as a 'To date'. If marked 'Optional' field will be presented but not required. If marked 'Required' the 'To date' will be required if the 'From date' is required or filled in.");
+  $description .= date_data_loss_warning('To date');
   $form['input']['todate'] = array(
     '#type' => 'radios', '#title' => t('To Date'),
     '#options' => array('' => t('Never'), 'optional' => t('Optional'), 'required' => t('Required')),
-    '#description' => t("Display a matching second date field as a 'To date'. If marked 'Optional' field will be presented but not required. If marked 'Required' the 'To date' will be required if the 'From date' is required or filled in."),
+    '#description' => $description,
     '#default_value' => $field['todate'] ? $field['todate'] : '',
     );
+  
+  // Make sure granularity is in the right format and has no empty values.
+  if (!empty($field['granularity']) && is_array($field['granularity'])) {
+    $granularity = array_filter($field['granularity']);  
+  }
+  else {
+    $granularity = array('year', 'month', 'day', 'hour', 'minute');
+  }
   $form['input']['granularity'] = array(
-    '#type' => 'checkboxes', '#title' => t('Granularity'),
-    '#default_value' => $field['granularity'] ? $field['granularity'] : array('year', 'month', 'day', 'hour', 'minute'),
+    '#type' => 'select', '#title' => t('Granularity'),
+    '#default_value' => $granularity,
     '#options' => date_granularity_names(),
     '#multiple' => TRUE,
-    '#size' => min(count($options), 6),
     '#description' => t('Set the date elements to be stored (at least a year is required).'),
     );
 
@@ -337,23 +380,37 @@ function date_field_settings_form($field) {
   for ($i = 1; $i <= 3; $i++) {
     $form['output']['advanced'][$i] = date_formatter_setup_form($field, $i);
   }
-  $form['timezone']['tz_handling'] = array(
+  $description = t('Select the timezone handling method to be used for this date field.');
+  $description .= date_data_loss_warning('Time zone handling');
+  $form['tz_handling'] = array(
     '#type' => 'select',
     '#title' => t('Time zone handling'),
     '#default_value' => $tz_handling,
     '#options' => date_timezone_handling_options(),
-    '#description' => t('Select the timezone handling method to be used for this date field.'),
+    '#description' => $description,
   );
   // Force this value to hidden because we don't want to allow it to be changed right now,
   // but allow it to be a variable if needed.
-  $form['timezone']['timezone_db'] = array(
+  $form['timezone_db'] = array(
     '#type' => 'hidden',
-    '#value' => 'UTC',
+    '#value' => date_get_timezone_db($field['tz_handling']),
     );
-
+  if (module_exists('date_repeat')) {
+    $form['repeat_collapsed'] = array(
+      '#type' => 'select',
+      '#default_value' => !empty($field['repeat_collapsed']) ? intval($field['repeat_collapsed']) : 0,
+      '#options' => array(0 => t('Expanded'), 1 => t('Collapsed')),
+      '#title' => t('Repeat display'),
+      '#description' => t('If set to use repeating dates, should the repeat options form start out expanded or collapsed? Set to \'Collapsed\' to make those options less obtrusive.'),
+      );
+  }
   $form['#suffix'] = t('<div class="form-item"><div class="description">* The custom format, if provided, will override the selected display or input options. Define a php date format string like \'m-d-Y H:i\' (see !link for more details).</div></div>', array('!link' => l('http://php.net/date', 'http://php.net/date')));
 
   return $form;
+}
+
+function date_data_loss_warning($name) {
+  return t('<p class="error">Changing the %name setting after data has been created could result in the loss of data!</p>', array('%name' => $name));
 }
 
 /**
@@ -401,43 +458,6 @@ function date_formatter_setup_form($field, $delta) {
 }
 
 /**
- * Store personalized format options for each user.
- *
- * Store to avoid work of re-creating it over and over,
- * personalize for each user to preserve translation.
- *
- * @return array
- */
-function date_format_options() {
-  global $user;
-  $cached = cache_get('date_format_options:'. $user->uid);
-  $options = unserialize($cached->data);
-  if (empty($options)) {
-    $formats = array_merge(date_short_formats(), date_medium_formats(), date_long_formats());
-    $options = array();
-    $now = date_example_date();
-    if (!empty($now)) {
-      foreach ($formats as $format) {
-        // Create an option that shows date only without time, along with the
-        // default string which has both date and time.
-        $no_time = date_limit_format($format, array('month', 'day', 'year'));
-        $zones = array('', 'O', 'P', 'e');
-        foreach ($zones as $zone) {
-          $time_format = !empty($zone) ? $format .' '. $zone : $format;
-          $options[$no_time] = date_format_date($now, 'custom', $no_time);
-          $options[$time_format] = date_format_date($now, 'custom', $time_format);
-        }
-      }
-      asort($options);
-    }
-    if (!empty($options)) {
-      cache_set('date_format_options:'. $user->uid, 'cache', serialize($options), CACHE_TEMPORARY);
-    }
-  }
-  return $options;
-}
-
-/**
  *  Timezone handling options
  *
  *  the 'none' option will do no timezone conversions and will store and display dates exactly as entered
@@ -450,7 +470,7 @@ function date_timezone_handling_options() {
     'site' => t('Site\'s time zone'),
     'date' => t('Date\'s time zone'),
     'user' => t('User\'s time zone'),
-    'gmt' => 'UTC',
+    'utc' => 'UTC',
     'none' => t('No time zone conversion'),
     );
 }

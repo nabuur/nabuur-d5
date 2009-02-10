@@ -1,5 +1,5 @@
 <?php
-// $Id: imagecache_actions.inc,v 1.12 2008/04/24 05:27:45 dopry Exp $
+// $Id: imagecache_actions.inc,v 1.12.2.1 2008/07/09 02:58:07 dopry Exp $
 
 /**
  * Imagecache Scale 
@@ -228,6 +228,62 @@ function imagecache_rotate_image(&$image, $data) {
 
   if (!imageapi_image_rotate($image, $data['degrees'], $data['bgcolor'])) {
     watchdog('imagecache', t('imagecache_rotate_image failed. image: %image, data: %data.', array('%path' => $image, '%data' => print_r($data, true))), WATCHDOG_ERROR);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Imagecache Sharpen
+ */
+function imagecache_sharpen_form($data) {
+  $form['info'] = array(
+    '#value' => t('<strong>NOTE:</strong> The sigma parameter below is currently <em>only</em> used when the Imagemagick toolkit is active.'),
+  );
+  $form['radius'] = array(
+    '#type' => 'textfield',
+    '#default_value' => (isset($data['radius'])) ? $data['radius'] : '0.5' ,
+    '#title' => t('Radius'),
+    '#description' => t('The radius of the gaussian, in pixels, not counting the center pixel. If you\'re using Imagemagick, you can set this to 0 to let Imagemagick select a suitable radius. Typically 0.5 to 1 for screen resolutions. (default 0.5)'),
+  );
+  $form['sigma'] = array(
+    '#type' => 'textfield',
+    '#default_value' => (isset($data['sigma'])) ? $data['sigma'] : '0.5' ,
+    '#title' => t('Sigma'),
+    '#description' => t('The standard deviation of the gaussian, in pixels. General rule of thumb: if radius < 1 then sigma = radius, else sigma = sqrt(radius). (default 0.5)'),
+  );
+  $form['amount'] = array(
+    '#type' => 'textfield',
+    '#default_value' => (isset($data['amount'])) ? $data['amount'] : '100' ,
+    '#title' => t('Amount'),
+    '#description' => t('The percentage of the difference between the original and the blur image that is added back into the original. Typically 50 to 200. (default 100).'),
+  );
+  $form['threshold'] = array(
+    '#type' => 'textfield',
+    '#default_value' => (isset($data['threshold'])) ? $data['threshold'] : '0.05' ,
+    '#title' => t('Threshold'),
+    '#description' => t('The threshold, as a fraction of max RGB levels, needed to apply the difference amount.  Typically 0 to 0.2. (default 0.05).'),
+  );
+  return $form;
+}
+
+function theme_imagecache_sharpen($element) {
+  $output = t('radius: ') . $element['#value']['radius'] .', ';
+  $output .= t('sigma: ') . $element['#value']['sigma'] .', ';
+  $output .= t('amount: ') . $element['#value']['amount'] .', ';
+  $output .= t('threshold: ') . $element['#value']['threshold'] ;
+  return $output;
+}
+
+function imagecache_sharpen_image(&$image, $data) {
+  // Set sane default values.
+  $data['radius'] = $data['radius'] ? $data['radius'] : "0.5";
+  $data['sigma'] = $data['sigma'] ? $data['sigma'] : "0.5";
+  $data['amount'] = $data['amount'] ? $data['amount'] : "100";
+  $data['threshold'] = $data['threshold'] ? $data['threshold'] : "0.05";
+
+  if (!imageapi_image_sharpen($image, $data['radius'], $data['sigma'], $data['amount'], $data['threshold'])) {
+    watchdog('imagecache', t('imagecache_sharpen_image failed. image: %image, data: %data.', array('%path' => $image, '%data' => print_r($data, true))), WATCHDOG_ERROR);
     return false;
   }
   return true;

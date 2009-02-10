@@ -3,9 +3,3 @@ name = Node relativity
 description = Links nodes to form relationship graphs.
 #dependencies = module1 module2 module3
 package = "Node relationships"
-
-; Information added by drupal.org packaging script on 2008-03-17
-version = "5.x-2.3"
-project = "relativity"
-datestamp = "1205727009"
-

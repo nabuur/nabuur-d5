@@ -1,6 +1,5 @@
-; $Id: smartqueue.info,v 1.1.2.2 2008/01/02 01:00:08 merlinofchaos Exp $
+; $Id: smartqueue.info,v 1.1.2.4 2008/05/28 17:17:29 merlinofchaos Exp $
 name = Smart Queue Taxonomy
 description = Creates a node queue for each taxonomy vocabulary
 package = Node Queue
 dependencies = nodequeue taxonomy
-

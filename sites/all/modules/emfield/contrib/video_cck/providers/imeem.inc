@@ -1,5 +1,5 @@
 <?php
-// $Id: imeem.inc,v 1.1 2008/05/11 04:20:59 alexua Exp $
+// $Id: imeem.inc,v 1.2 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_IMEEM_MAIN_URL', 'http://www.imeem.com/');
 define('VIDEO_CCK_IMEEM_API_INFO', 'http://www.imeem.com/developers/documentation/');
@@ -48,7 +48,7 @@ function video_cck_imeem_settings() {
 
 function video_cck_imeem_request($embed, $cacheable = TRUE) {
   $args = array('docid' => $embed);
-  return module_invoke('emfield', 'request_xml', 'imeem', VIDEO_CCK_IMEEM_XML . $embed . '&version=1.0', $args, $cacheable);
+  return module_invoke('emfield', 'request_xml', 'imeem', VIDEO_CCK_IMEEM_XML . $embed .'&version=1.0', $args, $cacheable);
 }
 
 function video_cck_imeem_extract($embed = '') {
@@ -58,19 +58,19 @@ function video_cck_imeem_extract($embed = '') {
 }
 
 function video_cck_imeem_embedded_link($video_code) {
-  return 'http://www.imeem.com/v/' . $video_code;
+  return 'http://www.imeem.com/v/'. $video_code;
 }
 
 function theme_video_cck_imeem_flash($embed, $width, $height, $autoplay) {
   $autoplay = $autoplay ? '/aus=true' : '/aus=false';
   $colors = 'backColor=666666&primaryColor=cccccc&secondaryColor=333333&linkColor=cccccc';
 
-  $output .= '<object width="' . $width . '" height="' . $height . '">';
-  $output .= '<param name="movie" value="http://media.imeem.com/v/' . $embed . $autoplay . '/pv=2"></param>';
+  $output .= '<object width="'. $width .'" height="'. $height .'">';
+  $output .= '<param name="movie" value="http://media.imeem.com/v/'. $embed . $autoplay .'/pv=2"></param>';
   $output .= '<param name="allowFullScreen" value="true"></param>';
   $output .= '<param name="wmode" value="transparent"></param>';
-  $output .= '<param name="FlashVars" value="' . $colors . '"></param>';
-  $output .= '<embed src="http://media.imeem.com/v/' . $embed . $autoplay . '/pv=2" type="application/x-shockwave-flash" width="' . $width . '" height="' . $height . '" allowFullScreen="true" wmode="transparent" FlashVars="' . $colors . '"></embed>';
+  $output .= '<param name="FlashVars" value="'. $colors .'"></param>';
+  $output .= '<embed src="http://media.imeem.com/v/'. $embed . $autoplay .'/pv=2" type="application/x-shockwave-flash" width="'. $width .'" height="'. $height .'" allowFullScreen="true" wmode="transparent" FlashVars="'. $colors .'"></embed>';
   $output .= '</object>';
   return $output;
 }
@@ -79,7 +79,7 @@ function video_cck_imeem_thumbnail($field, $item, $formatter, $node, $width, $he
   $xml = video_cck_imeem_request($item['value']);
   $tmpthm = $xml['ITEM']['ICONURL'][0];
   $imgmax = $xml['ITEM']['DURATION'][0];
-  $formatnum = str_pad(rand(0, $imgmax) . '.jpg', 9, "0", STR_PAD_LEFT);;
+  $formatnum = str_pad(rand(0, $imgmax) .'.jpg', 9, "0", STR_PAD_LEFT);;
   $thm = str_replace('00010.jpg', $formatnum, $tmpthm);
   return $thm;
 }

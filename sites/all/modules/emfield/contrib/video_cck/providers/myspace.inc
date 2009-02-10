@@ -1,5 +1,5 @@
 <?php
-// $Id: myspace.inc,v 1.5 2008/02/22 18:46:26 aaron Exp $
+// $Id: myspace.inc,v 1.6 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_MYSPACE_MAIN_URL', 'http://vids.myspace.com/index.cfm?fuseaction=vids.videos');
 
@@ -33,22 +33,22 @@ function video_cck_myspace_request($code, $cacheable = TRUE) {
  *  this scrapes the thumbnail from the video page and caches it
  */
 function _video_cck_myspace_scrape_thumbnail($video, $cached = true) {
-  if (!$cached || !$cache = cache_get('myspace:thumbnail:' . $video, 'cache')) {
+  if (!$cached || !$cache = cache_get('myspace:thumbnail:'. $video, 'cache')) {
     $vidid = substr($video, 0, 10);
     if ($str = file_get_contents("http://vids.myspace.com/index.cfm?fuseaction=vids.individual&videoid=$vidid")) {
       // grab videos channel-id first
-      $channelID = preg_replace('/.*tvchanid=([0-9]+);.*/si','\1',$str);
+      $channel_id = preg_replace('/.*tvchanid=([0-9]+);.*/si', '\1', $str);
 
-      if (is_numeric($channelID)) {
+      if (is_numeric($channel_id)) {
         // now from channel-page grab videos thumbnail
-        $str2 = file_get_contents("http://vids.myspace.com/index.cfm?fuseaction=vids.viewVideos&channelid=$channelID");
+        $str2 = file_get_contents("http://vids.myspace.com/index.cfm?fuseaction=vids.viewVideos&channelid=$channel_id");
 
         if ($str2) {
-          $picturelink = preg_replace('@.*href="[^"]+'.$vidid.'"[^>]+><img[^>]+src="([^"]+)".*@si','\1',$str2);
+          $picturelink = preg_replace('@.*href="[^"]+'. $vidid .'"[^>]+><img[^>]+src="([^"]+)".*@si', '\1',  $str2);
 
           if ($picturelink) {
             $thumbnail = $picturelink;
-            cache_set('myspace:thumbnail:' . $video, 'cache', $thumbnail, time() + 3600);
+            cache_set('myspace:thumbnail:'. $video, 'cache', $thumbnail, time() + 3600);
           }
         }
       }
@@ -71,7 +71,7 @@ function video_cck_myspace_extract($embed) {
 }
 
 function video_cck_myspace_video_link($video_code) {
-  return 'http://vids.myspace.com/index.cfm?fuseaction=vids.individual&videoid=' . $video_code;
+  return 'http://vids.myspace.com/index.cfm?fuseaction=vids.individual&videoid='. $video_code;
 }
 
 function theme_video_cck_myspace_flash($embed, $width, $height) {

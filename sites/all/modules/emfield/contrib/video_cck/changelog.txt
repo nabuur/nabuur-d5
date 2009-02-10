@@ -1,6 +1,25 @@
-/* $Id: changelog.txt,v 1.37 2008/05/11 04:20:59 alexua Exp $ */
+/* $Id: changelog.txt,v 1.43 2008/08/07 19:00:01 aaron Exp $ */
+
+August 2008
+-----------
+ * Add support for swfobject to youtube, taking swfobject_api into account (aaron).
+
+2008-06-23
+----------
+ * Add TODO for thumbnails for spike.tv (aaron).
+ * Add placeholder ifilm.inc to help with updates after ifilm-spike switch (aaron).
+
+2008-05-28
+utilize $options arrays in other theme functions
+
+2008-05-27
+allow w/h (and other) overrides to thumbnails
+
+2008-05-23
+#261999 - chirale fixed XHTML validation errors in YouTube.inc
+
 2008-05-10
-#208963- robomalo + darrenmUK  added Vimeo support
+#208963 - robomalo + darrenmUK  added Vimeo support
 #249255 - ekes added MRSS support to multiple files
 #170799 - ekes added support for google video URLs from '.com.au', 'co.uk' etc.
 #199189 - vsnguyen + Rysk added support for Veoh

@@ -1,5 +1,5 @@
 <?php
-// $Id: link.module,v 1.20.2.32 2007/10/21 06:01:11 quicksketch Exp $
+// $Id: link.module,v 1.20.2.55 2008/09/22 04:20:29 quicksketch Exp $
 
 /**
  * @file
@@ -10,7 +10,7 @@ define('LINK_EXTERNAL', 'external');
 define('LINK_INTERNAL', 'internal');
 define('LINK_FRONT', 'front');
 define('LINK_EMAIL', 'email');
-define('LINK_DOMAINS', 'aero|arpa|biz|com|cat|coop|edu|gov|info|int|jobs|mil|museum|name|nato|net|org|pro|travel|mobi');
+define('LINK_DOMAINS', 'aero|arpa|biz|com|cat|coop|edu|gov|info|int|jobs|mil|museum|name|nato|net|org|pro|travel|mobi|local');
 
 /**
  * Implementation of hook_menu().
@@ -46,28 +46,36 @@ function link_field_settings($op, $field) {
       $form = array(
         '#theme' => 'link_field_settings',
       );
-      
+
+      $form['url'] = array(
+        '#type' => 'checkbox',
+        '#title' => t('Optional URL'),
+        '#default_value' => $field['url'],
+        '#return_value' => 'optional',
+        '#description' => t('If checked, the URL field is optional and submitting a title alone will be acceptable. If the URL is ommitted, the title will be displayed as plain text.'),
+      );
+
       $title_options = array(
         'optional' => t('Optional Title'),
         'required' => t('Required Title'),
         'value' => t('Static Title: '),
         'none' => t('No Title'),
       );
-      
+
       $form['title'] = array(
         '#type' => 'radios',
         '#title' => t('Link Title'),
         '#default_value' => isset($field['title']) ? $field['title'] : 'optional',
         '#options' => $title_options,
-        '#description' => t('If the link title is optional or required, a field will be displayed to the end user. If the link title is static, the link will always use the same title. If <a href="http://drupal.org/project/token">token module</a> is installed, the static title value may use any other node field as its value.'),
+        '#description' => t('If the link title is optional or required, a field will be displayed to the end user. If the link title is static, the link will always use the same title. If <a href="http://drupal.org/project/token">token module</a> is installed, the static title value may use any other node field as its value. Static and token-based titles may include most inline XHTML tags such as <em>strong</em>, <em>em</em>, <em>img</em>, <em>span</em>, etc.'),
       );
-      
+
       $form['title_value'] = array(
         '#type' => 'textfield',
         '#default_value' => $field['title_value'],
         '#size' => '46',
       );
-      
+
       // Add token module replacements if available
       if (module_exists('token')) {
         $form['tokens'] = array(
@@ -80,27 +88,27 @@ function link_field_settings($op, $field) {
         $form['tokens']['help'] = array(
           '#value' => theme('token_help', 'node'),
         );
-        
+
         $form['enable_tokens'] = array(
           '#type' => 'checkbox',
-          '#title' => t('Allow tokens'),
-          '#default_value' => isset($field['enable_tokens']) ? $field['enable_tokens'] : 1, 
+          '#title' => t('Allow user-entered tokens'),
+          '#default_value' => isset($field['enable_tokens']) ? $field['enable_tokens'] : 1,
           '#description' => t('Checking will allow users to enter tokens in URLs and Titles on the node edit form. This does not affect the field settings on this page.'),
         );
       }
-      
+
       $form['display'] = array(
         '#tree' => true,
       );
       $form['display']['url_cutoff'] = array(
         '#type' => 'textfield',
         '#title' => t('URL Display Cutoff'),
-        '#default_value' => $field['display']['url_cutoff'] ? $field['display']['url_cutoff'] : '80',
+        '#default_value' => isset($field['display']['url_cutoff']) ? $field['display']['url_cutoff'] : '80',
         '#description' => t('If the user does not include a title for this link, the URL will be used as the title. When should the link title be trimmed and finished with an elipsis (&hellip;)? Leave blank for no limit.'),
         '#maxlength' => 3,
         '#size' => 3,
       );
-      
+
       $target_options = array(
         'default' => t('Default (no target attribute)'),
         '_top' => t('Open link in window root'),
@@ -113,20 +121,23 @@ function link_field_settings($op, $field) {
       $form['attributes']['target'] = array(
         '#type' => 'radios',
         '#title' => t('Link Target'),
-        '#default_value' => $field['attributes']['target'] ? $field['attributes']['target'] : 'default',
+        '#default_value' => empty($field['attributes']['target']) ? 'default' : $field['attributes']['target'],
         '#options' => $target_options,
       );
       $form['attributes']['rel'] = array(
         '#type' => 'textfield',
         '#title' => t('Rel Attribute'),
         '#description' => t('When output, this link will have this rel attribute. The most common usage is <a href="http://en.wikipedia.org/wiki/Nofollow">rel=&quot;nofollow&quot;</a> which prevents some search engines from spidering entered links.'),
-        '#default_value' => $field['attributes']['rel'] ? $field['attributes']['rel'] : '',
+        '#default_value' => empty($field['attributes']['rel']) ? '' : $field['attributes']['rel'],
+        '#field_prefix' => 'rel = "',
+        '#field_suffix' => '"',
+        '#size' => 20,
       );
       $form['attributes']['class'] = array(
         '#type' => 'textfield',
         '#title' => t('Additional CSS Class'),
-        '#description' => t('When output, this link will have have this class attribute. Multiple classes should be seperated by spaces.'),
-        '#default_value' => isset($field['attributes']['class']) ? $field['attributes']['class'] : '',
+        '#description' => t('When output, this link will have have this class attribute. Multiple classes should be separated by spaces.'),
+        '#default_value' => empty($field['attributes']['class']) ? '' : $field['attributes']['class'],
       );
       return $form;
 
@@ -137,12 +148,12 @@ function link_field_settings($op, $field) {
       break;
 
     case 'save':
-      return array('attributes', 'display', 'title', 'title_value', 'enable_tokens');
+      return array('attributes', 'display', 'url', 'title', 'title_value', 'enable_tokens');
 
     case 'database columns':
       return array(
-        'url' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => "''"),
-        'title' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => "''"),
+        'url' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => "''", 'sortable' => TRUE),
+        'title' => array('type' => 'varchar', 'length' => 255, 'not null' => TRUE, 'default' => "''", 'sortable' => TRUE),
         'attributes' => array('type' => 'mediumtext', 'not null' => FALSE),
       );
 
@@ -165,13 +176,9 @@ function link_field_settings($op, $field) {
           'handler' => 'link_views_protocol_filter_handler',
         ),
       );
-      
+
     case 'arguments':
       return array(
-        'content: '. $field['field_name'] .'_url' => array(
-          'name' => t('Link URL') .': '. t($field['widget']['label']) .' ('. $field['field_name'] .')',
-          'handler' => 'link_views_argument_handler',
-        ),
         'content: '. $field['field_name'] .'_title' => array(
           'name' => t('Link Title') .': '. t($field['widget']['label']) .' ('. $field['field_name'] .')',
           'handler' => 'link_views_argument_handler',
@@ -179,7 +186,6 @@ function link_field_settings($op, $field) {
         'content: '. $field['field_name'] .'_target' => array(
           'name' => t('Link Target') .': '. t($field['widget']['label']) .' ('. $field['field_name'] .')',
           'handler' => 'link_views_argument_handler',
-        
         ),
       );
 
@@ -192,11 +198,11 @@ function link_field_settings($op, $field) {
 function theme_link_field_settings($form) {
   $title_value = drupal_render($form['title_value']);
   $title_checkbox = drupal_render($form['title']['value']);
-  
-  // Set Static Title radio option to include the title_value textfield
+
+  // Set Static Title radio option to include the title_value textfield.
   $form['title']['value'] = array('#value' => '<div class="container-inline">'. $title_checkbox . $title_value .'</div>');
-  
-  // Reprint the title radio options with the included textfield
+
+  // Reprint the title radio options with the included textfield.
   return drupal_render($form);
 }
 
@@ -209,7 +215,6 @@ function link_field($op, &$node, $field, &$items, $teaser, $page) {
       foreach ($items as $delta => $item) {
         $items[$delta]['attributes'] = unserialize($item['attributes']);
       }
-      return $items;
       break;
     case 'view':
       foreach ($items as $delta => $item) {
@@ -235,18 +240,19 @@ function link_widget_info() {
 /**
  * Implementation of hook_widget().
  */
-function link_widget($op, &$node, $field, &$node_field) {
+function link_widget($op, &$node, $field, &$items) {
   switch ($op) {
     case 'prepare form values':
-      foreach($node_field as $delta => $value) {
+      foreach($items as $delta => $value) {
         if (is_numeric($delta)) {
-          _link_widget_prepare($node_field[$delta], $delta);
+          _link_widget_prepare($items[$delta], $delta);
         }
       }
       if ($_POST[$field['field_name']]) {
-        $node_field = $_POST[$field['field_name']];
-        unset($node_field['count'], $node_field['more-url'], $node_field['more']);
+        $items = $_POST[$field['field_name']];
+        unset($items['count'], $items['more-url'], $items['more']);
       }
+      return;
     case 'form':
       $form = array();
       $form[$field['field_name']] = array(
@@ -259,7 +265,7 @@ function link_widget($op, &$node, $field, &$node_field) {
         '#description' => $field['widget']['description'],
       );
 
-      // Add token module replacements if available
+      // Add token module replacements if available.
       if (module_exists('token') && $field['enable_tokens']) {
         $tokens_form = array(
           '#type' => 'fieldset',
@@ -276,42 +282,42 @@ function link_widget($op, &$node, $field, &$node_field) {
 
       if ($field['multiple']) {
         drupal_add_js(drupal_get_path('module', 'link') .'/link.js');
-        
+
         $delta = 0;
-        // Render link fields for all the entered values
-        foreach ($node_field as $data) {
-          if (is_array($data) && $data['url']) {
+        // Render link fields for all the entered values.
+        foreach ($items as $data) {
+          if (is_array($data) && ($data['url'] || $data['title'])) {
             _link_widget_form($form[$field['field_name']][$delta], $field, $data, $delta);
             $delta++;
           }
         }
-        // Render two additional new link fields
+        // Render two additional new link fields.
         foreach (range($delta, $delta + 1) as $delta) {
           _link_widget_form($form[$field['field_name']][$delta], $field, array(), $delta);
         }
-        
-        // Create a wrapper for additional fields
+
+        // Create a wrapper for additional fields.
         $form[$field['field_name']]['wrapper'] = array(
           '#type' => 'markup',
           '#value' => '<div id="' . str_replace('_', '-', $field['field_name']) . '-wrapper" class="clear-block"></div>',
         );
 
-        // Add 'More' Javascript Callback
+        // Add 'More' Javascript Callback.
         $form[$field['field_name']]['more-url'] = array(
           '#type' => 'hidden',
           '#value' => url('link/widget/js/' . $field['type_name'] . '/' . $field['field_name'], NULL, NULL, TRUE),
           '#attributes' => array('class' => 'more-links'),
           '#id' => str_replace('_', '-', $field['field_name']) . '-more-url',
         );
-        
-        // Add Current Field Count
+
+        // Add Current Field Count.
         $form[$field['field_name']]['count'] = array(
           '#type' => 'hidden',
           '#value' => $delta,
           '#id' => str_replace('_', '-', $field['field_name']) . '-count',
         );
-        
-        // Add More Button
+
+        // Add More Button.
         $form[$field['field_name']]['more'] = array(
           '#type' => 'button',
           '#value' => t('More Links'),
@@ -322,9 +328,9 @@ function link_widget($op, &$node, $field, &$node_field) {
         if (isset($tokens_form)) {
           $form[$field['field_name']]['tokens'] = $tokens_form;
         }
-      } // end if multiple
+      } // end if multiple.
       else {
-        _link_widget_form($form[$field['field_name']][0], $field, $node_field[0]);
+        _link_widget_form($form[$field['field_name']][0], $field, $items[0]);
         if (isset($tokens_form)) {
           $form[$field['field_name']][0]['tokens'] = $tokens_form;
         }
@@ -333,51 +339,43 @@ function link_widget($op, &$node, $field, &$node_field) {
 
     case 'validate':
       if (!is_object($node)) return;
-      unset($node_field['count']);
-      unset($node_field['more-url']);
-      unset($node_field['more']);
-      foreach($node_field as $delta => $value) {
-        if ($value['url'] && !(isset($field['widget']['default_value'][$delta]['url']) && $value['url'] == $field['widget']['default_value'][$delta]['url'] && !$field['required'])) {
-          // Validate the link
-          if (link_validate_url(trim($value['url'])) == FALSE) {
-            form_set_error($field['field_name'] .']['. $delta. '][url', t('Not a valid URL.'));
-          }
-          // Require a title for the link if necessary
-          elseif ($field['title'] == 'required' && strlen(trim($value['title'])) == 0) {
-            form_set_error($field['field_name'] .']['. $delta. '][title', t('Titles are required for all links.'));
-          }
-        }
-        // Require a link if we have a title
-        elseif (strlen($value['title']) > 0 && strlen(trim($value['url'])) == 0) {
-          form_set_error($field['field_name'] .']['. $delta. '][url', t('You cannot enter a title without a link.'));
-        }
+      unset($items['count']);
+      unset($items['more-url']);
+      unset($items['more']);
+      $optional_field_found = FALSE;
+      foreach($items as $delta => $value) {
+        _link_widget_validate($items[$delta],$delta, $field, $node, $optional_field_found);
+      }
+
+      if ($field['url'] == 'optional' && $field['title'] == 'optional' && $field['required'] && !$optional_field_found) {
+        form_set_error($field['field_name'] .'][0][title', t('At least one title or URL must be entered.'));
       }
       return;
-      
+
     case 'process form values':
-      // Remove the JS helper fields
-      unset($node_field['more-url']);
-      unset($node_field['count']);
-      unset($node_field['more']);
-      foreach($node_field as $delta => $value) {
+      // Remove the JS helper fields.
+      unset($items['more-url']);
+      unset($items['count']);
+      unset($items['more']);
+      foreach($items as $delta => $value) {
         if (is_numeric($delta)) {
-          _link_widget_process($node_field[$delta],$delta, $field, $node);
+          _link_widget_process($items[$delta],$delta, $field, $node);
         }
       }
       return;
-    
+
     case 'submit':
-      // Don't save empty fields (beyond the first one)
+      // Don't save empty fields (beyond the first one).
       $save_field = array();
-      unset($node_field['more-url']);
-      unset($node_field['count']);
-      unset($node_field['more']);
-      foreach ($node_field as $delta => $value) {
-        if (!empty($value['url']) || $delta == 0) {
-          $save_field[] = $node_field[$delta];
+      unset($items['more-url']);
+      unset($items['count']);
+      unset($items['more']);
+      foreach ($items as $delta => $value) {
+        if ($value['url'] !== 'optional' || $delta == 0) {
+          $save_items[] = $items[$delta];
         }
       }
-      $node_field = $save_field;
+      $items = $save_items;
       return;
   }
 }
@@ -386,26 +384,25 @@ function link_widget($op, &$node, $field, &$node_field) {
  * Helper function renders the link widget in both single and multiple value cases.
  */
 
-function _link_widget_form(&$form_item, $field, $node_field, $delta = 0) {
-  
+function _link_widget_form(&$form_item, $field, $item, $delta = 0) {
   $form_item = array(
     '#tree' => TRUE,
     '#theme' => 'link_widget_form_row',
   );
-  
+
   $default_url = "";
   if (isset($field['widget']['default_value'][$delta]['url'])) {
     $default_url = $field['widget']['default_value'][$delta]['url'];
   }
-  
+
   $form_item['url'] = array(
     '#type' => 'textfield',
     '#maxlength' => '255',
     '#title' => $delta == 0 ? t('URL') : NULL,
-    '#default_value' => ($node_field['url']) ? $node_field['url'] : $default_url,
-    '#required' => ($delta == 0) ? $field['required'] : FALSE,
+    '#default_value' => ($item['url']) ? $item['url'] : $default_url,
+    '#required' => ($delta == 0) ? ($field['required'] && empty($field['url'])) : FALSE,
   );
-  if ($field['title'] == 'optional' || $field['title'] == 'required') {
+  if ($field['title'] != 'value' && $field['title'] != 'none') {
     $default_title = "";
     if (isset($field['widget']['default_value'][$delta]['title'])) {
       $default_title = $field['widget']['default_value'][$delta]['title'];
@@ -414,40 +411,61 @@ function _link_widget_form(&$form_item, $field, $node_field, $delta = 0) {
       '#type' => 'textfield',
       '#maxlength' => '255',
       '#title' => $delta == 0 ? t('Title') : NULL,
-      '#default_value' => ($node_field['title']) ? $node_field['title'] : $default_title,
+      '#default_value' => ($item['title']) ? $item['title'] : $default_title,
       '#required' => ($delta == 0 && $field['title'] == 'required') ? $field['required'] : FALSE,
     );
   }
-  if ($field['attributes']['target'] == 'user') {
+  if (!empty($field['attributes']['target']) && $field['attributes']['target'] == 'user') {
     $form_item['attributes']['target'] = array(
       '#type' => 'checkbox',
       '#title' => t('Open URL in a New Window'),
-      '#default_value' => $node_field['attributes']['target'],
+      '#default_value' => $item['attributes']['target'],
       '#return_value' => "_blank",
     );
   }
 }
 
-function _link_widget_prepare(&$node_field, $delta = 0) {
-  // Unserialize the attributes array
-  $node_field['attributes'] = unserialize($node_field['attributes']);
+function _link_widget_prepare(&$item, $delta = 0) {
+  // Unserialize the attributes array.
+  $item['attributes'] = unserialize($item['attributes']);
 }
 
-function _link_widget_process(&$node_field, $delta = 0, $field, $node) {
-  // Remove the target attribute if not selected
-  if (!$node_field['attributes']['target'] || $node_field['attributes']['target'] == "default") {
-    unset($node_field['attributes']['target']);
+function _link_widget_process(&$item, $delta = 0, $field, $node) {
+  // Remove the target attribute if not selected.
+  if (!$item['attributes']['target'] || $item['attributes']['target'] == "default") {
+    unset($item['attributes']['target']);
   }
-  // Trim whitespace from URL
-  $node_field['url'] = trim($node_field['url']);
-  // Serialize the attributes array
-  $node_field['attributes'] = serialize($node_field['attributes']);
-  
-  //don't save an invalid default value (e.g. 'http://')
-  if ((isset($field['widget']['default_value'][$delta]['url']) && $node_field['url'] == $field['widget']['default_value'][$delta]['url']) && is_object($node)) {
-    if (!link_validate_url($node_field['url'])) {
-      unset($node_field['url']);
+  // Trim whitespace from URL.
+  $item['url'] = trim($item['url']);
+  // Serialize the attributes array.
+  $item['attributes'] = serialize($item['attributes']);
+
+  // Don't save an invalid default value (e.g. 'http://').
+  if ((isset($field['widget']['default_value'][$delta]['url']) && $item['url'] == $field['widget']['default_value'][$delta]['url']) && is_object($node)) {
+    if (!link_validate_url($item['url'])) {
+      unset($item['url']);
     }
+  }
+}
+
+function _link_widget_validate(&$item, $delta, $field, $node, &$optional_field_found) {
+  if ($item['url'] && !(isset($field['widget']['default_value'][$delta]['url']) && $item['url'] == $field['widget']['default_value'][$delta]['url'] && !$field['required'])) {
+    // Validate the link.
+    if (link_validate_url(trim($item['url'])) == FALSE) {
+      form_set_error($field['field_name'] .']['. $delta. '][url', t('Not a valid URL.'));
+    }
+    // Require a title for the link if necessary.
+    if ($field['title'] == 'required' && strlen(trim($item['title'])) == 0) {
+      form_set_error($field['field_name'] .']['. $delta. '][title', t('Titles are required for all links.'));
+    }
+  }
+  // Require a link if we have a title.
+  if ($field['url'] !== 'optional' && strlen($item['title']) > 0 && strlen(trim($item['url'])) == 0) {
+    form_set_error($field['field_name'] .']['. $delta. '][url', t('You cannot enter a title without a link url.'));
+  }
+  // In a totally bizzaro case, where URLs and titles are optional but the field is required, ensure there is at least one link.
+  if ($field['url'] == 'optional' && $field['title'] == 'optional' && (strlen(trim($item['url'])) != 0 || strlen(trim($item['title'])) != 0)) {
+    $optional_field_found = TRUE;
   }
 }
 
@@ -457,23 +475,23 @@ function link_widget_js($type_name, $field_name) {
   $delta = $_POST[$field_name]['count'];
   $form = array();
   $node_field = array();
-  
+
   _link_widget_form($form, $field, $node_field, $delta);
-  
-  // Assign parents matching the original form
+
+  // Assign parents matching the original form.
   foreach (element_children($form) as $key) {
     $form[$key]['#parents'] = array($field_name, $delta, $key);
   }
-  
-  // Add names, ids, and other form properties
+
+  // Add names, ids, and other form properties.
   foreach (module_implements('form_alter') as $module) {
     $function = $module .'_form_alter';
     $function('link_widget_js', $form);
   }
   $form = form_builder('link_widget_js', $form);
-  
+
   $output = drupal_render($form);
-  
+
   print drupal_to_js(array('status' => TRUE, 'data' => $output));
   exit;
 }
@@ -483,11 +501,11 @@ function link_widget_js($type_name, $field_name) {
  */
 function theme_link_widget_form($element) {
   drupal_add_css(drupal_get_path('module', 'link') .'/link.css');
-  // Check for multiple (output normally)
+  // Check for multiple (output normally).
   if (isset($element[1])) {
     $output = drupal_render($element);
   }
-  // Add the field label to the 'Title' and 'URL' labels
+  // Add the field label to the 'Title' and 'URL' labels.
   else {
     if (isset($element[0]['title'])) {
       $element[0]['title']['#title'] = $element['#title'] . ' ' . $element[0]['title']['#title'];
@@ -500,14 +518,14 @@ function theme_link_widget_form($element) {
     }
     $output = drupal_render($element[0]);
   }
-  
+
   return $output;
 }
 
 /**
  * Theme the display of a single form row
  */
-function theme_link_widget_form_row($element) {  
+function theme_link_widget_form_row($element) {
   $output = '';
   $output .= '<div class="link-field-row clear-block"><div class="link-field-subrow clear-block">';
   if ($element['title']) {
@@ -529,11 +547,15 @@ function theme_link_widget_form_row($element) {
 function link_field_formatter_info() {
   return array(
     'default' => array(
-      'label' => t('Default, as link with title'),
+      'label' => t('Title, as link (default)'),
+      'field types' => array('link'),
+    ),
+    'url' => array(
+      'label' => t('URL, as link'),
       'field types' => array('link'),
     ),
     'plain' => array(
-      'label' => t('Plain, as the text URL'),
+      'label' => t('URL, plain text'),
       'field types' => array('link'),
     ),
     'short' => array(
@@ -544,6 +566,10 @@ function link_field_formatter_info() {
       'label' => t('Label, as link with label as title'),
       'field types' => array('link'),
     ),
+    'separate' => array(
+      'label' => t('Separate title and URL'),
+      'field types' => array('link'),
+    ),
   );
 }
 
@@ -551,25 +577,53 @@ function link_field_formatter_info() {
  * Implementation of hook_field_formatter().
  */
 function link_field_formatter($field, $item, $formatter, $node) {
-  if (empty($item['url'])) {
+  if (empty($item['url']) && ($field['url'] != 'optional' || empty($item['title']))) {
     return '';
   }
-  
+
   if ($formatter == 'plain') {
-    return check_plain($item['url']);
+    return empty($item['url']) ? check_plain($item['title']) : check_plain(link_cleanup_url($item['url']));
   }
-  
+
+  // Replace URL tokens.
+  if (module_exists('token') && $field['enable_tokens']) {
+    // Load the node if necessary for nodes in views.
+    $token_node = isset($node->nid) ? node_load($node->nid) : $node;
+    $item['url'] = token_replace($item['url'], 'node', $token_node);
+  }
+
+  $type = link_validate_url($item['url']);
+  $url = link_cleanup_url($item['url']);
+
+  // Separate out the anchor if any.
+  if (strpos($url, '#') !== FALSE) {
+    $fragment = substr($url, strpos($url, '#') + 1);
+    $url = substr($url, 0, strpos($url, '#'));
+  }
+  // Separate out the query string if any.
+  if (strpos($url, '?') !== FALSE) {
+    $query = substr($url, strpos($url, '?') + 1);
+    $url = substr($url, 0, strpos($url, '?'));
+  }
+
+  // Create a display URL.
+  $display_url = $type == LINK_EMAIL ? str_replace('mailto:', '', $url) : url($url, $query, $fragment, TRUE);
+  if ($field['display']['url_cutoff'] && strlen($display_url) > $field['display']['url_cutoff']) {
+    $display_url = substr($display_url, 0, $field['display']['url_cutoff']) . "...";
+  }
+
+  // Build a list of attributes.
   $attributes = array();
   $item['attributes'] = unserialize($item['attributes']);
-  // Add attributes defined at the widget level
-  if (is_array($item['attributes'])) {
+  // Add attributes defined at the widget level.
+  if (!empty($item['attributes']) && is_array($item['attributes'])) {
     foreach($item['attributes'] as $attribute => $attbvalue) {
       if (isset($item['attributes'][$attribute]) && $field['attributes'][$attribute] == 'user') {
         $attributes[$attribute] = $attbvalue;
       }
     }
   }
-  // Add attributes defined at the field level
+  // Add attributes defined at the field level.
   if (is_array($field['attributes'])) {
     foreach($field['attributes'] as $attribute => $attbvalue) {
       if (!empty($attbvalue) && $attbvalue != 'default' && $attbvalue != 'user') {
@@ -577,60 +631,76 @@ function link_field_formatter($field, $item, $formatter, $node) {
       }
     }
   }
-  
-  // Replace URL tokens
-  if (module_exists('token') && $field['enable_tokens']) {
-    $item['url'] = token_replace($item['url'], 'node', $node);
+  // Remove the rel=nofollow for internal links.
+  if ($type != LINK_EXTERNAL && isset($attributes['rel']) && strpos($attributes['rel'], 'nofollow') !== FALSE) {
+    $attributes['rel'] = str_replace('nofollow', '', $attributes['rel']);
+    if (empty($attributes['rel'])) {
+      unset($attributes['rel']);
+    }
   }
-  
-  $type = link_validate_url($item['url']);
-  $url = link_cleanup_url($item['url']);
-  
-  // Seperate out the anchor if any
-  if (strpos($url, '#') !== FALSE) {
-    $fragment = substr($url, strpos($url, '#') + 1);
-    $url = substr($url, 0, strpos($url, '#'));
-  }
-  // Seperate out the query string if any
-  if (strpos($url, '?') !== FALSE) {
-    $query = substr($url, strpos($url, '?') + 1);
-    $url = substr($url, 0, strpos($url, '?'));
-  }
-  
-  // Give the link the title 'Link'
+
+  // Give the link the title 'Link'.
   if ($formatter == 'short') {
     $output = l(t('Link'), $url, $attributes, $query, $fragment);
   }
-  // Build the link using the widget label
+  // Build the link using the widget label.
   elseif ($formatter == 'label') {
     $output = l(t($field['widget']['label']), $url, $attributes, $query, $fragment);
   }
-  // Build the link with a title
-  elseif (strlen(trim($item['title'])) || ($field['title'] == 'value' && strlen(trim($field['title_value'])))) {
-    // Use the title defined at the field level
-    if ($field['title'] == 'value' && strlen(trim($field['title_value']))) {
-      $title = $field['title_value'];
-    }
-    // Use the title defined by the user at the widget level
-    else {
-      $title = $item['title'];
-    }
-    // Replace tokens
-    if (module_exists('token') && ($field['title'] == 'value' || $field['enable_tokens'])) {
-      $title = token_replace($title, 'node', $node);
-    }
-    $output = l($title, $url, $attributes, $query, $fragment);
+  // Build the link using the URL as title
+  elseif ($formatter == 'url') {
+    $output = l($display_url, $url, $attributes, $query, $fragment);
   }
+  // Build the link using the widget label as separate title.
+  elseif ($formatter == 'separate') {
+    $title = _link_field_formatter_title($field, $item, $node);
+    $class = empty($field['attributes']['class']) ? '' : ' '. $field['attributes']['class'];
+    unset($field['attributes']['class']);
 
-  // Build the link with the URL or email address as the title (max 80 characters)
-  else {
-    $display_url = $type == LINK_EMAIL ? str_replace('mailto:', '', $url) : url($url, $query, $fragment, TRUE);
-    if ($field['display']['url_cutoff'] && strlen($display_url) > $field['display']['url_cutoff']) {
-      $display_url = substr($display_url, 0, $field['display']['url_cutoff']) . "...";
+    $output = '';
+    $output .= '<div class="link-item'. $class .'">';
+    $output .= '<div class="link-title">'. $title .'</div>';
+    $output .= '<div class="link-url">'. l($display_url, $url, $attributes, $query, $fragment, FALSE, $item['html']) .'</div>';
+    $output .= '</div>';
+  }
+  // Build the link with a title.
+  elseif (strlen(trim($item['title'])) || ($field['title'] == 'value' && strlen(trim($field['title_value'])))) {
+    $title = _link_field_formatter_title($field, $item, $node);
+    if (empty($url) && !empty($title)) {
+      $output = check_plain($title);
     }
+    else {
+      $output = l($title, $url, $attributes, $query, $fragment, FALSE, $item['html']);
+    }
+  }
+  // Build the link with the URL or email address as the title (max 80 characters).
+  else {
     $output = l($display_url, $url, $attributes, $query, $fragment);
   }
   return $output;
+}
+
+/**
+ * Helper function for link_field_formatter().
+ */
+function _link_field_formatter_title(&$field, &$item, &$node) {
+  // Use the title defined at the field level.
+  if ($field['title'] == 'value' && trim($field['title_value'])) {
+    $title = $field['title_value'];
+  }
+  // Use the title defined by the user at the widget level.
+  else {
+    $title = $item['title'];
+  }
+  // Replace tokens.
+  $item['html'] = FALSE;
+  if (module_exists('token') && ($field['title'] == 'value' || $field['enable_tokens'])) {
+    // Load the node if necessary for nodes in views.
+    $token_node = isset($node->nid) ? node_load($node->nid) : $node;
+    $title = filter_xss(token_replace($title, 'node', $token_node), array('b', 'br', 'code', 'em', 'i', 'img', 'span', 'strong', 'sub', 'sup', 'tt', 'u'));
+    $item['html'] = TRUE;
+  }
+  return $title;
 }
 
 /**
@@ -645,14 +715,14 @@ function link_views_argument_handler($op, &$query, $argtype, $arg = '') {
     $field_name = substr($argtype, 9, strrpos($argtype, '_') - 9);
     $column = substr($argtype, strrpos($argtype, '_') + 1);
   }
-  
+
   // Right now the only attribute we support in views in 'target', but
-  // other attributes of the href tag could be added later
+  // other attributes of the href tag could be added later.
   if ($column == 'target') {
     $attribute = $column;
     $column = 'attributes';
   }
-  
+
   $field = content_fields($field_name);
   $db_info = content_database_info($field);
   $main_column = $db_info['columns'][$column];
@@ -660,7 +730,7 @@ function link_views_argument_handler($op, &$query, $argtype, $arg = '') {
   // The table name used here is the Views alias for the table, not the actual
   // table name.
   $table = 'node_data_'. $field['field_name'];
-  
+
   switch ($op) {
     case 'summary':
       $query->ensure_table($table);
@@ -672,7 +742,7 @@ function link_views_argument_handler($op, &$query, $argtype, $arg = '') {
       $query->ensure_table($table);
       if ($column == 'attributes') {
         // Because attributes are stored serialized, our only option is to also
-        // serialize the data we're searching for and use LIKE to find similar data
+        // serialize the data we're searching for and use LIKE to find similar data.
         $query->add_where($table .'.'. $main_column['column'] ." LIKE '%%%s%'", serialize($attribute) . serialize($arg));
       }
       else {
@@ -704,16 +774,16 @@ function link_views_argument_handler($op, &$query, $argtype, $arg = '') {
  */
 function link_views_protocol_filter_handler($op, $filter, $filterinfo, &$query) {
   global $db_type;
-  
+
   $protocols = $filter['value'];
   $field = $filterinfo['field'];
-  // $table is not the real table name but the views alias
+  // $table is not the real table name but the views alias.
   $table = 'node_data_'. $filterinfo['content_field']['field_name'];
 
   foreach ($protocols as $protocol) {
-    // Simple case, the URL begins with the specified protocol
+    // Simple case, the URL begins with the specified protocol.
     $condition = $table .'.'. $field .' LIKE \''. $protocol .'%\'';
-    
+
     // More complex case, no protocol specified but is automatically cleaned up
     // by link_cleanup_url(). RegEx is required for this search operation.
     if ($protocol == 'http') {
@@ -721,15 +791,15 @@ function link_views_protocol_filter_handler($op, $filter, $filterinfo, &$query) 
         // PostGreSQL code has NOT been tested. Please report any problems to the link issue queue.
         // pgSQL requires all slashes to be double escaped in regular expressions.
         // See http://www.postgresql.org/docs/8.1/static/functions-matching.html#FUNCTIONS-POSIX-REGEXP
-        $condition .= ' OR '. $table .'.'. $field .' ~* \''. '^(([a-z0-9]([a-z0-9\\-_]*\\.)+)('. LINK_DOMAINS .'|[a-z][a-z]))' .'\''; 
+        $condition .= ' OR '. $table .'.'. $field .' ~* \''. '^(([a-z0-9]([a-z0-9\\-_]*\\.)+)('. LINK_DOMAINS .'|[a-z][a-z]))' .'\'';
       }
       else {
         // mySQL requires backslashes to be double (triple?) escaped within character classes.
         // See http://dev.mysql.com/doc/refman/5.0/en/string-comparison-functions.html#operator_regexp
-        $condition .= ' OR '. $table .'.'. $field .' REGEXP \''. '^(([a-z0-9]([a-z0-9\\\-_]*\.)+)('. LINK_DOMAINS .'|[a-z][a-z]))' .'\''; 
+        $condition .= ' OR '. $table .'.'. $field .' REGEXP \''. '^(([a-z0-9]([a-z0-9\\\-_]*\.)+)('. LINK_DOMAINS .'|[a-z][a-z]))' .'\'';
       }
     }
-    
+
     $where_conditions[] = $condition;
   }
 
@@ -747,19 +817,19 @@ function link_views_protocol_filter_handler($op, $filter, $filterinfo, &$query) 
 function link_cleanup_url($url, $protocol = "http") {
   $url = trim($url);
   $type = link_validate_url($url);
-    
+
   if ($type == LINK_EXTERNAL) {
-    // Check if there is no protocol specified
+    // Check if there is no protocol specified.
     $protocol_match = preg_match("/^([a-z0-9][a-z0-9\.\-_]*:\/\/)/i",$url);
     if (empty($protocol_match)) {
-      // But should there be? Add an automatic http:// if it starts with a domain name
+      // But should there be? Add an automatic http:// if it starts with a domain name.
       $domain_match = preg_match('/^(([a-z0-9]([a-z0-9\-_]*\.)+)('. LINK_DOMAINS .'|[a-z]{2}))/i',$url);
       if (!empty($domain_match)) {
         $url = $protocol."://".$url;
       }
     }
   }
-  
+
   return $url;
 }
 
@@ -773,43 +843,45 @@ function link_cleanup_url($url, $protocol = "http") {
  * the following attributes: protocol, hostname, ip, and port.
  */
 function link_validate_url($text) {
-  
+
   $allowed_protocols = variable_get('filter_allowed_protocols', array('http', 'https', 'ftp', 'news', 'nntp', 'telnet', 'mailto', 'irc', 'ssh', 'sftp', 'webcal'));
-  
+
   $protocol = '((' . implode("|", $allowed_protocols) . '):\/\/)';
   $authentication = '([a-z0-9]+(:[a-z0-9]+)?@)';
-  $domain = '(([a-z0-9]([a-z0-9\-_\[\]]*\.)+)('. LINK_DOMAINS .'|[a-z]{2}))';
-  $ipv4 = '([0-9]{1,3}(\.[0-9]{1,3}){3})'; 
-  $ipv6 = '([0-9a-fA-F]{1,4}(\:[0-9a-fA-F]{1,4}){7})'; 
+  $domain = '(([a-z0-9]([a-z0-9\-_\[\]])*)(\.(([a-z0-9\-_\[\]])+\.)*('. LINK_DOMAINS .'|[a-z]{2}))?)';
+  $ipv4 = '([0-9]{1,3}(\.[0-9]{1,3}){3})';
+  $ipv6 = '([0-9a-fA-F]{1,4}(\:[0-9a-fA-F]{1,4}){7})';
   $port = '(:([0-9]{1,5}))';
-  
-  // Pattern specific to eternal links
-  $external_pattern = '/^' . $protocol . '?'. $authentication . '?' . '(' . $domain . '|' . $ipv4 . '|' . $ipv6 . ' |localhost)' . $port . '?';
-  
-  // Pattern specific to internal links
+
+  // Pattern specific to eternal links.
+  $external_pattern = '/^' . $protocol . '?' . $authentication . '?' . '(' . $domain . '|' . $ipv4 . '|' . $ipv6 . ' |localhost)' . $port . '?';
+
+  // Pattern specific to internal links.
   $internal_pattern = "/^([a-z0-9_\-+\[\]]+)";
-  
+
   $directories = "(\/[a-z0-9_\-\.~+%=&,$'():;*@\[\]]*)*";
-  $query = "(\/?[?a-z0-9+_\-\.\/%=&,$'():;*@\[\]]*)";
+   // Yes, four backslashes == a single backslash.
+  $query = "(\/?\?([?a-z0-9+_|\-\.\/\\\\%=&,$'():;*@\[\]]*))";
   $anchor = "(#[a-z0-9_\-\.~+%=&,$'():;*@\[\]]*)";
-  
-  // the rest of the path for a standard URL
-  $end = $directories . '?' . $query . '?' .  $anchor . '?' . '$/i';
-  
+
+  // The rest of the path for a standard URL.
+  $end = $directories . '?' . $query . '?' . $anchor . '?' . '$/i';
+
   $user = '[a-zA-Z0-9_\-\.\+\^!#\$%&*+\/\=\?\`\|\{\}~\'\[\]]+';
-  $email_pattern = '/^mailto:' . $user . '@' . '(' . $domain . '|' . $ipv4 .'|'. $ipv6 . '|localhost)' . $query . '$/';
-  
+  $email_pattern = '/^mailto:' . $user . '@' . '(' . $domain . '|' . $ipv4 .'|'. $ipv6 . '|localhost)' . $query . '?$/';
+
+  if (strpos($text, '<front>') === 0) {
+    return LINK_FRONT;
+  }
+  if (in_array('mailto', $allowed_protocols) && preg_match($email_pattern, $text)) {
+    return LINK_EMAIL;
+  }
+  if (preg_match($internal_pattern . $end, $text)) {
+    return LINK_INTERNAL;
+  }
   if (preg_match($external_pattern . $end, $text)) {
     return LINK_EXTERNAL;
   }
-  elseif (preg_match($internal_pattern . $end, $text)) {
-    return LINK_INTERNAL;
-  }
-  elseif (in_array('mailto', $allowed_protocols) && preg_match($email_pattern, $text)) {
-    return LINK_EMAIL;
-  }
-  elseif (strpos($text, '<front>') === 0) {
-    return LINK_FRONT;
-  }
+
   return FALSE;
 }

@@ -1,5 +1,5 @@
 <?php
-// $Id: taxonomy_image_attach.module,v 1.1.2.1 2008/04/12 16:23:58 nancyw Exp $
+// $Id: taxonomy_image_attach.module,v 1.1.2.2 2008/09/16 17:15:56 nancyw Exp $
 /**
  * @file
  * Add functionality to terms similar to the image_attach.module.
@@ -63,6 +63,8 @@ function taxonomy_image_attach_form_alter($form_id, &$form) {
       $form['image_attach'] = array(
         '#type' => 'fieldset',
         '#title' => t('Existing Image Attachment'),
+        '#collapsible' => true,
+        '#collapsed' => true,
         );
 
       $form['image_attach']['taxonomy_image_attach_enable'] = array(

@@ -1,5 +1,5 @@
 <?php
-// $Id: filefield.module,v 1.50.2.40 2008/06/03 01:46:40 jpetso Exp $
+// $Id: filefield.module,v 1.50.2.43 2008/08/01 18:09:40 dopry Exp $
 
 /**
  * @file
@@ -505,7 +505,7 @@ function _filefield_widget_form($node, $field, &$items) {
     '#description' => $upload_description,
     '#weight' => 9,
     '#tree' => FALSE,
-    '#attributes' => array('accept' => str_replace(' ', '|', trim($field['widget']['file_extensions']))),
+    '#attributes' => array('accept' => str_replace(' ', ',', trim($field['widget']['file_extensions']))),
   );
 
   $form[$fieldname]['new']['upload'] = array(
@@ -773,10 +773,12 @@ function theme_filefield_form_current($form) {
 }
 
 function theme_filefield_icon($file) {
-  $dashed_mime = check_plain(strtr($file['filemime'], array('/' => '-')));
+  $mime = check_plain($file['filemime']);
+
+  $dashed_mime = strtr($mime, array('/' => '-'));
 
   if ($icon_url = filefield_icon_url($file)) {
-    $icon = '<img class="field-icon-'. $dashed_mime .'" src="'. $icon_url .'" />';
+    $icon = '<img class="field-icon-'. $dashed_mime .'"  alt="'. $mime .' icon" src="'. $icon_url .'" />';
   }
   return '<div class="filefield-icon field-icon-'. $dashed_mime .'">'. $icon .'</div>';
 }
@@ -858,6 +860,7 @@ function filefield_check_directory($directory, $form_element = array()) {
  * Menu callback for JavaScript-based uploads.
  */
 function filefield_js() {
+  
   // Parse fieldname from submit button.
   $matches = array();
   foreach(array_keys($_POST) as $key) {
@@ -894,6 +897,7 @@ function filefield_js() {
   $output = theme('status_messages') . drupal_render($form);
 
   // Send the updated file attachments form.
+  $GLOBALS['devel_shutdown'] = false;
   print drupal_to_js(array('status' => TRUE, 'data' => $output));
   exit();
 }

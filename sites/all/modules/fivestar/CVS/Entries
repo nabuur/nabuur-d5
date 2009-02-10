@@ -1,8 +1,11 @@
-/README.txt/1.1.2.9/Fri Mar 28 22:13:37 2008//TDRUPAL-5--1-12
-/fivestar.info/1.1.4.1/Wed Mar  7 03:19:39 2007//TDRUPAL-5--1-12
-/fivestar.install/1.1.2.5/Wed Mar 12 06:57:24 2008//TDRUPAL-5--1-12
-/fivestar.module/1.2.2.87/Tue Apr 15 08:55:05 2008//TDRUPAL-5--1-12
-/fivestar_color.inc/1.1.2.5/Wed Apr  2 04:43:36 2008//TDRUPAL-5--1-12
-/fivestar_comment.inc/1.1.2.13/Sun Mar 30 02:14:17 2008//TDRUPAL-5--1-12
-/fivestar_field.inc/1.1.4.19/Sun Mar 30 04:30:35 2008//TDRUPAL-5--1-12
-D
+D/css////
+D/images////
+D/js////
+D/po////
+D/widgets////
+/README.txt/1.1.2.10/Sun Jan  4 15:31:15 2009//TDRUPAL-5--1-13
+/fivestar.info/1.1.4.1/Wed Mar  7 03:19:39 2007//TDRUPAL-5--1-13
+/fivestar.install/1.1.2.8/Sun Jan  4 15:31:15 2009//TDRUPAL-5--1-13
+/fivestar.module/1.2.2.99/Sun Jan  4 15:31:15 2009//TDRUPAL-5--1-13
+/fivestar_color.inc/1.1.2.5/Wed Apr  2 04:43:36 2008//TDRUPAL-5--1-13
+/fivestar_field.inc/1.1.4.23/Sun Jan  4 15:31:16 2009//TDRUPAL-5--1-13

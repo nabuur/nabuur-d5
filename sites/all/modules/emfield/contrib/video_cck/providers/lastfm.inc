@@ -1,5 +1,5 @@
 <?php
-// $Id: lastfm.inc,v 1.1 2008/03/21 14:26:22 aaron Exp $
+// $Id: lastfm.inc,v 1.2 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_LASTFM_MAIN_URL', 'http://www.lastfm.com/');
 
@@ -115,7 +115,8 @@ function video_cck_lastfm_thumbnail($field, $item, $formatter, $node, $width, $h
   // if we have a large thumbnail size, then get the larger version available.
   if ($width >= 320) {
     $tn = "http://userserve-ak.last.fm/serve/image:320/$lastfm_id.jpg";
-  } else {
+  } 
+  else {
     $tn = "http://userserve-ak.last.fm/serve/image:160/$lastfm_id.jpg";
   }
   return $tn;

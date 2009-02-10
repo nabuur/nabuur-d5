@@ -1,5 +1,5 @@
 <?php
-// $Id: nodereference.module,v 1.39.2.36 2008/04/28 23:50:29 karens Exp $
+// $Id: nodereference.module,v 1.39.2.43 2008/11/05 19:38:03 yched Exp $
 
 /**
  * @file
@@ -42,7 +42,7 @@ function nodereference_field_settings($op, $field) {
         '#title' => t('Content types that can be referenced'),
         '#multiple' => TRUE,
         '#default_value' => isset($field['referenceable_types']) ? $field['referenceable_types'] : array(),
-        '#options' => node_get_types('names'),
+        '#options' => array_map('check_plain', node_get_types('names')),
       );
       if (module_exists('views')) {
         $views = array('--' => '--');
@@ -251,7 +251,7 @@ function nodereference_widget($op, &$node, $field, &$items) {
           '#size' =>  $field['multiple'] ? min(count($options), 6) : 0,
           '#options' => $options,
           '#required' => $field['required'],
-          '#description' => t($field['widget']['description']),
+          '#description' => content_filter_xss(t($field['widget']['description'])),
         );
 
         return $form;
@@ -296,7 +296,7 @@ function nodereference_widget($op, &$node, $field, &$items) {
 
         if ($field['multiple']) {
           $form[$field['field_name']]['#type'] = 'fieldset';
-          $form[$field['field_name']]['#description'] = t($field['widget']['description']);
+          $form[$field['field_name']]['#description'] = content_filter_xss(t($field['widget']['description']));
           $delta = 0;
           foreach ($items as $item) {
             if ($item['nid']) {
@@ -327,7 +327,7 @@ function nodereference_widget($op, &$node, $field, &$items) {
             '#autocomplete_path' => 'nodereference/autocomplete/'. $field['field_name'],
             '#default_value' => $items[0]['default node_name'],
             '#required' => $field['required'],
-            '#description' => t($field['widget']['description']),
+            '#description' => content_filter_xss( t( $field['widget']['description'] )),
           );
         }
         return $form;
@@ -341,7 +341,21 @@ function nodereference_widget($op, &$node, $field, &$items) {
               // explicit nid
               list(, $title, $nid) = $matches;
               if (!empty($title) && ($n = node_load($nid)) && $title != $n->title) {
-                form_set_error($error_field, t('%name : Title mismatch. Please check your selection.'), array('%name' => t($field['widget']['label'])));
+                form_set_error($error_field, t('%name : Title mismatch. Please check your selection.', array('%name' => t($field['widget']['label']))));
+              }
+            }
+            else {
+              // no explicit nid
+              $nids = _nodereference_potential_references($field, FALSE, $item['node_name'], TRUE);
+              if (empty($nids)) {
+                form_set_error($error_field, t('%name: Found no valid post with that title.', array('%name' => t($field['widget']['label']))));
+              }
+              else {
+                // TODO:
+                // the best thing would be to present the user with an additional form,
+                // allowing the user to choose between valid candidates with the same title
+                // ATM, we pick the first matching candidate...
+                $nid = array_shift(array_keys($nids));
               }
             }
           }
@@ -442,7 +456,7 @@ function _nodereference_potential_references($field, $return_full_nodes = FALSE,
       return array();
     }
 
-    if (isset($string)) {
+    if ($string !== '') {
       $string_clause = $exact_string ? " AND n.title = '%s'" : " AND n.title LIKE '%%%s%'";
       $related_clause = "(". $related_clause .")". $string_clause;
       $args[] = $string;
@@ -521,7 +535,7 @@ function theme_nodereference_item_simple($item) {
 }
 
 /**
- * Provide a list of users to filter on.
+ * Provide a list of nodes to filter on.
  */
 function _nodereference_filter_handler($op, $filterinfo) {
   $options = array(0 => t('<empty>'));

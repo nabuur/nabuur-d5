@@ -1,5 +1,5 @@
 <?php
-// $Id: sms_og.module,v 1.1.2.1 2008/08/13 09:03:05 kester Exp $
+// $Id: sms_og.module,v 1.1.2.1 2008/07/22 05:07:34 diggersf Exp $
 
 /**
  * Implements hook_menu()

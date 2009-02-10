@@ -1,5 +1,5 @@
 <?php
-// $Id: nodecomment.module,v 1.1.1.2 2008/06/13 14:56:17 kester Exp $
+// $Id: nodecomment.module,v 1.3.2.18 2008/08/06 14:59:48 sirkitree Exp $
 
 /**
  * @file
@@ -500,6 +500,11 @@ function nodecomment_form($node) {
   }
 }
 
+if (!function_exists('comment_num_new')) {
+  function comment_num_new($nid) {
+    return nodecomment_num_new($nid);
+  }
+}
 
 /**
  * Implementation of hook_link().
@@ -641,7 +646,7 @@ function nodecomment_render($node, $cid = 0) {
       $nid = 0;
     }
 
-    if (is_numeric($cid)) {
+    if ($cid) {
       // Single comment view.
       if ($comment = node_load($cid)) {
         $output = theme('node', $comment, TRUE, TRUE);
@@ -682,12 +687,6 @@ function nodecomment_num_all($nid) {
     $cache[$nid] = db_result(db_query('SELECT comment_count FROM {node_comment_statistics} WHERE nid = %d', $nid));
   }
   return $cache[$nid];
-}
-
-if (!function_exists('comment_num_new')) {
-  function comment_num_new($nid) {
-    return nodecomment_num_new($nid);
-  }
 }
 
 /**

@@ -1,5 +1,5 @@
 <?php
-// $Id: google.inc,v 1.7 2008/05/11 04:00:41 alexua Exp $
+// $Id: google.inc,v 1.8 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_GOOGLE_MAIN_URL', 'http://video.google.com/');
 define('VIDEO_CCK_GOOGLE_XML', 'http://video.google.com/videofeed');
@@ -36,7 +36,7 @@ function video_cck_google_extract($embed) {
   return array(
     '@http://video\.google(?:\.[a-z]{2,4})+/videoplay\?docid=([^\&]*)\&@i',
     '@http://video\.google(?:\.[a-z]{2,4})+/videoplay\?docid=([^\&]*)\&@i',
-	'@http://video\.google(?:\.[a-z]{2,4})+/videoplay\?docid=(.*)@i',
+  '@http://video\.google(?:\.[a-z]{2,4})+/videoplay\?docid=(.*)@i',
     '@http://video\.google(?:\.[a-z]{2,4})+/googleplayer\.swf\?docId=(-?\d*)@i',
     '@http://video\.google(?:\.[a-z]{2,4})+/url\?docid=([^\&]*)\&@i',
   );
@@ -48,7 +48,7 @@ function video_cck_google_request($embed, $cacheable = TRUE) {
 }
 
 function video_cck_google_video_link($video_code) {
-  return 'http://video.google.' . variable_get('video_cck_google_domain', VIDEO_CCK_GOOGLE_DOMAIN_DEFAULT) . '/videoplay?docid=' . $video_code;
+  return 'http://video.google.'. variable_get('video_cck_google_domain', VIDEO_CCK_GOOGLE_DOMAIN_DEFAULT) .'/videoplay?docid='. $video_code;
 }
 
 function theme_video_cck_google_flash($embed, $width, $height, $autoplay) {
@@ -57,18 +57,18 @@ function theme_video_cck_google_flash($embed, $width, $height, $autoplay) {
     // this will be executed by not Internet Explorer browsers
     $output = '<!--[if !IE]> <-->
   <object type="application/x-shockwave-flash" width="'. $width .'" height="'. $height .'"
-  data="http://video.google.' . variable_get('video_cck_google_domain', VIDEO_CCK_GOOGLE_DOMAIN_DEFAULT) . '/googleplayer.swf?docId='. check_plain($embed) . $autoplay . '">
-  <!--> <![endif]-->' . "\n";
+  data="http://video.google.'. variable_get('video_cck_google_domain', VIDEO_CCK_GOOGLE_DOMAIN_DEFAULT) .'/googleplayer.swf?docId='. check_plain($embed) . $autoplay .'">
+  <!--> <![endif]-->'."\n";
 
     // this will be executed by Internet Explorer
     $output .= '<!--[if IE]>
   <object type="application/x-shockwave-flash" width="'. $width .'" height="'. $height .'"
   classid="clsid:D27CDB6E-AE6D-11cf-96B8-444553540000"
   codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=6,0,40,0">
-  <![endif]-->' . "\n";
+  <![endif]-->'."\n";
 
     // params will be passed to both IE or not IE browsers
-    $output .= '<param name="movie" value="http://video.google.' . variable_get('video_cck_google_domain', VIDEO_CCK_GOOGLE_DOMAIN_DEFAULT) . '/googleplayer.swf?docId=' . check_plain($embed) . $autoplay . '" />' . "\n";
+    $output .= '<param name="movie" value="http://video.google.'. variable_get('video_cck_google_domain', VIDEO_CCK_GOOGLE_DOMAIN_DEFAULT) .'/googleplayer.swf?docId='. check_plain($embed) . $autoplay .'" />'."\n";
     // following a list of params simply copied from old embed tag params. I don't know if this are really needed.
     $output .= '<param name="quality" value="best" />
     <param name="bgcolor" value="#ffffff" />

@@ -1,5 +1,5 @@
 <?php
-// $Id: guba.inc,v 1.1 2008/05/11 04:20:59 alexua Exp $
+// $Id: guba.inc,v 1.2 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_GUBA_MAIN_URL', 'http://www.guba.com/');
 define('VIDEO_CCK_GUBA_API_INFO', 'http://www.guba.com/restApiDoc/restReference.html');
@@ -48,7 +48,7 @@ function video_cck_guba_settings() {
 
 function video_cck_guba_request($method, $args = array(), $cached = TRUE) {
   //$args = array('docid' => $embed);
-  return module_invoke('emfield', 'request_xml', 'guba', "http://www.guba.com/rest/video/" . $method . "/details", $args, $cacheable);
+  return module_invoke('emfield', 'request_xml', 'guba', "http://www.guba.com/rest/video/". $method ."/details", $args, $cacheable);
 }
 
 function video_cck_guba_extract($embed = '') {
@@ -59,18 +59,18 @@ function video_cck_guba_extract($embed = '') {
 }
 
 function video_cck_guba_embedded_link($video_code) {
-  return 'http://www.guba.com/watch/' . $video_code;
+  return 'http://www.guba.com/watch/'. $video_code;
 }
 
 function theme_video_cck_guba_flash($embed, $width, $height, $autoplay) {
   $autoplay = $autoplay ? '&autoPlay=true' : '&autoPlay=false';
-  $output .= '<embed src="http://www.guba.com/f/root.swf?video_url=http://free.guba.com/uploaditem/'. $embed .'/flash.flv&isEmbeddedPlayer=false' . $autoplay . '" quality="best" bgcolor="#FFFFFF" menu="true" width="' . $width . '" height="' . $height . '" name="root" id="root" align="middle" scaleMode="noScale" allowScriptAccess="always" allowFullScreen="true" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
+  $output .= '<embed src="http://www.guba.com/f/root.swf?video_url=http://free.guba.com/uploaditem/'. $embed .'/flash.flv&isEmbeddedPlayer=false'. $autoplay .'" quality="best" bgcolor="#FFFFFF" menu="true" width="'. $width .'" height="'. $height .'" name="root" id="root" align="middle" scaleMode="noScale" allowScriptAccess="always" allowFullScreen="true" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
   return $output;
 }
 
 function video_cck_guba_thumbnail($field, $item, $formatter, $node, $width, $height) {
   $thumbid = $item['value'];
-  $thm = 'http://img.guba.com/public/video/f/58/' . $thumbid . '-m.jpg';
+  $thm = 'http://img.guba.com/public/video/f/58/'. $thumbid .'-m.jpg';
   return $thm;
 }
 

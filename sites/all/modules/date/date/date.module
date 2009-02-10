@@ -1,5 +1,5 @@
 <?php
-// $Id: date.module,v 1.39.2.6 2008/03/10 22:56:57 karens Exp $
+// $Id: date.module,v 1.39.2.51 2008/11/30 18:49:13 karens Exp $
 
 /**
  * @file
@@ -11,11 +11,69 @@
  */
 function date_menu($may_cache) {
   if (!$may_cache) {
-    include_once(drupal_get_path('module', 'date') .'/date.theme');
+    require_once('./'. drupal_get_path('module', 'date') .'/date.theme');
     if (module_exists('views')) {
-      include_once(drupal_get_path('module', 'date') .'/date_views.inc');
+      require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
     }
   }
+  $items = array();
+  if (!module_exists('date_repeat')) {
+    return $items;
+  }
+  elseif (!$may_cache) {
+    // Repeat dates tab on node
+    if (arg(0) == 'node' && is_numeric(arg(1))) {
+      $node = node_load(arg(1));
+      if ($node && date_repeat_type($node->type)) {
+        $items[] = array(
+          'path' => 'node/'. arg(1). '/repeats', 
+          'title' => t('Repeats'), 
+          'callback' => 'date_repeat_page', 
+          'callback arguments' => array(arg(1)), 
+          'type' => MENU_LOCAL_TASK, 
+          );
+      }
+    }
+  }
+  return $items;
+}
+
+function date_repeat_type($type_name) {
+  $type = content_types($type_name);
+  if (!empty($type['fields'])) {
+    foreach ($type['fields'] as $field_name => $field) {
+      if (in_array($field['type'], array('date', 'datestamp', 'datetime')) && $field['repeat']) {
+        return TRUE;
+      }
+    }
+  }
+  return FALSE;
+}
+
+function date_repeat_fields($type_name) {
+  $type = content_types($type_name);
+  $fields = array();
+  if (!empty($type['fields'])) {
+    foreach ($type['fields'] as $field_name => $field) {
+      if (in_array($field['type'], array('date', 'datestamp', 'datetime')) && $field['repeat']) {
+        $fields[] = $field_name;
+      }
+    }
+  }
+  return $fields;
+}
+
+function date_repeat_page($nid) {
+  $node = node_load($nid);
+  drupal_set_title($node->title);
+  $node->date_repeat_show = TRUE;
+  $field_names = date_repeat_fields($node->type);
+  $view = _content_field_view($node, FALSE, TRUE);
+  $output = '';
+  foreach ($field_names as $field_name) {
+    $output .= $view[$field_name]['#value'];  
+  }
+  return $output;
 }
 
 /**
@@ -36,7 +94,7 @@ function date_widget_info() {
     'date_select' => array('label' => t('Select List'),
       'field types' => array('date', 'datestamp'),
     ),
-    'date_text' => array('label' => t('Text Field with strtotime validation'),
+    'date_text' => array('label' => t('Text Field with custom input format'),
       'field types' => array('date', 'datestamp'),
     ),
   );
@@ -46,6 +104,20 @@ function date_widget_info() {
      );
   }
   return $info;
+}
+
+function date_input_value($field, $element) {
+  switch ($field['widget']['type']) {
+    case 'date_text':
+      $function = 'date_text_input_value';
+      break;
+    case 'date_popup':
+      $function = 'date_popup_input_value';
+      break;
+    default:
+      $function = 'date_select_input_value';
+  }
+  return $function($element);
 }
 
 /**
@@ -78,9 +150,34 @@ function date_field_formatter_info() {
  * Implementation of hook_field_formatter().
  */
 function date_field_formatter($field, $item, $formatter, $node) {
+  // Prepare the node in case it is a view with multiple values 
+  // so it will display the right values.
+  date_prepare_node($node);
+  
+  // There could be more than one date field in a view or on a node.
+  // If date_id is set for this field and the delta doesn't match, don't display it.
+  foreach ($node->date_id as $key => $id) {
+    list($module, $nid, $field_name, $delta, $other) = explode(':', $id);
+    if ($field_name == $field['field_name'] && isset($item['#delta']) && $delta != $item['#delta']) {
+      return;
+    }
+  }
+  
+  // Special test for repeating dates with no date id set.
+  // Only display the start date unless we're showing all dates.
+  if (empty($node->date_id) && empty($node->date_repeat_show) && !empty($field['repeat']) 
+  && isset($item['#delta']) && $item['#delta'] != 0) {
+    return;
+  }
+  
   // Call the right theme for this formatter.
   $dates = date_formatter_process($field, $item, $node, $formatter);
-  $output = theme('date_display_combination', $field, $item, $dates, $node);
+  if ($formatter != 'format_interval') {
+    $output = theme('date_display_combination', $field, $item, $dates, $node);
+  }
+  else {
+    $output = theme('date_format_interval', $field, $item, $dates, $node);
+  }
   return $output;
 }
 
@@ -109,8 +206,11 @@ function date_field_formatter($field, $item, $formatter, $node) {
  */
 function date_formatter_process($field, $item, $node, $formatter = 'default') {
   $dates = array();
-  if (!is_array($field) || !is_array($item)) return $dates;
-
+  $timezone = date_default_timezone_name();
+  if (!is_array($field) || !is_array($item) || empty($timezone)) {
+    return $dates;
+  }
+  
   $format = date_formatter_format($formatter, $field['field_name']);
   $process = date_process_values($field);
   foreach ($process as $processed) {
@@ -120,33 +220,54 @@ function date_formatter_process($field, $item, $node, $formatter = 'default') {
     else {
       // create a date object with a gmt timezone from the database value
       $value = $item[$processed];
-      $date = date_make_date($value, 'UTC', $field['type']);
+      $timezone = date_get_timezone($field['tz_handling'], $item['timezone']);
+      $timezone_db = date_get_timezone_db($field['tz_handling']);
+      
+      if ($field['type'] == DATE_ISO) {
+        $value = str_replace(' ', 'T', date_fuzzy_datetime($value));
+      }
+      $date = date_make_date($value, $timezone_db, $field['type']);
       $dates[$processed] = array();
       $dates[$processed]['db']['object'] = $date;
       $dates[$processed]['db']['datetime'] = date_format($date, DATE_FORMAT_DATETIME);
 
-      // For no timezone handling, set local value to the same as the db value.
-      if (!date_timezone_convert($field, $item[$processed])) {
-          $dates[$processed]['local'] = $dates[$processed]['db'];
-      }
-      else {
-        $timezone = date_get_timezone($field['tz_handling'], $item['timezone']);
+      if ($timezone != $timezone_db) {
         date_timezone_set($date, timezone_open($timezone));
-        $dates[$processed]['local']['object'] = $date;
-        $dates[$processed]['local']['datetime'] = date_format($date, DATE_FORMAT_DATETIME);
-        $dates[$processed]['local']['timezone'] = $timezone;
-        $dates[$processed]['local']['offset'] = date_offset_get($date);
       }
-
-      if (is_object($date) && !empty($format)) {
-        $dates[$processed]['formatted'] = date_format_date($date, 'custom', $format) . $append;
-        $dates[$processed]['formatted_date'] = date_format_date($date, 'custom', date_limit_format($format, array('year', 'month', 'day')));
-        $dates[$processed]['formatted_time'] = date_format_date($date, 'custom', date_limit_format($format, array('hour', 'minute', 'second')));
-      }
-      else {
-        $dates[$processed]['formatted'] = '';
+      $dates[$processed]['local']['object'] = $date;
+      $dates[$processed]['local']['datetime'] = date_format($date, DATE_FORMAT_DATETIME);
+      $dates[$processed]['local']['timezone'] = $timezone;
+      $dates[$processed]['local']['offset'] = date_offset_get($date);
+      
+      //format the date, special casing the 'interval' format which doesnt need to be processed
+      $dates[$processed]['formatted'] = '';
+      if (is_object($date)) {
+        if ($format == 'format_interval') {
+          $dates[$processed]['interval'] = date_format_interval($date);
+        } 
+        elseif (!empty($format)) {
+          $dates[$processed]['formatted'] = date_format_date($date, 'custom', $format);
+          $dates[$processed]['formatted_date'] = date_format_date($date, 'custom', date_limit_format($format, array('year', 'month', 'day')));
+          $dates[$processed]['formatted_time'] = date_format_date($date, 'custom', date_limit_format($format, array('hour', 'minute', 'second')));
+          $dates[$processed]['formatted_timezone'] = date_format_date($date, 'custom', date_limit_format($format, array('timezone')));
+          
+        }  
       }
     }
+  }
+  if (empty($dates['value2'])) {
+    $dates['value2'] = $dates['value'];
+  }
+  $date1 = $dates['value']['local']['object'];
+  $date2 = $dates['value2']['local']['object'];
+  $all_day1 = theme('date_all_day', 'date1', $date1, $date2, $format, $node);
+  $all_day2 = theme('date_all_day', 'date2', $date1, $date2, $format, $node);
+  if ((!empty($all_day1) && $all_day1 != $dates['value']['formatted']) 
+  || (!empty($all_day2) && $all_day2 != $dates['value2']['formatted'])) {
+    $dates['value']['formatted_time'] = theme('date_all_day_label');
+    $dates['value2']['formatted_time'] = theme('date_all_day_label'); 
+    $dates['value']['formatted'] = $all_day1;
+    $dates['value2']['formatted'] = $all_day2;
   }
   $dates['format'] = $format;
   return $dates;
@@ -165,48 +286,13 @@ function date_granularity($field) {
 }
 
 /**
- *  Function to figure out which timezone applies to a date and select it
- */
-function date_get_timezone($handling, $timezone = '') {
-  switch ($handling) {
-    case('site'):
-      $timezone = date_default_timezone_name(FALSE);
-      break;
-    case('date'):
-      $timezone = empty($timezone) ? $timezone : date_default_timezone_name();
-      break;
-    case('user'):
-      $timezone = date_default_timezone_name();
-    case('none'):
-    case('gmt'):
-      $timezone = 'UTC';
-      break;
-    default:
-      $timezone = date_default_timezone_name();
-  }
-  return $timezone > '' ? $timezone : date_default_timezone_name();
-}
-
-/**
- * Helper function to determine if any timezone conversion should be
- * done on this field.
- */
-function date_timezone_convert($field, $item = array()) {
-  if ($field['tz_handling'] == 'none'
-    || !in_array('hour', date_granularity($field))
-    || $field['tz_handling'] == 'date' && empty($item['timezone'])) {
-      return FALSE;
-  }
-  return TRUE;
-}
-
-/**
  * Empty or reset cached values.
  *
  * @param $remove
  *   whether or not to completely remove the caches.
  */
 function date_clear_all($remove = FALSE) {
+  cache_clear_all('date_', 'cache', '*');
   if (module_exists('views')) {
     if ($remove) {
       cache_clear_all('date_browser_views', 'cache_views');
@@ -244,13 +330,6 @@ function date_form_alter($form_id, &$form) {
   if ($form_id == 'views_edit_view') {
     $form['#submit'] = array_merge($form['#submit'], array('date_clear_all' => array()));
   }
-  elseif ($form_id == '_content_admin_field' && ($form['field_type'] == 'date' || $form['field_type'] == 'datestamp')) {
-    $form['#validate'] = array_merge($form['#validate'], array('date_settings_validate' => array()));
-  }
-}
-
-function date_settings_validate($form_id, $form) {
-  form_set_value(array('#parents' => array('granularity')), array_keys(array_filter($form['granularity'])));
 }
 
 /**
@@ -261,14 +340,25 @@ function date_settings_validate($form_id, $form) {
  */
 function date_field($op, &$node, $field, &$items, $teaser, $page) {
   switch ($op) {
+    case 'load':
+     $additions[$field['field_name']] = $items;
+     foreach ($items as $delta => $item) {
+        $timezone = $item['timezone'];
+        $additions[$field['field_name']][$delta]['timezone'] = date_get_timezone($field['tz_handling'], $timezone);
+        $additions[$field['field_name']][$delta]['timezone_db'] = date_get_timezone_db($field['tz_handling']);
+        $additions[$field['field_name']][$delta]['date_type'] = $field['type'];
+      }
+      return $additions;
+      break;
+      
     case 'validate':
-      include_once(drupal_get_path('module', 'date') .'/date_elements.inc');
+      require_once('./'. drupal_get_path('module', 'date') .'/date_elements.inc');
       return _date_field_validate($op, $node, $field, $items, $teaser, $page);
       break;
 
     case 'insert':
     case 'update':
-      include_once(drupal_get_path('module', 'date') .'/date_elements.inc');
+      require_once('./'. drupal_get_path('module', 'date') .'/date_elements.inc');
       return _date_field_update($op, $node, $field, $items, $teaser, $page);
       break;
   }
@@ -281,7 +371,7 @@ function date_field($op, &$node, $field, &$items, $teaser, $page) {
  * included only when processing forms.
  */
 function date_widget($op, &$node, $field, &$items) {
-  include_once(drupal_get_path('module', 'date') .'/date_elements.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_elements.inc');
   return _date_widget($op, $node, $field, $items);
 }
 
@@ -292,7 +382,7 @@ function date_widget($op, &$node, $field, &$items) {
  * included only when processing forms.
  */
 function date_elements() {
-  include_once(drupal_get_path('module', 'date') .'/date_elements.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_elements.inc');
   return _date_elements();
 }
 
@@ -301,12 +391,12 @@ function date_elements() {
  * processing field settings.
  */
 function date_widget_settings($op, $widget) {
-  include_once(drupal_get_path('module', 'date') .'/date_admin.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_admin.inc');
   return _date_widget_settings($op, $widget);
 }
 
 function date_field_settings($op, $field) {
-  include_once(drupal_get_path('module', 'date') .'/date_admin.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_admin.inc');
   return _date_field_settings($op, $field);
 }
 
@@ -314,35 +404,35 @@ function date_field_settings($op, $field) {
  * Wrapper functions for views hooks.
  */
 function date_views_filters($field) {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_filters($field);
 }
 function date_views_timestamp_filter_handler($op, $filter, $filterinfo, &$query) {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_timestamp_filter_handler($op, $filter, $filterinfo, $query);
 }
-function date_views_filter_handler($op, $filter, $filterinfo, &$query, $field_type = 'iso') {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+function date_views_filter_handler($op, $filter, $filterinfo, &$query, $field_type = DATE_ISO) {
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_filter_handler($op, $filter, $filterinfo, $query, $field_type);
 }
 function date_views_handler_filter_date_value_form($field) {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_handler_filter_date_value_form($field);
 }
 function date_views_timestamp_argument_range_handler($op, &$query, $argtype, $arg = '') {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_timestamp_argument_range_handler($op, $query, $argtype, $arg);
 }
-function date_views_argument_range_handler($op, &$query, $argtype, $arg = '', $field_type = 'iso') {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+function date_views_argument_range_handler($op, &$query, $argtype, $arg = '', $field_type = DATE_ISO) {
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_argument_range_handler($op, $query, $argtype, $arg, $field_type);
 }
 function date_views_style_plugins() {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_style_plugins();
 }
 function date_views_query_alter(&$query, &$view) {
-  include_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_views.inc');
   return _date_views_query_alter($query, $view);
 }
 
@@ -350,7 +440,7 @@ function date_views_query_alter(&$query, &$view) {
  * Callback for pathauto.
  */
 function date_pathauto_node($op, $node = NULL) {
-  include_once(drupal_get_path('module', 'date') .'/date_pathauto.inc');
+  require_once('./'. drupal_get_path('module', 'date') .'/date_pathauto.inc');
   return _date_pathauto_node($op, $node);
 }
 
@@ -359,11 +449,11 @@ function date_pathauto_node($op, $node = NULL) {
  */
 if (!function_exists('date_token_list')) {
   function date_token_list($type = 'all') {
-    include_once(drupal_get_path('module', 'date') .'/date_token.inc');
+    require_once('./'. drupal_get_path('module', 'date') .'/date_token.inc');
     return _date_token_list($type);
   }
   function date_token_values($type, $object = NULL, $options = array()) {
-    include_once(drupal_get_path('module', 'date') .'/date_token.inc');
+    require_once('./'. drupal_get_path('module', 'date') .'/date_token.inc');
     return _date_token_values($type, $object, $options);
   }
 }
@@ -374,6 +464,8 @@ if (!function_exists('date_token_list')) {
 function date_formatter_format($formatter, $field_name) {
   $fields = content_fields();
   $field = $fields[$field_name];
+  // Any field might want to display the timezone name.
+  $field['granularity'][] = 'timezone';
   switch ($formatter) {
     case 'ical':
       return 'Ymd\THis';
@@ -383,6 +475,8 @@ function date_formatter_format($formatter, $field_name) {
       return DATE_FORMAT_ISO .'P';
     case 'feed':
       return 'D, j M Y H:i:s O';
+    case 'format_interval':
+      return 'format_interval';
 
     case 'long':
     case 'medium':
@@ -412,4 +506,167 @@ function date_formatter_format($formatter, $field_name) {
       break;
   }
   return date_limit_format($format, date_granularity($field));
+}
+
+function date_content_generate($node, $field) {
+  require_once('./'. drupal_get_path('module', 'date') .'/date_content_generate.inc');
+  return _date_content_generate($node, $field);
+}
+
+/**
+ * Helper function to adapt multiple date fields on a node to view parameters.
+ * 
+ * Called by date theme, needed when a date field is used in a view.
+ */
+function date_prepare_node(&$node) {
+  // Set some default values.
+  $node->date_id = isset($node->date_id) ? (array) $node->date_id : array();
+  $node->date_repeat_show = isset($node->date_repeat_show) ? $node->date_repeat_show : FALSE;
+
+  // Only nodes called from views need special processing.
+  if (empty($node->view)) {
+    return;
+  }
+  
+  // Process the node the first time we encounter it, otherwise return.
+  static $prepared = array();
+  $view = $node->view;
+  if (array_key_exists($view->name, $prepared)) {
+    if (in_array($node->nid, $prepared[$view->name])) {
+      return;
+    }
+  }
+  
+  // Adapt fields that use the CCK Date handler to the view's values.
+  $date_fields = date_handler_fields($view);
+  $fields = content_fields();
+  foreach ($date_fields as $field_name => $type) {
+    $field = $fields[$field_name];
+    if (!empty($field_name) && isset($node->$field_name) && !empty($field['multiple'])) {
+      switch ($type['type']) {
+        case 'ungroup':
+          $delta = $node->$type['delta_field'];
+          $id = 'date:'. $node->nid .':'. $field_name .':'. $delta .':0';
+          break;
+        case 'first':
+        case 'last':
+        case 'group':
+          // If we're working with a grouped value of a field used
+          // to limit the view's date range, limit the group to that range.
+          if (!empty($view->date_handler) && !empty($view->min_date) 
+          && in_array($field_name, $view->date_fields)) {
+            $field = $fields[$field_name];
+            $format = date_type_format($field['type']);
+            $timezone = date_get_timezone($field['tz_handling']);
+            $db_timezone = date_get_timezone_db($field['tz_handling']);
+            $min_date = $view->min_date;
+            $max_date = $view->max_date;
+            date_timezone_set($min_date, timezone_open($db_timezone));
+            date_timezone_set($max_date, timezone_open($db_timezone));
+            $min_date = date_format($min_date, $format);
+            $max_date = date_format($max_date, $format);
+            if (empty($item['value2'])) $item['value2'] = $item['value'];
+            $node_field = $node->$field_name;
+            foreach ($node_field as $node_delta => $item) {
+              if ($item['value'] < $min_date || $item['value2'] > $max_date) {
+                unset($node_field[$node_delta]);
+              }
+              else {
+                $delta = $node_delta;
+              }
+            }
+            $node->$field_name = $node_field;
+          }
+          switch ($type) {
+            case 'first':
+              $delta = min(array_keys($node->$field_name));
+              $id = 'date:'. $node->nid .':'. $field_name .':'. $delta .':0';
+              break;
+            case 'last':
+              $delta = max(array_keys($node->$field_name));
+              $id = 'date:'. $node->nid .':'. $field_name .':'. $delta .':0';
+              break;
+            case 'group':
+              $delta = min(array_keys($node->$field_name));
+              $id = '';
+              break;
+          }
+          // In a view showing grouped dates, we show repeating values.
+          $node->date_repeat_show = TRUE;
+          break;
+      }
+      $node->date_id[] = $id;
+    }
+  }
+  $prepared[$view->name][] = $node->nid;
+}
+
+/**
+ * Identify all fields in this view that use the CCK Date handler.
+ */
+function date_handler_fields($view) {
+  $field_names = array();
+  foreach ($view->field as $field) {
+    if (substr($field['handler'], 0, '25') == 'date_views_field_handler_') {
+      $name = $field['field'];
+      $type = str_replace('date_views_field_handler_', '', $field['handler']);
+      if (substr($name, -7) == '_value2') {
+        $field_name = substr($name, 0, strlen($name) - 7);
+      }
+      elseif (substr($name, -6) == '_value') {
+        $field_name = substr($name, 0, strlen($name) - 6);
+      }
+      else {
+        $field_name = '';
+        $type = '';
+        continue; 
+      }
+      if (in_array($field_name, $view->date_fields)) {
+        $delta_field = 'node_data_'. $field_name .'_delta';
+        $field_names[$field_name] = array('type' => $type, 'delta_field' => $delta_field);
+      }
+    }
+  }  
+  return $field_names;
+}
+
+/**                                                                            
+ * Generate a DateAPI SQL handler for the given CCK date field.  
+ * 
+ * The handler will be set up to make the correct timezone adjustments
+ * for the field settings. 
+ * 
+ * @param $field
+ *  - a $field array.
+ * @param $compare_tz
+ *  - the timezone used for comparison values in the SQL.             
+ */
+ function date_field_get_sql_handler($field, $compare_tz = NULL) {
+   module_load_include('inc', 'date_api', 'date_api_sql');
+   
+   $db_info = content_database_info($field);
+   
+   // Create a DateAPI SQL handler class for this field type.                    
+   $handler = new date_sql_handler();
+   $handler->construct($field['type']);
+   
+   // If this date field stores a timezone in the DB, tell the handler about it.
+   if ($field['tz_handling'] == 'date') {
+     $handler->db_timezone_field = $db_info['columns']['timezone']['column'];
+   }
+   else {
+     $handler->db_timezone = date_get_timezone_db($field['tz_handling']);
+   }
+   
+   if (empty($compare_tz)) {
+     $compare_tz = date_get_timezone($field['tz_handling']);
+   }
+   $handler->local_timezone = $compare_tz;
+
+  // Now that the handler is properly initialized, force the DB 
+  // to use UTC so no timezone conversions get added to things like
+  // NOW() or FROM_UNIXTIME().  
+  $handler->set_db_timezone();
+
+  return $handler;
 }

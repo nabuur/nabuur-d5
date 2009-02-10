@@ -1,15 +1,33 @@
-.container-inline-date {width:auto; clear:both;}
-.container-inline-date .form-item {float:left; padding:0; margin:0}
-.container-inline-date .form-item, .container-inline-date .form-item input {width:auto;}
-.container-inline-date .description {clear: both;}
+.container-inline-date {
+  width:auto; 
+  clear:both;
+  padding:0;
+  display: inline-block;
+  vertical-align:top;
+  margin-right: 0.5em;
+}
+
+.container-inline-date .form-item {
+  float:none;
+  padding:0;
+  margin:0;
+}
+.container-inline-date .form-item .form-item {
+  float:left;
+}
+.container-inline-date .form-item, 
+.container-inline-date .form-item input {
+  width:auto;
+}
+.container-inline-date .description {
+  clear: both;
+}
 
 .container-inline-date .form-item input,
 .container-inline-date .form-item select,
-.container-inline-date .form-item option {margin-right:.5em;}
-
-.container-inline-date {
-  display: inline-block;
- }
+.container-inline-date .form-item option {
+  margin-right:.5em;
+}
 
 .container-inline-date .date-spacer {
   margin-left:-.5em;
@@ -18,26 +36,6 @@
 /* force IE to display the jscalendar icon in date fieldsets */
 .container-inline-date .jscalendar-icon {
   text-indent: 0;
-}
-
-.container-inline-date .date-timezone .form-item {
-  float:none;
-  width:auto;
-  clear:both;
-  }
-
-/* Fixes for date popup css so it will behave in Drupal */
-#calendar_div, #calendar_div td, #calendar_div th {
-  margin:0;
-  padding:0;
-}
-#calendar_div, .calendar_control, .calendar_links, .calendar_header, .calendar {
-  width: 185px;
-  border-collapse: separate;
-  margin: 0;
-}
-.calendar td {
-  padding: 0;
 }
 
 /* formatting for from/to dates in nodes and views */
@@ -62,3 +60,61 @@ span.date-display-separator {
   clear:both;
   float:none;
 }
+
+.date-nav {
+  width:100%;
+}
+.date-nav div.date-prev {
+  text-align: left;
+  width:24%;
+  float:left;
+}
+.date-nav div.date-next {
+  text-align: right;
+  width:24%;
+  float:right;
+}
+.date-nav div.date-heading {
+  text-align:center;
+  width:50%;
+  float:left;
+}
+.date-nav div.date-heading h3 {
+  margin:0;
+  padding:0;
+}
+.date-clear {
+  float:none;
+  clear:both;
+  display:block;
+}
+
+.date-clear-block {
+  float:none;
+  width:auto;
+  clear:both;
+}
+
+/* 	 
+ ** Markup free clearing that fixes unwanted scrollbars 	 
+ ** @see http://drupal.org/node/232959 	 
+ */ 	 
+ .date-clear-block:after { 	 
+   content: " "; 	 
+   display: block; 	 
+   height: 0; 	 
+   clear: both; 	 
+   visibility: hidden; 	 
+ } 	 
+ .date-clear-block { 	 
+   display: inline-block; 	 
+ } 	 
+ /* Hides from IE-mac \*/ 	 
+ * html .date-clear-block { 	 
+   height: 1%; 	 
+ } 	 
+ .date-clear-block { 	 
+   display: block; 	 
+ } 	 
+ /* End hide from IE-mac */
+

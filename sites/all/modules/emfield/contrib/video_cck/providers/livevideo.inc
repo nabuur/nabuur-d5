@@ -1,5 +1,5 @@
 <?php
-// $Id: livevideo.inc,v 1.3 2007/09/06 22:18:25 aaron Exp $
+// $Id: livevideo.inc,v 1.4 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_LIVEVIDEO_MAIN_URL', 'http://www.livevideo.com/');
 define('VIDEO_CCK_LIVEVIDEO_API_INFO', 'http://www.livevideo.com/api/default.aspx');
@@ -108,7 +108,7 @@ function video_cck_livevideo_embedded_link($video_code) {
 function theme_video_cck_livevideo_flash($embed, $width, $height, $autoplay) {
   if ($embed) {
     $autostart = $autoplay ? '&autoStart=1' : '';
-    $output .= '<embed src="http://www.livevideo.com/flvplayer/embed/' . $embed . $autostart . '" type="application/x-shockwave-flash" quality="high" WIDTH="' . $width . '" HEIGHT="' . $height . '" wmode="transparent"></embed>';
+    $output .= '<embed src="http://www.livevideo.com/flvplayer/embed/'. $embed . $autostart .'" type="application/x-shockwave-flash" quality="high" WIDTH="'. $width .'" HEIGHT="'. $height .'" wmode="transparent"></embed>';
   }
   return $output;
 }

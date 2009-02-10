@@ -1,4 +1,4 @@
-/* $Id: taxonomy_image.css,v 1.1.2.5 2008/04/12 16:23:57 nancyw Exp $ */
+/* $Id: taxonomy_image.css,v 1.1.2.8 2008/10/01 15:04:41 nancyw Exp $ */
 
 .taxonomy_image_checkboxes .form-item label.option {
   float: left;
@@ -7,6 +7,11 @@
 
 .taxonomy_image_checkboxes .form-item .description {
   clear: both;
+}
+
+.taxonomy_image_checkboxes {
+  clear: both;
+  padding-top: 1em;
 }
 
 .taxonomy_image_radios .form-item label.option {
@@ -25,4 +30,18 @@
 #taxonomy_image_terms a.links {
   font-size: 80%;
   float: right;
+}
+
+#block-taxonomy_image-0 img {
+  float: left;
+  margin-right: 1em;
+}
+
+.taxonomy-image-block-edit {
+  float: right;
+  font-size: 89%; 
+}
+
+a.taxonomy-image-link-alter {
+  display: inline-block;
 }

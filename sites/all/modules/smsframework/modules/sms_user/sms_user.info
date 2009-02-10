@@ -1,10 +1,5 @@
-; $Id: sms_user.info,v 1.1.2.1 2008/08/13 09:03:11 kester Exp $
+; $Id: sms_user.info,v 1.1.2.1 2008/07/22 05:07:34 diggersf Exp $
 name = SMS User
 description = Provides integration between the SMS Framework and Drupal users.
 dependencies = sms token
 package = SMS Framework
-; Information added by drupal.org packaging script on 2008-08-07
-version = "5.x-1.x-dev"
-project = "smsframework"
-datestamp = "1218067859"
-

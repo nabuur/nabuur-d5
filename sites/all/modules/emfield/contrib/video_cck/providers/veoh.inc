@@ -1,5 +1,5 @@
 <?php
-// $Id: veoh.inc,v 1.1 2008/05/11 04:20:59 alexua Exp $
+// $Id: veoh.inc,v 1.2 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_VEOH_MAIN_URL', 'http://www.veoh.com/');
 define('VIDEO_CCK_VEOH_API_INFO', 'http://www.veoh.com/restApiDoc/restReference.html');
@@ -49,7 +49,7 @@ function video_cck_veoh_settings() {
 
 function video_cck_veoh_request($embed, $cacheable = TRUE) {
   $args = array('docid' => $embed);
-  return module_invoke('emfield', 'request_xml', 'veoh', VIDEO_CCK_VEOH_XML . $embed . '/details', $args, $cacheable);
+  return module_invoke('emfield', 'request_xml', 'veoh', VIDEO_CCK_VEOH_XML . $embed .'/details', $args, $cacheable);
 }
 
 function video_cck_veoh_extract($embed = '') {
@@ -60,20 +60,20 @@ function video_cck_veoh_extract($embed = '') {
 }
 
 function video_cck_veoh_embedded_link($video_code) {
-  return 'http://www.veoh.com/videos/' . $video_code;
+  return 'http://www.veoh.com/videos/'. $video_code;
 }
 
 function theme_video_cck_veoh_flash($embed, $width, $height, $autoplay) {
   if ($embed) {
     $autoplay = $autoplay ? '&videoAutoPlay=1' : '&videoAutoPlay=0';
 
-    $output .= '<embed src="http://www.veoh.com/videodetails2.swf?permalinkId=' . $embed . '&id=9183600&player=videodetailsembedded' . $autoplay . '" allowFullScreen="true" width="' . $width . '" height="' . $height . '" bgcolor="#FFFFFF" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
+    $output .= '<embed src="http://www.veoh.com/videodetails2.swf?permalinkId='. $embed .'&id=9183600&player=videodetailsembedded'. $autoplay .'" allowFullScreen="true" width="'. $width .'" height="'. $height .'" bgcolor="#FFFFFF" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer"></embed>';
   }
   return $output;
 }
 
-function video_cck_veoh_check_thumbnail ($thumbnail_check) {
-  if ($thumbnail_status=@fopen($thumbnail_check,"r")) {
+function video_cck_veoh_check_thumbnail($thumbnail_check) {
+  if ($thumbnail_status=@fopen($thumbnail_check, "r")) {
     fclose($thumbnail_status);
     return $thumbnail_status;
   }
@@ -87,19 +87,20 @@ function video_cck_veoh_thumbnail($field, $item, $formatter, $node, $width, $hei
   // make the thumb index zero to follow their standard web tag format.
 
   // - Rysk
-  $thumbnail = 'http://p-images.veoh.com/thumb.out?imageId=thumb-' . $thumbid . '-' . rand(0,30) . '.jpg';
+  $thumbnail = 'http://p-images.veoh.com/thumb.out?imageId=thumb-'. $thumbid .'-'. rand(0, 30) .'.jpg';
   if (video_cck_veoh_check_thumbnail($thumbnail) != NULL) {
     return $thumbnail;
-  } else {
-    $url = 'http://www.veoh.com/rest/video/' . $thumbid . '/details';
+  } 
+  else {
+    $url = 'http://www.veoh.com/rest/video/'. $thumbid .'/details';
     $content = file_get_contents($url);
     if ($content) {
       print '(start)<br>';
       print $content;
       print '(end)<br>';
-      $start = strpos($content,'fullMedResImagePath="')+21;
-      $end = strpos($content,'"',$start);
-      $thumbnail = substr($content,$start,$end-$start);
+      $start = strpos($content, 'fullMedResImagePath="')+21;
+      $end = strpos($content, '"', $start);
+      $thumbnail = substr($content, $start, $end-$start);
     }
     return $thumbnail;
   }

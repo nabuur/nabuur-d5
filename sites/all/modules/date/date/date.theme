@@ -1,5 +1,5 @@
 <?php
-//$Id: date.theme,v 1.2.2.1 2008/02/20 12:47:55 karens Exp $
+//$Id: date.theme,v 1.2.2.30 2008/11/17 18:01:31 karens Exp $
 /**
  * @file
  * Theme functions.
@@ -11,58 +11,102 @@
  * Formatter themes
  */
 /**
- *  Theme from/to date combination in the view.
+ * Theme from/to date combination in the view.
  *
- *  @param $field = the field settings
- *  @param $node = node information, this is not always available and not
- *     always the full node, it depends on what value was provided to the formatter.
- *     Only the nid is always guaranteed to be available.
- *  @param $dates - an array of date information, see explanation for date_field_object() for details.
+ * @param $field = the field settings
+ * @param $node = node information, this is not always available and not
+ *    always the full node, it depends on what value was provided to the formatter.
+ *    Only the nid is always guaranteed to be available.
+ * @param $dates - an array of date information, see explanation for date_field_object() for details.
  *
- *  Useful values:
- *    $field['type_name'] is the content type
- *    $field['type'] is the field type
+ * Useful values:
+ *   $field['type_name'] is the content type
+ *   $field['type'] is the field type
  *
- *    $node->nid is the node nid, get other node values using node_load($node->nid)
+ *   $node->nid is the node nid, get other node values using node_load($node->nid)
  *
- *    $dates['format'] - the format string used on these dates
- *    $dates['value']['local']['object'] - the local date object for the From date
- *    $dates['value2']['local']['object'] - the local date object for the To date
- *    $dates['value']['local']['datetime'] - the datetime value of the From date database (GMT) value
- *    $dates['value2']['local']['datetime'] - the datetime value of the To date database (GMT) value
- *    $dates['value']['formatted'] = formatted From date, i.e. 'February 15, 2007 2:00 pm';
- *    $dates['value']['formatted_date'] - only the date part of the formatted From date
- *    $dates['value']['formatted_time'] - only the time part of the formatted From date
- *    $dates['value2']['formatted'] = formatted To date, i.e. 'February 15, 2007 6:00 pm';
- *    $dates['value2']['formatted_date'] - only the date part of the formatted To date
- *    $dates['value2']['formatted_time'] - only the time part of the formatted To date
+ *   $node->date_id 
+ *     If set, this will show only an individual date on a field with 
+ *     multiple dates. The value should be a string that contains
+ *     the following values, separated with colons:
+ *     - module name of the module adding the item
+ *     - node nid
+ *     - field name
+ *     - delta value of the field to be displayed
+ *     - other information the module's custom theme might need
+ * 
+ *     Used by the calendar module and available for other uses.
+ *     example: 'date:217:field_date:3:test'
+ * 
+ *   $node->date_repeat_show
+ *     If true, tells the theme to show all the computed values
+ *     of a repeating date. If not true or not set, only the
+ *     start date and the repeat rule will be displayed.
+ * 
+ *   $dates['format'] - the format string used on these dates
+ *   $dates['value']['local']['object'] - the local date object for the From date
+ *   $dates['value2']['local']['object'] - the local date object for the To date
+ *   $dates['value']['local']['datetime'] - the datetime value of the From date database (GMT) value
+ *   $dates['value2']['local']['datetime'] - the datetime value of the To date database (GMT) value
+ *   $dates['value']['formatted'] = formatted From date, i.e. 'February 15, 2007 2:00 pm';
+ *   $dates['value']['formatted_date'] - only the date part of the formatted From date
+ *   $dates['value']['formatted_time'] - only the time part of the formatted From date
+ *   $dates['value2']['formatted'] = formatted To date, i.e. 'February 15, 2007 6:00 pm';
+ *   $dates['value2']['formatted_date'] - only the date part of the formatted To date
+ *   $dates['value2']['formatted_time'] - only the time part of the formatted To date
  */
 function theme_date_display_combination($field, $item, $dates, $node = NULL) {
   $date1 = $dates['value']['formatted'];
-  $date2 = $dates['value2']['formatted'];
+  if (isset($dates['value2'])) {
+    $date2 = $dates['value2']['formatted'];
+  }
+  else {
+    $date2 = $date1;
+  }
+  
+  // Pull the timezone, if any, out of the formatted result and tack it
+  // back on at the end, if it is in the current formatted date.
+  $timezone = $dates['value']['formatted_timezone'];
+  if ($timezone) {
+    $timezone = ' ' . $timezone;
+  }
+
+  $date1 = str_replace($timezone, '', $date1);
+  $date2 = str_replace($timezone, '', $date2);
+  
   // No date values, display nothing.
+  $output = '';
   if (empty($date1) && empty($date2)) {
     $output .= '';
   }
+  
   // From and To dates match or there is no To date, display a complete single date.
   elseif ($date1 == $date2 || empty($date2)) {
-    $output .= '<span class="date-display-single">'. $date1 .'</span>';
+    $output .= '<span class="date-display-single">'. $date1 . $timezone .'</span>';
   }
   // Same day, different times, don't repeat the date but show both From and To times.
   elseif ($dates['value']['formatted_date'] == $dates['value2']['formatted_date']) {
-    $output .= '<span class="date-display-single">'. $dates['value']['formatted_date'] .'</span> '.
-      '<span class="date-display-start">'. $dates['value']['formatted_time'] .'</span>'.
+    // Replace the original time with the from/to time in the formatted start date.  
+    // Make sure that parentheses or brackets wrapping the time will be retained in the
+    // final result.
+    $time1 = preg_replace('`^([\(\[])`', '', $dates['value']['formatted_time']);
+    $time1 = preg_replace('([\)\]]$)', '', $time1);
+    $time2 = preg_replace('`^([\(\[])`', '', $dates['value2']['formatted_time']);
+    $time2 = preg_replace('([\)\]]$)', '', $time2);
+    $time = '<span class="date-display-start">'. $time1 .'</span>'.
       '<span class="date-display-separator"> - </span>'.
-      '<span class="date-display-end">'. $dates['value2']['formatted_time'] .'</span>';
+      '<span class="date-display-end">'. $time2 .'</span>';
+    $replaced = str_replace($time1, $time, $date1);
+    $output .= '<span class="date-display-single">'. $replaced . $timezone .'</span> ';
   }
   // Different days, display both in their entirety.
   else {
     $output .= '<span class="date-display-start">'. $date1 .'</span>'.
       '<span class="date-display-separator"> - </span>'.
-      '<span class="date-display-end">'. $date2 .'</span>';
+      '<span class="date-display-end">'. $date2 . $timezone . '</span>';
   }
   if (module_exists('date_repeat') && !empty($item['rrule'])) {
-    include_once(drupal_get_path('module', 'date') .'/date_repeat.inc');
+    require_once('./'. drupal_get_path('module', 'date') .'/date_repeat.inc');
     $output .= theme('date_repeat_display', $field, $item, $node, $dates);
   }
   return $output;
@@ -79,29 +123,24 @@ function theme_date_display_combination($field, $item, $dates, $node = NULL) {
  *  @return a formatted display
  *
  */
-function theme_date_format_interval($field, $item, $node = NULL) {
-  $dates = date_formatter_process($field, $item, $node);
-
+function theme_date_format_interval($field, $item, $dates, $node = NULL) {
   // Time to compare dates to
-  $now = date_format(date_make_date('now', date_default_timezone()), 'U');
-
-  // Pull local timestamps out of date objects.
-  $start = date_format($dates['value']['local']['object'], 'U');
-  if (!$end = date_format($dates['value2']['local']['object'], 'U')) {
-    $end = $start;
-  }
+  $now = date_format(date_make_date('now', date_default_timezone()), DATE_FORMAT_DATETIME);
+  $start = $dates['value']['local']['datetime'];
+  $end = $dates['value2']['local']['datetime'];
+  
   // 1) The date is entirely in the future
   if ($now < $start) {
-    return t('!time', array('!time' => format_interval($start - $now)));
+    return t('!time from now', array('!time' => $dates['value']['interval']));
   }
   // 2) Ongoing date
   elseif ($now > $start && $now <= $end) {
-    //return t('Started !time ago', array('!time' => format_interval($now - $timestamp1)));
+    //return t('Started !time ago', array('!time' => $dates['value']['interval']));
     return t('ongoing');
   }
-  // 3) Date is in the past
+  // 3) Date is in the past (format_interval added 'ago' to the value).
   else {
-    return t('!time ago', array('!time' => format_interval($now - $end)));
+    return $dates['value']['interval'];
   }
 }
 
@@ -116,7 +155,8 @@ function theme_date_repeat_display($field, $item, $node = NULL, $dates) {
   // If $field['field_name'] isn't set, this isn't a node, and is
   // probably on a calendar view. The description is too expensive an
   // operation to run on every field in a view, so don't do it.
-  if (isset($node->$field['field_name'])) {
+  $output = '';
+  if (isset($node->$field['field_name']) && ($item['#delta'] == 0 || !empty($item['#show_rrule']))) {
     $output = date_repeat_rrule_description($item['rrule'], $dates['value']['local']['object']);
     $output = '<div>'. $output .'</div>';
   }
@@ -134,6 +174,7 @@ function theme_date_views_browser_period_label($period, $date) {
     case 'month':
       $format = 'F Y';
       break;
+    case 'week':
     case 'day':
       // Use just the year/month/day part of the short date format.
       $format = date_limit_format(variable_get('date_format_short', 'm/d/Y - H:i'), array('month', 'day', 'year'));
@@ -141,23 +182,24 @@ function theme_date_views_browser_period_label($period, $date) {
     case 'hour':
       // Use just the year/month/day/hour part of the short date format.
       $format = date_limit_format(variable_get('date_format_short', 'm/d/Y - H:i'), array('month', 'day', 'year', 'hour'));
+      break;
   }
   return t('%period of %date', array('%period' => ucwords($period), '%date' => date_format_date($date, 'custom', $format)));
 }
 /**
  *  Theme for page navigation
  */
-function theme_date_views_browser_navigation($label, $period, $prev, $next, $view) {
-    drupal_add_css(drupal_get_path('module', 'date_api') .'/date.css');
-    $output  = '<div class="book-navigation date-browser-navigation">';
-    $output .= '<div class="page-links">';
-    $output .= l(t('‹ prev !period  ', array('!period' => $period)), $prev, array('class' => 'page-previous'));
-    $output .= '<h3 class="date-browser-label"><span class="page-up">'. $label .'</span></h3>';
-    $output .= l(t('  next !period  ›', array('!period' => $period)), $next, array('class' => 'page-next'));
-    $output .= '</div></div>';
-    return $output;
+function theme_date_views_browser_navigation($heading, $period, $prev_url, $next_url, $view) {
+  $output  = '<div class="date-nav clear-block">';
+  $output .= '<div class="date-prev">';
+  $output .= l(t('‹ prev !period  ', array('!period' => $period)), $prev_url, array('rel' => 'nofollow'));
+  $output .= '</div><div class="date-heading"><h3>'. $heading .'</h3></div>';
+  $output .= '<div class="date-next">';
+  $output .= l(t('  next !period  ›', array('!period' => $period)), $next_url, array('rel' => 'nofollow'));
+  $output .= '</div></div>';
   return $output;
 }
+
 /**
  * Display a summary version of a view.
  */
@@ -184,15 +226,41 @@ function theme_date_views_browser_full_view($view, $nodes, $type) {
     case('block'):
       $arg = date_views_browser_period_arg(NULL, $view->argument[0]['options']);
       if ($view->url) $url = $view->url .'/'. $arg;
-      $output  .= '<h5 class="date-browser-block-label">'. l(date_views_browser_period_label(NULL, $period), $url) .'</h5>';
+      $output  .= '<h5 class="date-browser-block-label">'. l(date_views_browser_period_label($arg, $period), $url, array(), NULL, NULL, FALSE, TRUE) .'</h5>';
       $display = 'views_view_list';
       break;
     default:
       $output  .= date_views_browser_navigation($view, $period);
-      $display = 'views_view_teasers';
+      $display = 'date_view_nodes';
       break;
   }
   $output .= theme($display, $view, $nodes, $type, $teasers, $links);
+  return $output;
+}
+
+/**
+ * Display the nodes of a view as teasers.
+ */
+function theme_date_view_teasers($view, $nodes, $type) {
+  return views_theme('date_view_nodes', $view, $nodes, $type, true);
+}
+
+/**
+ * Display the nodes of a view as plain nodes.
+ * 
+ * Add the $view to the $node for use in themes.
+ */
+function theme_date_view_nodes($view, $nodes, $type, $teasers = false, $links = true) {
+  $output = '';
+  foreach ($nodes as $n) {
+    $node = node_load($n->nid);
+    $node->view = $view;
+    // Add view field values to the node so the theme can use them.
+    foreach ($n as $key => $value) {
+      $node->$key = $value;
+    }
+    $output .= node_view($node, $teasers, false, $links);
+  }
   return $output;
 }
 
@@ -214,7 +282,7 @@ function theme_date_views_browser_items($view, $nodes, $type, $teasers, $links) 
           $item .= "<div class='view-label ". views_css_safe('view-label-'. $field['queryname']) ."'>" . $field['label'] . "</div>";
         }
         // If this is the date field, format and display the current value.
-        if (strstr($field['handler'], 'content_views_')) {
+        if (strstr($field['handler'], 'date_views_field_handler_')) {
           $field_name = explode('_value', $field['field']);
           if (!empty($node->date_combo)) {
             $values = explode('|', $node->date_combo);
@@ -236,6 +304,61 @@ function theme_date_views_browser_items($view, $nodes, $type, $teasers, $links) 
   if ($items) {
    	return theme('item_list', $items);
   }
+}
+
+/**
+ * Adjust from/to date format to account for 'all day'.
+ *
+ * @param string $which, which value to return, 'date1' or 'date2'.
+ * @param object $date1, a date/time object for the 'from' date.
+ * @param object $date2, a date/time object for the 'to' date.
+ * @param string $format
+ * @param object $node, the node this date comes from (may be incomplete, always contains nid).
+ * @param object $view, the view this node comes from, if applicable.
+ * @return formatted date.
+ */
+function theme_date_all_day($which, $date1, $date2, $format, $node, $view = NULL) {
+  if (empty($date1) || !is_object($date1)) {
+    return '';
+  }
+  if (empty($date2)) {
+    $date2 = $date1;
+  }
+  $granularity = array_pop(date_format_order($format));
+  switch ($granularity) {
+    case 'second':
+      $max_comp = date_format($date2, 'H:i:s') == '23:59:59';
+      break;
+    case 'minute':
+      $max_comp = date_format($date2, 'H:i') == '23:59';
+      break;
+    case 'hour':
+      $max_comp = date_format($date2, 'H') == '23';
+      break;
+    default:
+      $max_comp = FALSE;
+  }
+  // Time runs from midnight to the maximum time -- call it 'All day'.
+  if (date_format($date1, 'H:i:s') == '00:00:00' && $max_comp) {
+    $format = date_limit_format($format, array('year', 'month', 'day'));
+    return trim(date_format_date($$which, 'custom', $format) .' '. theme('date_all_day_label'));
+  }
+  // There is no time, use neither 'All day' nor time.
+  elseif (date_format($date1, 'H:i:s') == '00:00:00' && date_format($date2, 'H:i:s') == '00:00:00') {
+    $format = date_limit_format($format, array('year', 'month', 'day'));
+    return date_format_date($$which, 'custom', $format);
+  }
+  // Normal formatting.
+  else {
+    return date_format_date($$which, 'custom', $format);
+  }
+}
+
+/**
+ * Theme the way an 'all day' label will look.
+ */
+function theme_date_all_day_label() {
+  return t('(All day)');
 }
 
 /** @} End of addtogroup themeable */

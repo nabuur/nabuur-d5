@@ -1,5 +1,5 @@
 <?php
-//$Id: date_token.inc,v 1.1.2.2 2008/02/23 13:13:49 karens Exp $
+//$Id: date_token.inc,v 1.1.2.6 2008/09/01 12:04:57 karens Exp $
 /**
  * @file
  * Token module integration.
@@ -31,52 +31,58 @@ function _date_token_list($type = 'all') {
   }
 }
 
-function _date_token_values($type, $object = NULL, $options = array()) {
+function _date_token_values($type, $object = NULL) {
   if ($type == 'field') {
     $item = $object[0];
-
+    
     $item['value'] = trim($item['value']);
-    $item_type = (is_numeric($item['value']) ? DATE_UNIX : DATE_ISO);
+    $item_type = isset($item['date_type']) ? $item['date_type'] : (is_numeric($item['value']) ? DATE_UNIX : DATE_ISO);
     $timezone = !empty($item['timezone']) ? $item['timezone'] : date_default_timezone_name();
-    $date = date_make_date($item['value'], $timezone, $item_type);
-
+    $timezone_db = !empty($item['timezone_db']) ? $item['timezone_db'] : 'UTC';
+    $date = date_make_date($item['value'], $timezone_db, $item_type);
+    if ($timezone_db != $timezone) {
+      date_timezone_set($date, timezone_open($timezone));
+    }
+    
     $tokens['value']          = $item['value'];
     $tokens['view']           = $item['view'];
-    $tokens['timestamp']      = date_format_date($date, 'U');
-    $tokens['yyyy']           = date_format_date($date, 'Y');
-    $tokens['yy']             = date_format_date($date, 'y');
-    $tokens['month']          = date_format_date($date, 'F');
-    $tokens['mon']            = date_format_date($date, 'M');
-    $tokens['mm']             = date_format_date($date, 'm');
-    $tokens['m']              = date_format_date($date, 'n');
-    $tokens['ww']             = date_format_date($date, 'W');
-    $tokens['date']           = date_format_date($date, 'N');
-    $tokens['day']            = date_format_date($date, 'l');
-    $tokens['ddd']            = date_format_date($date, 'D');
-    $tokens['dd']             = date_format_date($date, 'd');
-    $tokens['d']              = date_format_date($date, 'j');
+    $tokens['timestamp']      = date_format_date($date, 'custom', 'U');
+    $tokens['yyyy']           = date_format_date($date, 'custom', 'Y');
+    $tokens['yy']             = date_format_date($date, 'custom', 'y');
+    $tokens['month']          = date_format_date($date, 'custom', 'F');
+    $tokens['mon']            = date_format_date($date, 'custom', 'M');
+    $tokens['mm']             = date_format_date($date, 'custom', 'm');
+    $tokens['m']              = date_format_date($date, 'custom', 'n');
+    $tokens['ww']             = date_format_date($date, 'custom', 'W');
+    $tokens['date']           = date_format_date($date, 'custom', 'N');
+    $tokens['day']            = date_format_date($date, 'custom', 'l');
+    $tokens['ddd']            = date_format_date($date, 'custom', 'D');
+    $tokens['dd']             = date_format_date($date, 'custom', 'd');
+    $tokens['d']              = date_format_date($date, 'custom', 'j');
 
     if (!empty($item['value2'])) {
 
       $item['value2'] = trim($item['value2']);
-      $item_type = (is_numeric($item['value2']) ? DATE_UNIX : DATE_ISO);
-      $date = date_make_date($item['value2'], $timezone, $item_type);
-
+      $date = date_make_date($item['value2'], $timezone_db, $item_type);
+      if ($timezone_db != $timezone) {
+        date_timezone_set($date, timezone_open($timezone));
+      }
+ 
       $tokens['to-value']          = $item['value2'];
       $tokens['to-view']           = $item['view2'];
-      $tokens['to-timestamp']      = date_format_date($date, 'U');
-      $tokens['to-yyyy']           = date_format_date($date, 'Y');
-      $tokens['to-yy']             = date_format_date($date, 'y');
-      $tokens['to-month']          = date_format_date($date, 'F');
-      $tokens['to-mon']            = date_format_date($date, 'M');
-      $tokens['to-mm']             = date_format_date($date, 'm');
-      $tokens['to-m']              = date_format_date($date, 'n');
-      $tokens['to-ww']             = date_format_date($date, 'W');
-      $tokens['to-date']           = date_format_date($date, 'N');
-      $tokens['to-day']            = date_format_date($date, 'l');
-      $tokens['to-ddd']            = date_format_date($date, 'D');
-      $tokens['to-dd']             = date_format_date($date, 'd');
-      $tokens['to-d']              = date_format_date($date, 'j');
+      $tokens['to-timestamp']      = date_format_date($date, 'custom', 'U');
+      $tokens['to-yyyy']           = date_format_date($date, 'custom', 'Y');
+      $tokens['to-yy']             = date_format_date($date, 'custom', 'y');
+      $tokens['to-month']          = date_format_date($date, 'custom', 'F');
+      $tokens['to-mon']            = date_format_date($date, 'custom', 'M');
+      $tokens['to-mm']             = date_format_date($date, 'custom', 'm');
+      $tokens['to-m']              = date_format_date($date, 'custom', 'n');
+      $tokens['to-ww']             = date_format_date($date, 'custom', 'W');
+      $tokens['to-date']           = date_format_date($date, 'custom', 'N');
+      $tokens['to-day']            = date_format_date($date, 'custom', 'l');
+      $tokens['to-ddd']            = date_format_date($date, 'custom', 'D');
+      $tokens['to-dd']             = date_format_date($date, 'custom', 'd');
+      $tokens['to-d']              = date_format_date($date, 'custom', 'j');
     }
     return $tokens;
   }

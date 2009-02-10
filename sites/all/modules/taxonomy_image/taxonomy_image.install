@@ -1,5 +1,5 @@
 <?php
-// $Id: taxonomy_image.install,v 1.1.4.10 2008/06/02 20:11:27 nancyw Exp $
+// $Id: taxonomy_image.install,v 1.1.4.14 2008/10/01 15:07:26 nancyw Exp $
 
 /**
  * @file
@@ -102,9 +102,9 @@ function taxonomy_image_install() {
       break;
     case 'pgsql':
       db_query("CREATE TABLE {term_image} (
-        tid integer CHECK (VALUE >= 0) NOT NULL default '0',
+        tid integer NOT NULL default '0',
         path varchar(255) NOT NULL,
-	      PRIMARY KEY (tid)
+        PRIMARY KEY (tid)
         )");
 
       db_query("CREATE TABLE {cache_tax_image} (
@@ -163,4 +163,7 @@ function taxonomy_image_uninstall() {
   variable_del('taxonomy_image_width');
   variable_del('taxonomy_image_imagecache_preset');
   variable_del('taxonomy_image_link_types');
+  variable_del('taxonomy_image_link_title');
+  variable_del('taxonomy_image_wrapper');
+  variable_del('taxonomy_image_disable');
 }

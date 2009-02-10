@@ -3,9 +3,3 @@ name = "Common syndication parser"
 description = "Provides an XML parser for FeedAPI modules. Requires PHP5."
 package = FeedAPI Add On
 dependencies = feedapi
-
-; Information added by drupal.org packaging script on 2008-10-10
-version = "5.x-1.4"
-project = "feedapi"
-datestamp = "1223654422"
-

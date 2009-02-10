@@ -1,4 +1,4 @@
-# $Id: privatemsg.pot,v 1.1.1.1 2008/05/23 12:23:44 kester Exp $
+# $Id: privatemsg.pot,v 1.1.4.8 2007/04/19 20:43:13 mindless Exp $
 #
 # LANGUAGE translation of Drupal (privatemsg.module)
 # Copyright YEAR NAME <EMAIL@ADDRESS>

@@ -1,5 +1,5 @@
 <?php
-//$Id: date_repeat.inc,v 1.9.2.5 2008/02/20 12:47:55 karens Exp $
+//$Id: date_repeat.inc,v 1.9.2.21 2008/11/28 13:19:20 karens Exp $
 /**
  * @file
  * Implementation of Date Repeat API calculations for the CCK Date field.
@@ -29,14 +29,23 @@
  * to create the element delta values.
  */
 function _date_repeat_widget(&$element, &$node, $field, &$items) {
+  if (empty($element['#field'])) {
+    $element['#field'] = $field;
+  }
   $element[$field['field_name']]['rrule'] = array(
     '#type' => 'date_repeat_rrule',
-    '#weight' => ($field['widget']['weight'] + .3),
     '#default_value' => $items[0]['rrule'],
     '#date_timezone' => $element[$field['field_name']][0]['#date_timezone'],
+    '#date_format'      => date_limit_format(date_input_format($element, $field), $field['granularity']),
+    '#date_text_parts'  => (array) $field['widget']['text_parts'],
+    '#date_increment'   => $field['widget']['increment'],
+    '#date_year_range'  => $field['widget']['year_range'],
+    '#date_label_position' => $field['widget']['label_position'],
     '#prev_value' => $items[0]['value'],
     '#prev_value2' => $items[0]['value2'],
-    '#prev_rrule' => $items[0]['rrule'],
+    '#prev_rrule' => isset($items[0]['rrule']) ? $items[0]['rrule'] : '',
+    '#date_repeat_widget' => $field['widget']['type'],
+    '#date_repeat_collapsed' => $field['repeat_collapsed'],
     );
 }
 /**
@@ -50,11 +59,11 @@ function _date_repeat_widget_validate($element) {
 
   $field_name = $element['#parents'][0];
   $field = $element[0]['#field'];
-
-  $values = date_repeat_merge($element['#post'][$field_name]['rrule']);
-
+  $values = date_repeat_merge($element['#post'][$field_name]['rrule'], $element['rrule']);
+  
+  // If no start date was set, clean up the form and return.
   // If no repeats are set, clean up the form and return.
-  if ($values['FREQ'] == 'NONE') {
+  if (empty($form_values[$field_name][0]['value']) || $values['FREQ'] == 'NONE') {
     form_set_value(array('#parents' => array($field_name, 0, 'rrule')), NULL);
     form_set_value($element['rrule'], NULL);
     return;
@@ -86,45 +95,8 @@ function _date_repeat_widget_validate($element) {
     ) {
 
     $item = $form_values[$field_name][0];
-    $timezone = date_get_timezone($field['tz_handling'], $item[0]['timezone']);
-    $start = date_make_date($item['value'], $timezone, $field['type']);
-    $start_datetime = date_format($start, DATE_FORMAT_DATETIME);
-    if (!empty($item['value2']) && $new_field['value2'] != $item['value']) {
-      $end = date_make_date($item['value2'], $timezone, $field['type']);
-      $duration = date_diff($start, $end);
-    }
-    else {
-      $end = $start;
-      $duration = 0;
-    }
-
-    $end = date_ical_date($values['UNTIL'], $timezone);
-    $end_datetime = date_format($end, DATE_FORMAT_DATETIME);
-
-    $parts = date_repeat_split_rrule($rrule);
-    $parsed = $parts[0];
-    $parsed_exceptions = (array) $parts[1];
-    $exceptions = array();
-    foreach ($parsed_exceptions as $exception) {
-      $date = date_ical_date($exception);
-      $exceptions[] = date_format($date, 'Y-m-d');
-    }
-
-    $dates = date_repeat_calc($rrule, $start_datetime, $end_datetime, $exceptions);
-    foreach ($dates as $delta => $date) {
-      $date_start = date_make_date($date, $timezone, $field['type']);
-      $date_end = drupal_clone($date_start);
-      date_modify($date_end, '+'. $duration .' seconds');
-      $value[$field_name][$delta] = array(
-        'value' => date_format($date_start, date_type_format($field['type'])),
-        'value2' => date_format($date_end, date_type_format($field['type'])),
-        'offset' => date_offset_get($date_start),
-        'offset2' => date_offset_get($date_end),
-        'timezone' => $timezone,
-        'rrule' => $delta == 0 ? $rrule : '',
-        );
-    }
-    form_set_value($element, $value[$field_name]);
+    $value = date_repeat_build_dates($rrule, $values, $field, $item);
+    form_set_value($element, $value);
   }
   else {
     // If no changes are needed, move the RRULE back to the zero value
@@ -132,4 +104,82 @@ function _date_repeat_widget_validate($element) {
     form_set_value(array('#parents' => array($field_name, 0, 'rrule')), $rrule);
     form_set_value($element['rrule'], NULL);
   }
+}
+
+/**
+ * Helper function to build repeating dates from a $node_field.
+ * 
+ * Pass in either the RRULE or the $form_values array for the RRULE,
+ * whichever is missing will be created when needed.
+ */
+function date_repeat_build_dates($rrule = NULL, $values = NULL, $field, $item) {
+  include_once('./'. drupal_get_path('module', 'date_api') .'/date_api_ical.inc');
+  $field_name = $field['field_name'];
+  
+  if (empty($rrule)) {
+    $rrule = date_api_ical_build_rrule($values);
+  }
+  elseif (empty($values)) {
+    $values = date_ical_parse($rrule);
+  }
+    
+  // By the time we get here, the start and end dates have been 
+  // adjusted back to UTC, but we want localtime dates to do
+  // things like '+1 Tuesday', so adjust back to localtime.
+  $timezone = date_get_timezone($field['tz_handling'], $item['timezone']);
+  $timezone_db = date_get_timezone_db($field['tz_handling']);
+      
+  $start = date_make_date($item['value'], $timezone_db, $field['type']);
+  if ($timezone != $timezone_db) {
+    date_timezone_set($start, timezone_open($timezone));
+  }
+  if (!empty($item['value2']) && $item['value2'] != $item['value']) {
+    $end = date_make_date($item['value2'], $timezone_db, $field['type']);
+    if ($timezone != $timezone_db) {
+      date_timezone_set($end, timezone_open($timezone));
+    }
+  }
+  else {
+    $end = $start;
+  }
+  $duration = date_difference($start, $end);
+  $start_datetime = date_format($start, DATE_FORMAT_DATETIME);
+    
+  if (!empty($values['UNTIL']['datetime'])) {
+    $end = date_ical_date($values['UNTIL'], $timezone);
+  }
+  $end_datetime = date_format($end, DATE_FORMAT_DATETIME);
+    
+  // Split the RRULE into RRULE and EXDATE parts.
+  $parts = date_repeat_split_rrule($rrule);
+  $rule = explode("\n", $rrule);
+  $parsed_exceptions = (array) $parts[1];
+  $exceptions = array();
+  foreach ($parsed_exceptions as $exception) {
+    $date = date_ical_date($exception);
+    $exceptions[] = date_format($date, 'Y-m-d');
+  }
+  $dates = array();
+  
+  $dates = date_repeat_calc($rrule, $start_datetime, $end_datetime, $exceptions, $timezone);
+    
+  $value = array();
+  foreach ($dates as $delta => $date) {
+    // date_repeat_calc always returns DATE_DATETIME dates, which is
+    // not necessarily $field['type'] dates.
+    // Convert returned dates back to UTC before storing.
+    $date_start = date_make_date($date, $timezone, DATE_DATETIME);  
+    date_timezone_set($date_start, timezone_open($timezone_db));    
+    $date_end = drupal_clone($date_start);
+    date_modify($date_end, '+'. $duration .' seconds');
+    $value[$delta] = array(
+      'value' => date_format($date_start, date_type_format($field['type'])),
+      'value2' => date_format($date_end, date_type_format($field['type'])),
+      'offset' => date_offset_get($date_start),
+      'offset2' => date_offset_get($date_end),
+      'timezone' => $timezone,
+      'rrule' => $rrule,
+      );
+  }
+  return $value;  
 }

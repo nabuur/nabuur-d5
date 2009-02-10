@@ -1,5 +1,5 @@
 <?php
-// $Id: feedapi_mapper_taxonomy.inc,v 1.1 2008/01/18 21:59:58 alexb Exp $
+// $Id: feedapi_mapper_taxonomy.inc,v 1.1.2.1 2009/01/05 19:06:46 alexb Exp $
 /**
  * On behalf implementation of feed element mapper for taxonomy.module.
  */
@@ -61,41 +61,31 @@ function taxonomy_feedapi_mapper($op, $node, $field_name, $feed_element = array(
 }
 
 /**
- * Creates terms from keywords, borrowed from yahoo_terms module.
- * Todo: simplify.
+ * This helper function creates terms from keywords.
  */
-function _feedapi_mapper_create_terms($keywords, $vid, $static = FALSE) {
-  if ($vid == FALSE) {
-    return FALSE;
-  }
-  $tids = array();
-  if (is_array($keywords)) {
+function _feedapi_mapper_create_terms($keywords, $vid) {
+  $terms = array();
+  if (is_array($keywords) && !empty($vid)) {
     foreach ($keywords as $term) {
       $curr_terms = taxonomy_get_term_by_name($term);
-      if (count($curr_terms) != 0) {
+      $found = FALSE;
+      if (is_array($curr_terms)) {
         foreach ($curr_terms as $curr_term) {
           if ($curr_term->vid == $vid) {
-            $tids[$curr_term->tid] = $curr_term;
+            $terms[$curr_term->tid] = $curr_term;
+            $found = TRUE;
           }
         }
-        if (count($tids) == 0 and $static == FALSE) {
-          $new_term['name'] = $term;
-          $new_term['vid'] = $vid;
-          taxonomy_save_term($new_term);
-          $tids[$new_term['tid']] = taxonomy_get_term($new_term['tid']);
-          unset($new_term);
-        }
       }
-      else {
-        if ($static == FALSE) {
-          $new_term['name'] = $term;
-          $new_term['vid'] = $vid;
-          taxonomy_save_term($new_term);
-          $tids[$new_term['tid']] = taxonomy_get_term($new_term['tid']);
-          unset($new_term);
-        }
+      // Create a new term if there isn't a matching existing one.
+      if (!$found) {
+        $new_term = array();
+        $new_term['name'] = $term;
+        $new_term['vid'] = $vid;
+        taxonomy_save_term($new_term);
+        $terms[$new_term['tid']] = taxonomy_get_term($new_term['tid']);
       }
     }
   }
-  return $tids;
+  return $terms;
 }

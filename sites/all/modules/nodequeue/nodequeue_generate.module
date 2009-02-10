@@ -102,6 +102,7 @@ function nodequeue_generate_form_submit($form_id, $form_values) {
       $result = db_query_range($sql, $args, 0, $form_values['rows'][$subqueue->qid]['limit']);
       while ($row = db_fetch_object($result)) {
         nodequeue_subqueue_add($subqueue, $subqueue, $row->nid);
+        $subqueue->count++;
       }
     }
     elseif ($queues[$subqueue->qid]->owner == 'smartqueue_taxonomy') {
@@ -110,6 +111,7 @@ function nodequeue_generate_form_submit($form_id, $form_values) {
       $result = db_query_range($sql, $args, 0, $form_values['rows'][$subqueue->qid]['limit']);
       while ($row = db_fetch_object($result)) {
         nodequeue_subqueue_add($subqueue, $subqueue, $row->nid);
+        $subqueue->count++;
       }
     }
   }
@@ -138,7 +140,7 @@ function nodequeue_generate_rehash($vids) {
   $queues = nodequeue_load_queues(nodequeue_get_all_qids(200));
   foreach ($queues as $queue) {
     if ($queue->owner == 'smartqueue_taxonomy') {
-      nodequeue_api_subqueues(&$queue, $node);
+      nodequeue_api_subqueues($queue, $node);
     }
   }
 }

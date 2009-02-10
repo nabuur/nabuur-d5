@@ -1,5 +1,5 @@
 <?php
-// $Id: sms_receive.module,v 1.1.2.1 2008/08/13 09:03:08 kester Exp $
+// $Id: sms_receive.module,v 1.1.2.1 2008/07/22 05:07:34 diggersf Exp $
 
 function sms_receive_menu() {
   $items[] = array(

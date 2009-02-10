@@ -1,5 +1,5 @@
 <?php
-// $Id: imageapi.module,v 1.15.2.2 2008/05/12 17:54:48 dopry Exp $
+// $Id: imageapi.module,v 1.15.2.6 2008/11/16 07:17:46 dopry Exp $
 
 /**
  * @file
@@ -249,6 +249,31 @@ function imageapi_image_rotate(&$image, $degrees, $bgcolor = 0x000000) {
 }
  
 /**
+ * Sharpen an image given some sharpening parameters.
+ *
+ * NOTE: These parameters only have an effect when Imagemagick is used.
+ *       GD will used a fixed convolution matrix as described in imageapi_gd.module
+ *
+ * @param $image
+ *   An imageapi image object returned by imageapi_image_open().
+ * @param $radius
+ *   The radius of the gaussian, in pixels, not counting the center pixel. (default 0.5)
+ * @param $sigma
+ *   The standard deviation of the gaussian, in pixels. (default 0.5)
+ * @param $amount
+ *   The percentage of the difference between the original and the blur image that is
+ *   added back into the original. (default 100)
+ * @param $threshold
+ *   The threshold, as a fraction of max RGB levels, needed to apply the difference
+ *   amount. (default 0.05)
+ * @return
+ *   True or false, based on success.
+ */
+function imageapi_image_sharpen(&$image, $radius, $sigma, $amount, $threshold) {
+  return call_user_func($image->toolkit .'_image_sharpen', $image, $radius, $sigma, $amount, $threshold);
+}
+
+/**
  * Crop an image to the rectangle specified by the given rectangle.
  *
  * @param $image
@@ -268,6 +293,16 @@ function imageapi_image_crop(&$image, $x, $y, $width, $height) {
   $aspect = $image->info['height'] / $image->info['width'];
   if (empty($height)) $height = $width / $aspect;
   if (empty($width)) $width = $height * $aspect;
+
+  // Ensure target image size is not greater than original size.
+  if ($width > $image->info['width']) {
+    $width = $image->info['width'];
+    $x = 0;
+  }
+  if ($height > $image->info['height']) {
+    $height = $image->info['height'];
+    $y = 0;
+  }
 
   return call_user_func($image->toolkit .'_image_crop', $image, $x, $y, $width, $height);
 }
@@ -302,14 +337,14 @@ function imageapi_image_open($file, $toolkit = false) {
  *
  * @param $destination
  *   destination path where image should be saved. If it is empty the original image will
- *   be over written.
+ *   be overwritten.
  */
 function imageapi_image_close($image, $destination = '') {
   if (empty($destination)) {
     $destination = $image->source;
   }
   if ($return = call_user_func($image->toolkit .'_image_close', $image, $destination)) {
-    if (@chmod($destination, 0775)) {
+    if (@chmod($destination, 0664)) {
       return $return;
     } 
     watchdog('imageapi', t('Could not set permissons on destination file: %file', array('%file' => $destination)));

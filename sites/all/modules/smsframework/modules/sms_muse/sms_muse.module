@@ -1,5 +1,5 @@
 <?php
-// $Id: sms_muse.module,v 1.1.2.1 2008/08/13 09:03:00 kester Exp $
+// $Id: sms_muse.module,v 1.1.2.1 2008/07/22 05:07:34 diggersf Exp $
 
 function sms_muse_gateway_info() {
   $options['sms_muse_user'] = array(

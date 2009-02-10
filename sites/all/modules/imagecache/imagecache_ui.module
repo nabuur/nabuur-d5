@@ -1,5 +1,5 @@
 <?php
-// $Id: imagecache_ui.module,v 1.11 2008/04/24 05:27:45 dopry Exp $
+// $Id: imagecache_ui.module,v 1.11.2.1 2009/01/06 03:31:15 drewish Exp $
 
 /**
  * Administrative interface to imagecache.
@@ -131,7 +131,7 @@ function imagecache_ui_preset_add_form($presetid = 0) {
     '#size' => '64',
     '#title' => t('Preset Namespace'),
     '#default_value' => '',
-    '#description' => t('The namespace is used in URL\'s for images to tell imagecache how to process an image. Please only use alphanumic characters, underscores (_), and hyphens (-) for preset names.'),
+    '#description' => t('The namespace is used in URLs for images to tell imagecache how to process an image. Please only use alphanumeric characters, underscores (_), and hyphens (-) for preset names.'),
     '#validate' => array('imagecache_element_presetname_validate' => array()),
   );
   $form['submit'] = array(
@@ -157,7 +157,7 @@ function imagecache_element_presetname_validate($element) {
 
   // Check for illegal characters in preset names
   if (preg_match('/[^0-9a-zA-Z_\-]/', $element['#value'])) {
-    form_set_error($element['#name'], t('Please only use alphanumic characters, underscores (_), and hyphens (-) for preset names.'));
+    form_set_error($element['#name'], t('Please only use alphanumeric characters, underscores (_), and hyphens (-) for preset names.'));
   }
 }
 
@@ -235,7 +235,7 @@ function imagecache_ui_preset_form($presetid) {
     '#size' => '64',
     '#title' => t('Preset Namespace'),
     '#default_value' => $preset['presetname'],
-    '#description' => t('The namespace is used in URL\'s for images to tell imagecache how to process an image. Please only use alphanumic characters, underscores (_), and hyphens (-) for preset names.'),
+    '#description' => t('The namespace is used in URLs for images to tell imagecache how to process an image. Please only use alphanumeric characters, underscores (_), and hyphens (-) for preset names.'),
     '#validate' => array('imagecache_element_presetname_validate' => array()),
   );
   $form['presetid'] = array(

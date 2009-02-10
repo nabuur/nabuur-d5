@@ -3,9 +3,3 @@ name = ImageAPI ImageMagick
 description = Command Line ImageMagick support.
 package = ImageCache
 dependencies = imageapi
-
-; Information added by drupal.org packaging script on 2008-05-12
-version = "5.x-1.1"
-project = "imageapi"
-datestamp = "1210616116"
-

@@ -1,9 +1,9 @@
-# $Id: logintoboggan.pot,v 1.4.2.1 2007/12/27 17:46:15 thehunmonkgroup Exp $
+# $Id: logintoboggan.pot,v 1.4.2.2 2008/04/21 20:11:25 thehunmonkgroup Exp $
 #
 # LANGUAGE translation of Drupal (general)
 # Copyright YEAR NAME <EMAIL@ADDRESS>
 # Generated from files:
-#  logintoboggan.module,v 1.83.2.29 2007/12/26 20:42:03 thehunmonkgroup
+#  logintoboggan.module,v 1.83.2.38 2008/04/21 19:45:11 thehunmonkgroup
 #  logintoboggan.info,v 1.2.2.2 2007/06/18 23:06:50 dww
 #  logintoboggan.install,v 1.10 2006/10/11 15:49:42 thehunmonkgroup
 #
@@ -11,7 +11,7 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: PROJECT VERSION\n"
-"POT-Creation-Date: 2007-12-27 10:44-0700\n"
+"POT-Creation-Date: 2008-04-21 16:09-0400\n"
 "PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
 "Last-Translator: NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
@@ -64,331 +64,339 @@ msgstr ""
 msgid "Set a custom message to appear at the top of the login block"
 msgstr ""
 
-#: logintoboggan.module:144
+#: logintoboggan.module:140
 msgid "If this user was created using the \"Immediate Login\" feature of LoginToboggan, and they are also awaiting adminstrator approval on their account, you must remove them from the site's pre-authorized role in the \"Roles\" section below, or they will not receive authenticated user permissions!"
 msgstr ""
 
-#: logintoboggan.module:146
+#: logintoboggan.module:142
 msgid "The user is assigned LoginToboggan's pre-authorized role, and is not currently receiving authenticated user permissions."
 msgstr ""
 
-#: logintoboggan.module:209
+#: logintoboggan.module:205
 msgid "Confirm e-mail address"
 msgstr ""
 
-#: logintoboggan.module:212
+#: logintoboggan.module:208
 msgid "Please re-type your e-mail address to confirm it is accurate."
 msgstr ""
 
-#: logintoboggan.module:232
+#: logintoboggan.module:228
 msgid "between !min and"
 msgstr ""
 
-#: logintoboggan.module:232
+#: logintoboggan.module:228
 msgid "no more than"
 msgstr ""
 
-#: logintoboggan.module:233
+#: logintoboggan.module:229
 msgid "Please choose a password for your account; it must be !length 30 characters and spaces are not allowed."
 msgstr ""
 
-#: logintoboggan.module:274
+#: logintoboggan.module:270
 msgid "Detected malicious attempt to alter protected user fields."
 msgstr ""
 
-#: logintoboggan.module:288
+#: logintoboggan.module:284
 msgid "New user: %name %email."
 msgstr ""
 
-#: logintoboggan.module:288
+#: logintoboggan.module:284
 msgid "edit"
 msgstr ""
 
-#: logintoboggan.module:296
+#: logintoboggan.module:292
 msgid "A validation e-mail has been sent to your e-mail address. In order to gain full access to the site, you will need to follow the instructions in that message."
 msgstr ""
 
-#: logintoboggan.module:302
+#: logintoboggan.module:298
 msgid "Your password and further instructions have been sent to your e-mail address."
 msgstr ""
 
-#: logintoboggan.module:319
+#: logintoboggan.module:315
 msgid "Thank you for applying for an account. Your account is currently pending approval by the site administrator.<br />"
 msgstr ""
 
-#: logintoboggan.module:323
+#: logintoboggan.module:319
 msgid "!u has applied for an account, and has automatically received the permissions of the LoginToboggan validating role.  To give the user full site permissions, click the link below:\n\n!validating_url\n\nAlternatively, you may visit their user account listed below and remove them from the validating role.\n\n!uri"
 msgstr ""
 
-#: logintoboggan.module:326
+#: logintoboggan.module:322
 msgid "!u has applied for an account.\n\n!uri"
 msgstr ""
 
-#: logintoboggan.module:371
-msgid "This e-mail address has already been taken by another user."
-msgstr ""
-
-#: logintoboggan.module:378
+#: logintoboggan.module:367
 msgid "Your e-mail address and confirmed e-mail address must match."
 msgstr ""
 
-#: logintoboggan.module:454 logintoboggan.info:0
+#: logintoboggan.module:443 logintoboggan.info:0
 msgid "LoginToboggan"
 msgstr ""
 
-#: logintoboggan.module:455
+#: logintoboggan.module:444
 msgid "Set up custom login options like instant login, login redirects, pre-authorized validation roles, etc."
 msgstr ""
 
-#: logintoboggan.module:462
+#: logintoboggan.module:451
 msgid "Validate e-mail address"
 msgstr ""
 
-#: logintoboggan.module:472
+#: logintoboggan.module:461
 msgid "Access denied"
 msgstr ""
 
-#: logintoboggan.module:483
+#: logintoboggan.module:472
 msgid "Re-send validation e-mail"
 msgstr ""
 
-#: logintoboggan.module:512
+#: logintoboggan.module:501
 msgid "LoginToboggan logged in block"
 msgstr ""
 
-#: logintoboggan.module:573
+#: logintoboggan.module:562
 msgid "disabled"
 msgstr ""
 
-#: logintoboggan.module:574
+#: logintoboggan.module:563
 msgid "enabled"
 msgstr ""
 
-#: logintoboggan.module:577;1059
+#: logintoboggan.module:566;1100
 msgid "Login"
 msgstr ""
 
-#: logintoboggan.module:582
+#: logintoboggan.module:571
 msgid "Allow users to login using their e-mail address"
 msgstr ""
 
-#: logintoboggan.module:585
-msgid "Users will be able to enter EITHER their username OR their e-mail address to log in. NOTE: This will disallow users from registering using an e-mail address as their username."
+#: logintoboggan.module:574
+msgid "Users will be able to enter EITHER their username OR their e-mail address to log in."
 msgstr ""
 
-#: logintoboggan.module:589
+#: logintoboggan.module:578
 msgid "Registration"
 msgstr ""
 
-#: logintoboggan.module:593
+#: logintoboggan.module:582
 msgid "Use two e-mail fields on registration form"
 msgstr ""
 
-#: logintoboggan.module:596
+#: logintoboggan.module:585
 msgid "User will have to type the same e-mail address into both fields. This helps to confirm that they've typed the correct address."
 msgstr ""
 
-#: logintoboggan.module:600
+#: logintoboggan.module:589
 msgid "Set password & Immediate login"
 msgstr ""
 
-#: logintoboggan.module:602
+#: logintoboggan.module:591
 msgid "This will allow users to choose their initial password when registering.  If 'Set password & Immediate login' is selected, users will be assigned to the role below and logged in immediately. They will not be assigned to the \"authenticated user\" role until they confirm their e-mail address by following the link in their registration e-mail. It is HIGHLY recommended that you set up a \"pre-authorized\" role with limited permissions for this purpose. <br />NOTE: If you enable this feature, you should edit the !settings--more help in writing the e-mail message can be found at !help."
 msgstr ""
 
-#: logintoboggan.module:609
+#: logintoboggan.module:598
 msgid "Non-authenticated role"
 msgstr ""
 
-#: logintoboggan.module:612
+#: logintoboggan.module:601
 msgid "If \"Set password & Immediate login\" is selected, users will be able to login before their e-mail address has been authenticated. Therefore, you must choose a role for new non-authenticated users. Users will be removed from this role and assigned to the \"authenticated user\" role once they follow the link in their welcome e-mail. <a href=\"!url\">Add new roles</a>."
 msgstr ""
 
-#: logintoboggan.module:617
+#: logintoboggan.module:606
 msgid "Redirections"
 msgstr ""
 
-#: logintoboggan.module:624
+#: logintoboggan.module:613
 msgid "Redirect path on Registration"
 msgstr ""
 
-#: logintoboggan.module:626
+#: logintoboggan.module:615
 msgid "Normally, after a user registers a new account, they will be taken to the front page, or to their user page if you specify <cite>Immediate login</cite> above. Leave this setting blank if you wish to keep the default behavior. If you wish the user to go to a page of your choosing, then enter the path for it here. For instance, you may redirect them to a static page such as <cite>node/35</cite>, or to the <cite>&lt;front&gt;</cite> page. You may also use <em>%uid</em> as a variable, and the user's user ID will be substituted in the path."
 msgstr ""
 
-#: logintoboggan.module:631
+#: logintoboggan.module:620
 msgid "Redirect path on Confirmation"
 msgstr ""
 
-#: logintoboggan.module:633
+#: logintoboggan.module:622
 msgid "Normally, after a user confirms their new account, they will be taken to their user page. Leave this setting blank if you wish to keep the default behavior. If you wish the user to go to a page of your choosing, then enter the path for it here. For instance, you may redirect them to a static page such as <cite>node/35</cite>, or to the <cite>&lt;front&gt;</cite> page. You may also use <em>%uid</em> as a variable, and the user's user ID will be substituted in the path."
 msgstr ""
 
-#: logintoboggan.module:637
+#: logintoboggan.module:626
 msgid "Other"
 msgstr ""
 
-#: logintoboggan.module:652
+#: logintoboggan.module:641
 msgid "Present login form on access denied (403)"
 msgstr ""
 
-#: logintoboggan.module:655
+#: logintoboggan.module:644
 msgid "Anonymous users will be presented with a login form along with an access denied message."
 msgstr ""
 
-#: logintoboggan.module:659
+#: logintoboggan.module:648
 msgid "Display login successful message"
 msgstr ""
 
-#: logintoboggan.module:662
+#: logintoboggan.module:651
 msgid "If enabled, users will receive a 'Login successful' message upon login."
 msgstr ""
 
-#: logintoboggan.module:664
+#: logintoboggan.module:653
 msgid "None"
 msgstr ""
 
-#: logintoboggan.module:670
+#: logintoboggan.module:659
 msgid "Minimum password length"
 msgstr ""
 
-#: logintoboggan.module:673
+#: logintoboggan.module:662
 msgid "LoginToboggan automatically performs basic password validation for illegal characters. If you would additionally like to have a mimimum password length requirement, select the length here, or set to 'None' for no password length validation."
 msgstr ""
 
-#: logintoboggan.module:690
+#: logintoboggan.module:679
 msgid "Access Denied / User Login"
 msgstr ""
 
-#: logintoboggan.module:691
+#: logintoboggan.module:680
 msgid "Access denied.  You may need to login below or register to access this page."
 msgstr ""
 
-#: logintoboggan.module:694
+#: logintoboggan.module:683
 msgid "Access Denied"
 msgstr ""
 
-#: logintoboggan.module:725
+#: logintoboggan.module:724
 msgid "You must enter a password."
 msgstr ""
 
-#: logintoboggan.module:726
+#: logintoboggan.module:725
 msgid "The password cannot contain spaces."
 msgstr ""
 
-#: logintoboggan.module:727;737
+#: logintoboggan.module:726;736
 msgid "The password contains an illegal character."
 msgstr ""
 
-#: logintoboggan.module:739
+#: logintoboggan.module:738
 msgid "The password is too long: it must be less than 30 characters."
 msgstr ""
 
-#: logintoboggan.module:741
+#: logintoboggan.module:740
 msgid "The password is too short: it must be at least %min_length characters."
 msgstr ""
 
-#: logintoboggan.module:766
+#: logintoboggan.module:765
 msgid "E-mail validation URL used for %name with timestamp @timestamp."
 msgstr ""
 
-#: logintoboggan.module:795
+#: logintoboggan.module:800
 msgid "You have successfully validated your e-mail address."
 msgstr ""
 
-#: logintoboggan.module:798
+#: logintoboggan.module:803
 msgid "Your account is currently blocked -- login cancelled."
 msgstr ""
 
-#: logintoboggan.module:810;818
+#: logintoboggan.module:815;823
 msgid "You have successfully validated %user."
 msgstr ""
 
-#: logintoboggan.module:824
+#: logintoboggan.module:829
 msgid "Sorry, you can only use your validation link once for security reasons. Please !login with your username and password instead now."
 msgstr ""
 
-#: logintoboggan.module:824
+#: logintoboggan.module:829
 msgid "login"
 msgstr ""
 
-#: logintoboggan.module:843
+#: logintoboggan.module:848
 msgid "Session opened for %name."
 msgstr ""
 
-#: logintoboggan.module:858
+#: logintoboggan.module:863
 msgid "User %name used one-time login link at time %timestamp."
 msgstr ""
 
-#: logintoboggan.module:859
+#: logintoboggan.module:864
 msgid "You have just used your one-time login link. It is no longer necessary to use this link to login. Please change your password."
 msgstr ""
 
-#: logintoboggan.module:892
+#: logintoboggan.module:898
 msgid "Account validation"
 msgstr ""
 
-#: logintoboggan.module:896
+#: logintoboggan.module:902
 msgid "re-send validation e-mail"
 msgstr ""
 
-#: logintoboggan.module:901
+#: logintoboggan.module:907
 msgid "Login successful."
 msgstr ""
 
-#: logintoboggan.module:919
+#: logintoboggan.module:920
+msgid "This name has already been taken by another user."
+msgstr ""
+
+#: logintoboggan.module:924
+msgid "This e-mail has already been taken by another user."
+msgstr ""
+
+#: logintoboggan.module:939
 msgid "If required, you may reset your password from: !url"
 msgstr ""
 
-#: logintoboggan.module:929
+#: logintoboggan.module:950
+msgid "A validation e-mail has been sent to the user's e-mail address."
+msgstr ""
+
+#: logintoboggan.module:953
 msgid "A validation e-mail has been sent to your e-mail address. You will need to follow the instructions in that message in order to gain full access to the site."
 msgstr ""
 
-#: logintoboggan.module:975
+#: logintoboggan.module:1016
 msgid "Username or e-mail address"
 msgstr ""
 
-#: logintoboggan.module:980
+#: logintoboggan.module:1021
 msgid "Username or e-mail"
 msgstr ""
 
-#: logintoboggan.module:995
+#: logintoboggan.module:1036
 msgid "Enter your %s username, e-mail address, or an ID from one of our affiliates: !a."
 msgstr ""
 
-#: logintoboggan.module:999
+#: logintoboggan.module:1040
 msgid "You may login with either your assigned username or your e-mail address."
 msgstr ""
 
-#: logintoboggan.module:1003;1030
+#: logintoboggan.module:1044;1071
 msgid ""
 msgstr ""
 
-#: logintoboggan.module:1014
+#: logintoboggan.module:1055
 msgid "Password"
 msgstr ""
 
-#: logintoboggan.module:1025
+#: logintoboggan.module:1066
 msgid "The password field is case sensitive."
 msgstr ""
 
-#: logintoboggan.module:1039
+#: logintoboggan.module:1080
 msgid "You are not authorized to access this page."
 msgstr ""
 
-#: logintoboggan.module:1047
+#: logintoboggan.module:1088
 msgid "Log out"
 msgstr ""
 
-#: logintoboggan.module:1056
+#: logintoboggan.module:1097
 msgid "Login/Register"
 msgstr ""
 
-#: logintoboggan.module:274
+#: logintoboggan.module:270
 msgid "security"
 msgstr ""
 
-#: logintoboggan.module:288;766;843;858
+#: logintoboggan.module:284;765;848;863
 msgid "user"
 msgstr ""
 

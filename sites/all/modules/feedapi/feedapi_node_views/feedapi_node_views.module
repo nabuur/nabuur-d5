@@ -1,5 +1,5 @@
 <?php
-// $Id: feedapi_node_views.module,v 1.1.2.8 2008/10/10 13:19:30 aronnovak Exp $
+// $Id: feedapi_node_views.module,v 1.1.2.10 2008/11/15 17:25:13 aronnovak Exp $
 
 /**
  * Add views functionality to FeedAPI Node
@@ -73,11 +73,20 @@ function feedapi_node_views_views_tables() {
     ),
     'filters' => array(
       'feed_nid' => array(
-        'name' => t('FeedAPI node: Parent Feed'),
+        'name' => t('FeedAPI node: Parent Feed ID'),
         'option' => 'integer',
         'operator' => views_handler_operator_gtlt(),
         'help' => t('This allows you to filter feed items based on parent feed. You should supply the feed\'s nid.'),
-      )
+      ),
+      'feed_nid_title' => array(
+        'name' => t('FeedAPI Item: Parent Feed Title'),
+        'field' => 'feed_nid',
+        'list' => 'feedapi_views_handler_filter_feed_title',
+        'list-type' => 'list',
+        'operator' => 'views_handler_operator_or',
+        'value-type' => 'array',
+        'help' => t('This allows you to filter feed items based on parent feed title.'),
+      ),
     )
   );
   return $tables;
@@ -249,4 +258,16 @@ function feedapi_node_views_link($type, $node = NULL, $teaser = FALSE) {
     }
     return $links;
   }
+}
+
+/**
+ *  Handler for filtering by parent feed title.  Lists available parent feeds.
+ */
+function feedapi_views_handler_filter_feed_title() {
+  $result = db_query("SELECT * FROM {node} n INNER JOIN {feedapi} f ON n.nid = f.nid");
+  $nodes = array();
+  while ($node = db_fetch_object($result)) {
+    $nodes[$node->nid] = $node->title;
+  }
+  return $nodes;
 }

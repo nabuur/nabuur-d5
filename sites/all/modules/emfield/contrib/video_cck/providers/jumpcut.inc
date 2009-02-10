@@ -1,5 +1,5 @@
 <?php
-// $Id: jumpcut.inc,v 1.3 2007/09/06 22:18:25 aaron Exp $
+// $Id: jumpcut.inc,v 1.4 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_JUMPCUT_MAIN_URL', 'http://jumpcut.com/');
 
@@ -32,12 +32,12 @@ function video_cck_jumpcut_extract($embed) {
 }
 
 function video_cck_jumpcut_video_link($video_code) {
-  return 'http://jumpcut.com/view?id=' . $video_code;
+  return 'http://jumpcut.com/view?id='. $video_code;
 }
 
 function theme_video_cck_jumpcut_flash($embed, $width, $height) {
   if ($embed) {
-    $output .= '<embed src="http://jumpcut.com/media/flash/jump.swf?id=' . $embed . '&asset_type=movie&asset_id=' . $embed . '&eb=1" width="' . $width . '" height="' . $height . '" type="application/x-shockwave-flash"></embed>';
+    $output .= '<embed src="http://jumpcut.com/media/flash/jump.swf?id='. $embed .'&asset_type=movie&asset_id='. $embed .'&eb=1" width="'. $width .'" height="'. $height .'" type="application/x-shockwave-flash"></embed>';
   }
   return $output;
 }

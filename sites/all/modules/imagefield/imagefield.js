@@ -1,4 +1,4 @@
-// $Id: imagefield.js,v 1.1.2.1 2008/04/21 06:59:13 dopry Exp $
+// $Id: imagefield.js,v 1.1.2.2 2008/08/01 18:02:16 dopry Exp $
 
 /**
  *  Auto Attach standard client side file input validation
@@ -11,10 +11,11 @@ Drupal.imagefieldValidateAutoAttach = function() {
      */
  
     if(this.accept.length>1){
-      v = new RegExp('\\.('+(this.accept?this.accept:'')+')$','gi');
+      accept = this.accept.replace(',','|');
+      v = new RegExp('\\.('+(accept?accept:'')+')$','gi');
       if (!v.test(this.value)) {
         var error = 'The file ' + this.value + " is not supported.\n";
-        error += "Only the following file types are supported: \n" + this.accept.replace(/\|/g, ' ');
+        error += "Only the following file types are supported: \n" + accept.replace(/\|/g, ', ');
         alert(error);
         // what do I prepend this to? 
         //$(this).prepend($('<div class="imagefield-js-error>"' + error + '</div>'));

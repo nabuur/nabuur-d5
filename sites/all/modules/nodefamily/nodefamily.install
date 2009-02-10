@@ -1,5 +1,5 @@
 <?php
-// $Id: nodefamily.install,v 1.4.2.5 2007/04/28 17:44:30 fago Exp $
+// $Id: nodefamily.install,v 1.4.2.6 2008/06/09 07:13:18 fago Exp $
 
 function nodefamily_install() {
   switch ($GLOBALS['db_type']) {
@@ -65,7 +65,7 @@ function nodefamily_update_1() {
  */
 function nodefamily_update_2() {
   $ret = array();
-  if (module_exists('views_fusion')) {  
+  if (module_exists('views_fusion')) {
     $ret[] = update_sql("UPDATE {views_fusion} SET uses = 'nodefamily_parent' WHERE uses = 'nodefamily'");
   }
   return $ret;

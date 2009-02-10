@@ -1,4 +1,4 @@
-$Id: README.txt,v 1.1.2.1 2008/08/13 09:02:55 kester Exp $
+$Id: README.txt,v 1.1.2.2 2008/07/22 01:27:56 diggersf Exp $
 DESCRIPTION
 ===========
 Provides a pluggable API for Drupal to interact with SMS messages. 

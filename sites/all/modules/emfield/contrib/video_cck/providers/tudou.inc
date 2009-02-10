@@ -1,5 +1,5 @@
 <?php
-// $Id: tudou.inc,v 1.2 2008/03/03 22:22:59 aaron Exp $
+// $Id: tudou.inc,v 1.3 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_TUDOU_MAIN_URL', 'http://www.tudou.com/');
 
@@ -69,7 +69,7 @@ function video_cck_tudou_extract($embed = '') {
  *    a string containing the URL to view the video at the original provider's site
  */
 function video_cck_tudou_embedded_link($video_code) {
-  return 'http://www.tudou.com/programs/view/' . $video_code;
+  return 'http://www.tudou.com/programs/view/'. $video_code;
 }
 
 /**

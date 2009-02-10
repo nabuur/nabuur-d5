@@ -1,13 +1,13 @@
 <?php
-// $Id: content_panels.inc,v 1.1.2.14 2008/04/29 09:43:30 karens Exp $
+// $Id: content_panels.inc,v 1.1.2.16 2008/10/17 00:02:58 yched Exp $
 /**
  * Panels 2 interface for CCK fieldgroups and fields.
- * 
+ *
  * TODO:
- * 
+ *
  * - Adjust the fields and groups that are displayed for context, when that
  *   capability is added to Panels.
- * 
+ *
  */
 
 /**
@@ -99,7 +99,7 @@ function content_panels_render_field($conf, $panel_args, $context) {
   $data = explode(':', $conf['field_formatter']);
   $field_name = $data[0];
   $formatter = $data[1];
-  
+
   $field = $info['fields'][$field_name];
   $field_info = $info['field types'][$field['type']];
 
@@ -110,7 +110,7 @@ function content_panels_render_field($conf, $panel_args, $context) {
   $block->delta = $conf['field_name'];
 
   if ($conf['label'] == 'normal') {
-    $block->title = $field['widget']['label'];
+    $block->title = t($field['widget']['label']);
   }
   $node_field = isset($node->$field['field_name']) ? $node->$field['field_name'] : array();
   if (content_handle('field', 'view', $field) == CONTENT_CALLBACK_CUSTOM) {
@@ -123,7 +123,7 @@ function content_panels_render_field($conf, $panel_args, $context) {
   }
   else {
     foreach ($node_field as $delta => $item) {
-      $node_field[$delta]['view'] = content_format($field, $item, $conf['formatter'], $node);
+      $node_field[$delta]['view'] = content_format($field, $item, $formatter, $node);
     }
     $value = theme('field', $node, $field, $node_field, 0, 0);
   }

@@ -1,5 +1,5 @@
 <?php
-// $Id: vimeo.inc,v 1.2 2008/05/11 03:46:09 alexua Exp $
+// $Id: vimeo.inc,v 1.3 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_VIMEO_MAIN_URL', 'http://www.vimeo.com/');
 define('VIDEO_CCK_VIMEO_API_INFO', 'http://vimeo.com/api');
@@ -66,7 +66,7 @@ function video_cck_vimeo_settings() {
     '#type' => 'checkboxes',
     '#title' => t('On-screen info'),
     '#default_value' => variable_get('video_cck_vimeo_on_screen_info', array('portrait', 'title', 'byline')),
-		'#options' => array(
+  '#options' => array(
       'portrait' => t('Show video author\'s portrait'),
       'title' => t('Show video title'),
       'byline' => t('Show byline'),
@@ -76,8 +76,8 @@ function video_cck_vimeo_settings() {
   $form['vimeo']['player_options']['video_cck_vimeo_full_screen'] = array(
     '#type' => 'checkbox',
     '#title' => t('Allow fullscreen'),
-		'#default_value' => variable_get('video_cck_vimeo_full_screen', 1),
-		'#description' => t('Allow users to view video using the entire computer screen.'),
+  '#default_value' => variable_get('video_cck_vimeo_full_screen', 1),
+  '#description' => t('Allow users to view video using the entire computer screen.'),
   );
   $form['vimeo']['video_cck_vimeo_api_key'] = array(
     '#type' => 'textfield',
@@ -141,11 +141,11 @@ function video_cck_vimeo_convert_color($color = NULL) {
 function theme_video_cck_vimeo_flash($embed, $width, $height, $autoplay) {
   $output = '';
   if ($embed) {
-		$fullscreen = variable_get('video_cck_vimeo_full_screen', 1);
-		$on_screen_info = variable_get('video_cck_vimeo_on_screen_info', array('portrait', 'title', 'byline'));
-		$show_portrait = $on_screen_info['portrait'] ? 1 : 0;
-		$show_title = $on_screen_info['title'] ? 1 : 0;
-		$show_byline = $on_screen_info['byline'] ? 1 : 0;
+  $fullscreen = variable_get('video_cck_vimeo_full_screen', 1);
+  $on_screen_info = variable_get('video_cck_vimeo_on_screen_info', array('portrait', 'title', 'byline'));
+  $show_portrait = $on_screen_info['portrait'] ? 1 : 0;
+  $show_title = $on_screen_info['title'] ? 1 : 0;
+  $show_byline = $on_screen_info['byline'] ? 1 : 0;
     if (variable_get('video_cck_vimeo_color_override', FALSE)) {
       $color = video_cck_vimeo_convert_color(variable_get('video_cck_vimeo_color', VIDEO_CCK_VIMEO_COLOR_DEFAULT));
     }
@@ -213,22 +213,11 @@ function video_cck_vimeo_preview($embed, $width, $height, $field, $item, $autopl
  *    a URL pointing to the thumbnail
  */
 function video_cck_vimeo_thumbnail($field, $item, $formatter, $node, $width, $height) {
-  $vimeo_id = (substr($item['value'],-1,1)=='/') ? substr($item['value'],0,-1) : $item['value'];
-  $vimeo_signature = variable_get('video_cck_vimeo_api_secret', '') .
-    'api_key' . variable_get('video_cck_vimeo_api_key', '') .
-    'method' . 'vimeo.videos.getThumbnailUrl' .
-    'size' . variable_get('video_cck_vimeo_thumb_size', '160') .
-    'video_id' . $vimeo_id;
-  $vimeo_apicall = 'http://www.vimeo.com/api/rest?' .
-    'api_key=' . variable_get('video_cck_vimeo_api_key', '') .
-    '&method=' . 'vimeo.videos.getThumbnailUrl' .
-    '&size=' . variable_get('video_cck_vimeo_thumb_size', '160') .
-    '&video_id=' . $vimeo_id .
-    '&api_sig=' . md5($vimeo_signature);
+  $vimeo_id = (substr($item['value'], -1, 1)=='/') ? substr($item['value'], 0, -1) : $item['value'];
+  $vimeo_signature = variable_get('video_cck_vimeo_api_secret', '') .'api_key'. variable_get('video_cck_vimeo_api_key', '') .'method'.'vimeo.videos.getThumbnailUrl'.'size'. variable_get('video_cck_vimeo_thumb_size', '160') .'video_id'. $vimeo_id;
+  $vimeo_apicall = 'http://www.vimeo.com/api/rest?'.'api_key='. variable_get('video_cck_vimeo_api_key', '') .'&method='.'vimeo.videos.getThumbnailUrl'.'&size='. variable_get('video_cck_vimeo_thumb_size', '160') .'&video_id='. $vimeo_id .'&api_sig='. md5($vimeo_signature);
   $api_file = file_get_contents($vimeo_apicall);
   $data = array();
-  preg_match("#<thumbnail .*>(.*)</thumbnail>#i",$api_file,$data);
+  preg_match("#<thumbnail .*>(.*)</thumbnail>#i", $api_file, $data);
   return $data[1];
 }
-
-

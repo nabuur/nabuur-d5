@@ -1,5 +1,5 @@
 <?php
-// $Id: privatemsg.module,v 1.1.1.1 2008/05/23 12:23:44 kester Exp $
+// $Id: privatemsg.module,v 1.70.2.35.2.1 2008/06/16 05:52:00 litwol Exp $
 
 define('PRIVATEMSG_FOLDER_RECYCLE_BIN', -1);
 define('PRIVATEMSG_FOLDER_INBOX', 0);
@@ -552,6 +552,13 @@ function privatemsg_configure() {
     '#options' => drupal_map_assoc(array(5, 10, 15, 20, 25, 30, 35, 40, 50, 60, 80, 100)),
     '#description' => t('The maximum number of messages displayed per page; links to browse messages automatically appear.'),
   );
+  $form['privatemsg_online_status'] = array(
+    '#type' => 'select',
+    '#title' => t('Show Online Status'),
+    '#default_value' => variable_get('privatemsg_online_status', 1),
+    '#options' => array('No', 'Yes'),
+    '#description' => t('Whether to allow users to see if message author was recently online'),
+  );
   $form['privatemsg_menu_link'] = array(
     '#type' => 'textfield',
     '#title' => t('Menu link'),
@@ -758,7 +765,7 @@ function _privatemsg_folder_map($fid = NULL, $uid = NULL) {
 
 function _privatemsg_list_header($current_folder) {
   return array(
-    array('data' => t('Type'), 'field' => 'type'),
+    array(),
     array('data' => ($current_folder == 1) ? t('To') : t('From'), 'field' => 'name'),
     array('data' => t('Subject'), 'field' => 'subject'),
     array('data' => t('Date'), 'field' => 'timestamp', 'sort' => 'desc'),
@@ -889,12 +896,12 @@ function privatemsg_list_form($messages, $folders, $current_folder, $account) {
     $form['messages'][$message->id]['selected'] = array(
       '#type' => 'checkbox',
     );
-    $form['messages'][$message->id]['type'] = array(
-      '#value' => check_plain($message->type),
+    $form['messages'][$message->id]['avatar'] = array(
+      '#value' => '<div class="pm-inbox-avatar">'. theme('privatemsg_user_picture', user_load(array('uid' => $message->uid))).'</div>',
     );
     $form['messages'][$message->id]['user'] = array(
       '#type' => 'value',
-      '#value' => theme('privatemsg_username', $message),
+      '#value' => '<div class="pm-username">'. theme('privatemsg_username', $message) .'</div>',
     );
     $form['messages'][$message->id]['subject'] = array(
       '#type' => 'value',
@@ -2159,7 +2166,11 @@ function theme_privatemsg_view($message, $preview = FALSE, $prev = 0, $next = 0)
     $pm_from = $user->name;
   }
   else {
-    $pm_from = theme('privatemsg_username', $message);
+          
+
+    $pm_from = '<div class="pm-username">'. theme('privatemsg_username', $message) .'</div>';
+    $pm_from .= '<div class="pm-inbox-avatar">'. theme('privatemsg_user_picture', user_load(array('uid' => $message->uid))).'</div>';
+
     if ($message->author != $user->uid) {
       if (!privatemsg_user_blocked($message->author)) {
         $pm_from .= t('<span class="pm-block-link">(<a href="!block-link">Block user</a>)</span>', array('!block-link' => url('privatemsg/block/'. $message->author, drupal_get_destination())));
@@ -2239,13 +2250,14 @@ function theme_privatemsg_message_table($form) {
       $rows[] = array(
         'data' => array(
           drupal_render($form[$key]['selected']),
-          drupal_render($form[$key]['type']),
+          drupal_render($form[$key]['avatar']),
           $form[$key]['user']['#value'],
           array('data' => $form[$key]['subject']['#value'], 'width' => '50%'),
           array('data' => $form[$key]['date']['#value'], 'nowrap' => 'nowrap'),
         ),
         'class' => implode(' ', $classes),
       );
+
     }
   }
 
@@ -2465,5 +2477,56 @@ function _privatemsg_user_add_defaults(&$account) {
   if (!isset($account->privatemsg_allow)) {
     $account->privatemsg_allow = variable_get('privatemsg_default_allow', 1);
     $account->privatemsg_setmessage_notify = variable_get('privatemsg_default_setmessage_notify', 1);
+  }
+}
+
+function theme_privatemsg_user_picture($account) {
+  if (variable_get('user_pictures', 0)) {
+    if ($account->picture && file_exists($account->picture)) {
+
+      if (arg(0) == 'user' && is_numeric(arg(1))) { // If on user profile page       
+        $picture = file_create_url($account->picture);
+      }
+      else { // somewhere else on the site - use small pic
+        $info = image_get_info($account->picture);
+        $newpicture = dirname($account->picture) . '/picture-' . $account->uid . "-avatar." . $info['extension'];
+        
+        if (!file_exists($newpicture) || (filectime($newpicture) < filectime($account->picture))) {
+          image_scale($account->picture, $newpicture, 64, 64); 
+          if (!file_exists($newpicture)) {
+            $newpicture = $account->picture;
+          }
+        }
+        
+        $picture = file_create_url($newpicture);
+      } 
+    }
+    else if (variable_get('user_picture_default', '')) {
+      $picture = variable_get('user_picture_default', '');
+    }
+
+    if (isset($picture)) {
+      $alt = t("@user's picture", array('@user' => $account->name ? $account->name : variable_get('anonymous', t('Anonymous'))));
+      $picture = theme('image', $picture, $alt, $alt, '', FALSE);
+      if (!empty($account->uid) && user_access('access user profiles')) {
+        $picture = l($picture, "user/$account->uid", array('title' => t('View user profile.')), NULL, NULL, FALSE, TRUE);
+      }
+      if (variable_get('privatemsg_online_status', 1)) {
+  // code to show online/offline status
+        $time_period = variable_get('user_block_seconds_online', 1200);
+        $uid = $account->uid; // get the current userid for the avatar.
+        $users = db_query("SELECT uid, name, access FROM {users} WHERE access >= %d AND uid = %s", time() - $time_period, $uid);
+        $total_users = db_num_rows($users);
+  
+        if ($total_users == 1) {
+          $output = '<span style="color: #00DD45; font-weight: bold; display:block;">' . t('Online') . '</span>';
+          }
+        else {
+          $output = '<span style="color: #AA4444; display:block;">' . t('Offline') . '</span>';     
+        }
+      }
+      return '<div class="picture">' . $output . $picture . '</div>';
+        
+    }
   }
 }

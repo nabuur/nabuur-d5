@@ -1,4 +1,4 @@
-# $Id: ru.po,v 1.1.1.1 2008/05/23 12:23:44 kester Exp $
+# $Id: ru.po,v 1.1.4.3 2007/04/08 20:04:45 mindless Exp $
 #
 # LANGUAGE translation of Drupal (modules/privatemsg/privatemsg.module)
 # Copyright YEAR NAME <EMAIL@ADDRESS>

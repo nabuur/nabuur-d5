@@ -1,4 +1,4 @@
-// $Id: link.js,v 1.1.2.1 2007/04/25 02:45:48 quicksketch Exp $
+// $Id: link.js,v 1.1.2.3 2007/11/16 04:11:58 quicksketch Exp $
 
 /**
  * Attaches add more fields behaviour to any form.
@@ -20,7 +20,7 @@ Drupal.linkAutoAttach = function() {
     var counter = base + '-count';
     var link = new Drupal.jslink(uri, button, wrapper, counter);
   });
-}
+};
 
 /**
  * JS jslink object.
@@ -30,7 +30,7 @@ Drupal.jslink = function(uri, button, wrapper, counter) {
   this.wrapper = '#'+ wrapper;
   this.counter = '#'+ counter;
   Drupal.redirectFormButton(uri, $(this.button).get(0), this);
-}
+};
 
 /**
  * Handler for the form redirection submission.
@@ -39,7 +39,7 @@ Drupal.jslink.prototype.onsubmit = function() {
   // Increment count
   var count = parseInt($(this.counter).val());
   $(this.counter).val(count + 1);
-}
+};
 
 /**
  * Handler for the form redirection completion.
@@ -59,16 +59,16 @@ Drupal.jslink.prototype.oncomplete = function(data) {
   Drupal.linkAutoAttach();
     
   Drupal.unfreezeHeight();
-}
+};
 
 /**
  * Handler for the form redirection error.
  */
 Drupal.jslink.prototype.onerror = function(error) {
   alert('An error occurred:\n\n'+ error);
-}
+};
 
 // Global killswitch
 if (Drupal.jsEnabled) {
   $(document).ready(Drupal.linkAutoAttach);
-}
+};

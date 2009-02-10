@@ -1,5 +1,5 @@
 <?php
-// $Id: photobucket.inc,v 1.1 2007/08/18 18:25:58 aaron Exp $
+// $Id: photobucket.inc,v 1.2 2008/05/12 04:10:53 alexua Exp $
 
 define('IMAGE_NCCK_PHOTOBUCKET_MAIN_URL', 'http://www.photobucket.com/');
 
@@ -30,7 +30,7 @@ function image_ncck_photobucket_info() {
 function image_ncck_photobucket_data($field, $item) {
   $data = array();
 
-  if(preg_match('![si]([^/.:@]+)\.photobucket\.com/albums/([^/]+)/([^/]+)/(\?action=view&current=)?(.+)$!i', $item['embed'], $matches)) {
+  if (preg_match('![si]([^/.:@]+)\.photobucket\.com/albums/([^/]+)/([^/]+)/(\?action=view&current=)?(.+)$!i', $item['embed'], $matches)) {
     $data = array(
       'server' => $matches[1],
       'album' => $matches[2],
@@ -45,7 +45,7 @@ function image_ncck_photobucket_data($field, $item) {
 function image_ncck_photobucket_extract($embed = '') {
   // http://s201.photobucket.com/albums/aa274/layoutqueenie/?action=view&current=baileys_in_gardens.jpg
   // http://i201.photobucket.com/albums/aa274/layoutqueenie/baileys_in_gardens.jpg
-  if(preg_match('![si]([^/.:@]+)\.photobucket\.com/albums/([^/]+)/([^/]+)/(\?action=view&current=)?(.+)$!i', $embed, $matches)) {
+  if (preg_match('![si]([^/.:@]+)\.photobucket\.com/albums/([^/]+)/([^/]+)/(\?action=view&current=)?(.+)$!i', $embed, $matches)) {
     return $matches[5];
   }
   return array();

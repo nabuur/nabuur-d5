@@ -1,5 +1,5 @@
 <?php
-// $Id: nodequeue.actions.inc,v 1.1.2.3 2008/02/26 18:44:10 merlinofchaos Exp $
+// $Id: nodequeue.actions.inc,v 1.1.2.6 2008/05/28 17:42:22 merlinofchaos Exp $
 
 /**
  * @file nodequeue.actions.inc
@@ -7,7 +7,99 @@
  */
 
 /**
+ * Implementation of hook_action_info().
+ */
+function nodequeue_action_info() {
+  return array(
+    'nodequeue_add_action' => array(
+      'type' => 'node',
+      'description' => t('Add to Node Queues'),
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('insert', 'update'),
+      ),
+    ),
+    'nodequeue_remove_action' => array(
+      'type' => 'node',
+      'description' => t('Remove from Node Queues'),
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('insert', 'update'),
+      ),
+    ),
+  );
+}
+
+/**
+ * Configuration form for Add to Node Queues action.
+ */
+function nodequeue_add_action_form($context) {
+  // Default values for form.
+  if (!isset($context['qids'])) {
+    $context['qids'] = '';
+  }
+
+  $queues = nodequeue_load_queues(nodequeue_get_all_qids(500));
+  foreach ($queues as $qid => $queue) {
+    $options[$qid] = $queue->title;
+  }
+  $form = array();
+  if (count($options)) {
+    // Add form components.
+    $form['qids'] = array(
+      '#type' => 'select',
+      '#title' => t("Queue"),
+      '#default_value' => $edit['qids'],
+      '#multiple' => TRUE,
+      '#options' => $options,
+      '#required' => TRUE,
+      '#description' => t('Specify the queues into which the node should be submitted. If the queue is a smartqueue, the node shall be placed into every subqueue for which it is eligible.')
+    );
+  }
+  else {
+    drupal_set_message(t('Please <a href="!url">create</a> a nodequeue first.', array('!url' => url('admin/content/nodequeue'))));
+  }
+  return $form;
+}
+
+/**
+ * Submit handler for Add to Node Queues action configuration.
+ */
+function nodequeue_add_action_submit($form_id, $form_values) {
+  return array(
+    'qids' => $form_values['qids'],
+  );
+}
+
+/**
  * Action to add a node to a queue.
+ */
+function nodequeue_add_action($node, $context) {
+  $queues = nodequeue_load_queues($context['qids']);
+  // Filter out queues by node type. We choose not to use nodequeue_get_qids() because it checks for access control which only matters if we administering a queue.
+  $eligible_queues = array();
+  foreach ($queues as $queue) {
+    if (in_array($node->type, $queue->types)) {
+      $eligible_queues[$queue->qid] = $queue;
+    }
+  }
+
+  if (!empty($eligible_queues)) {
+    // Remove the node from the eligible queues (if needed).
+    nodequeue_remove_action($node, array('qids' => array_keys($eligible_queues)));
+
+    // Use API to get the eligible subqueues
+    $eligible_subqueues = nodequeue_get_subqueues_by_node($eligible_queues, $node);
+
+    // Add node to each subqueue.
+    foreach ($eligible_subqueues as $subqueue) {
+      nodequeue_subqueue_add($queues[$subqueue->qid], $subqueue, $node->nid);
+    }
+  }
+}
+
+/**
+ * Old-style action to add a node to a queue.
  */
 function action_nodequeue_add($op, $edit = array(), $node) {
   switch($op) {
@@ -29,7 +121,7 @@ function action_nodequeue_add($op, $edit = array(), $node) {
           $eligible_queues[$queue->qid] = $queue;
         }
       }
-      
+
       if (!empty($eligible_queues)) {
         // Remove the node from the eligible queues (if needed).
         action_nodequeue_remove('do', array('qids' => array_keys($eligible_queues)), $node);
@@ -84,7 +176,57 @@ function action_nodequeue_add($op, $edit = array(), $node) {
 }
 
 /**
- * Action to remove a node from a queue.
+ * Configuration form for Remove from Node Queues action.
+ */
+function nodequeue_remove_action_form($context) {
+  // Default values for form.
+  if (!isset($edit['qids'])) {
+    $edit['qids'] = array();
+  }
+
+  $queues = nodequeue_load_queues(nodequeue_get_all_qids(500));
+  foreach ($queues as $qid => $queue) {
+    $options[$qid] = $queue->title;
+  }
+
+  // Add form components.
+  $form['qids'] = array(
+    '#type' => 'select',
+    '#title' => t("Queues"),
+    '#default_value' => $edit['qids'],
+    '#multiple' => TRUE,
+    '#decription' => t('Specify the queues from which the node should be removed. If the queue is a smartqueue, the node shall be removed from all subqueues.'),
+    '#required' => TRUE,
+    '#options' => $options,
+  );
+  return $form;
+}
+
+/**
+ * Submit handler for Remove from Node Queues action configuration.
+ */
+function nodequeue_remove_action_submit($form_id, $form_values) {
+  return array(
+    'qids' => $form_values['qids'],
+  );
+}
+
+function nodequeue_remove_action($node, $context) {
+  $qids = $context['qids'];
+  // If a node is being deleted, ensure it's also removed from any queues.
+  $placeholders = implode(',', array_fill(0, count($qids), '%d'));
+  $args = $qids;
+  $args[] = $node->nid;
+  $result = db_query("SELECT * FROM {nodequeue_nodes} WHERE qid IN ($placeholders) AND nid = %d", $args);
+  while ($obj = db_fetch_object($result)) {
+    // This removes by nid, not position, because if we happen to have a
+    // node in a queue twice, the 2nd position would be wrong.
+    nodequeue_subqueue_remove_node($obj->sqid, $node->nid);
+  }
+}
+
+/**
+ * Old-style action to remove a node from a queue.
  */
 function action_nodequeue_remove($op, $edit = array(), $node) {
   switch($op) {

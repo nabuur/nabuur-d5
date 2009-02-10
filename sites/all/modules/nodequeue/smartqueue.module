@@ -1,5 +1,5 @@
 <?php
-// $Id: smartqueue.module,v 1.1.2.7 2008/01/02 00:38:07 merlinofchaos Exp $
+// $Id: smartqueue.module,v 1.1.2.10 2008/05/28 17:17:29 merlinofchaos Exp $
 
 /**
  * Implementation of hook_nodequeue_info()
@@ -145,6 +145,7 @@ function smartqueue_build_string($arrays) {
 function smartqueue_taxonomy_nodequeue_subqueue_title($queue, $reference) {
   $vids = explode('-', $queue->reference);
   $tids = explode('-', $reference);
+  $titles = array();
   foreach ($vids as $vid) {
     $tid = array_shift($tids);
     // $tid can be 0, specifically meaning this term is unset.

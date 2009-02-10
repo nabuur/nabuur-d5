@@ -1,5 +1,5 @@
 <?php
-// $Id: fivestar_field.inc,v 1.1.4.19 2008/03/30 04:30:35 quicksketch Exp $
+// $Id: fivestar_field.inc,v 1.1.4.23 2008/07/01 04:42:08 quicksketch Exp $
 
 /**
  * @file
@@ -11,7 +11,7 @@
  */
 function fivestar_field_info() {
   return array(
-    'fivestar' => array('label' => t('Fivestar Rating')),
+    'fivestar' => array('label' => t('Fivestar')),
   );
 }
 
@@ -21,42 +21,63 @@ function fivestar_field_info() {
 function fivestar_field_settings($op, $field) {
   switch ($op) {
     case 'form':
-      $form['multiple'] = array(); // Multiple not supported
+      // Multiple is not supported with Fivestar.
+      $form['multiple'] = array(
+        '#type' => 'value',
+        '#value' => 0,
+      );
       $form['stars'] = array(
         '#type' => 'select',
-        '#title' => t('Number of Options'),
+        '#title' => $field['widget']['type'] == 'stars' ? t('Number of Stars') : t('Number of Options'),
         '#options' => drupal_map_assoc(range(1, 10)),
         '#default_value' => $field['stars'] ? $field['stars'] : 5,
-        '#description' => t('The number of stars or radio buttons to display.'),
       );
 
+      $dynamic_options = array();
       if (module_exists('nodecomment')) {
-        $form['dynamic_target'] = array(
-          '#title' => t('Use Node Comment Parent as Target'),
-          '#type' => 'checkbox',
-          '#default_value' => $field['dynamic_target'],
-          '#return_value' => 'comment_target_nid',
-          '#description' => t('Use this option to easily make a Fivestar field affect the comment parent for nodes of this content type.')
-        );
+        $dynamic_options['comment_target_nid'] = t('Node Comment Parent');
+      }
+      if (module_exists('nodereference')) {
+        $fields = content_fields(NULL, $field['type_name']);
+        foreach ($fields as $content_field) {
+          if ($content_field['type'] == 'nodereference' && $content_field['type_name'] == $field['type_name']) {
+            $dynamic_options[$content_field['field_name']] = t('Node reference: @field', array('@field' => $content_field['field_name']));
+          }
+        }
       }
 
-      $form['target'] = array(
-        '#type' => 'textarea',
-        '#title' => t('Target Node ID'),
-        '#default_value' => $field['target'] ? $field['target'] : '',
-        '#description' => t(
-          'A single node ID on which this field will register the vote. If no NID is specified, the field\'s value will be saved, but no vote will be registered with the Voting API.'
-        ),
+      if (empty($dynamic_options)) {
+        drupal_set_message(t('No potential target fields are available for the %type type. Create a node reference field in this node type to make it easier to assign a vote to a node.', array('%type' => node_get_types('name', $field['type_name']))), 'warning');
+      }
+
+      $dynamic_options = array('' => t('<none>')) + $dynamic_options;
+      $form['dynamic_target'] = array(
+        '#title' => t('Voting target'),
+        '#type' => 'select',
+        '#default_value' => $field['dynamic_target'],
+        '#options' => $dynamic_options,
+        '#description' => t('The voting target will make the value of this field cast a vote on another node. Use node reference fields (part of CCK core) or <a href="http://drupal.org/project/nodecomment">Node Comments</a> module to create advanced reviews. More information available on the <a href="http://drupal.org/handbook/modules/fivestar">Fivestar handbook page</a>.')
       );
 
       if (user_access('use PHP for fivestar target')) {
-        $form['target']['#description'] .= ' '. t(
-          ' Return the target node ID or use plain text. Enter PHP code between <em>&lt;?php ?&gt;</em>. Note that executing incorrect PHP-code can break your Drupal site.'
+        $form['php_target'] = array(
+          '#type' => 'fieldset',
+          '#title' => t('Voting target PHP code'),
+          '#collapsible' => TRUE,
+          '#collapsed' => empty($field['php_target']),
         );
-        
-        $form['php'] = array(
+
+        $form['php_target']['php_target'] = array(
+          '#title' => t('Code'),
+          '#type' => 'textarea',
+          '#default_value' => $field['php_target'] ? $field['php_target'] : '',
+          '#description' => t('Advanced usage only: PHP code that returns a target node ID. Should not include &lt;?php ?&gt; delimiters. If this field is filled out, the value returned by this code will override any value specified above. Note that executing incorrect PHP-code can break your Drupal site.'),
+        );
+      }
+      else {
+        $form['php_target'] = array(
           '#type' => 'value',
-          '#value' => 1,
+          '#value' => $field['php_target'] ? $field['php_target'] : '',
         );
       }
 
@@ -69,11 +90,11 @@ function fivestar_field_settings($op, $field) {
 
       return $form;
     case 'save':
-      return array('stars', 'dynamic_target', 'target', 'php', 'axis');
+      return array('stars', 'dynamic_target', 'php_target', 'axis');
     case 'database columns':
       $columns = array(
+        'rating' => array('type' => 'int', 'default' => 'NULL', 'sortable' => TRUE),
         'target' => array('type' => 'int', 'default' => 'NULL'),
-        'rating' => array('type' => 'int', 'default' => 'NULL'),
       );
       return $columns;
   }
@@ -93,24 +114,22 @@ function fivestar_field($op, &$node, $field, &$items, $teaser, $page) {
     case 'insert':
     case 'update':
       foreach ($items as $delta => $item) {
-        if ($field['dynamic_target'] && !empty($node->$field['dynamic_target'])) {
-          $items[$delta]['target'] = $node->$field['dynamic_target'];
-        }
-        elseif (is_numeric($item['target'])) {
-          $items[$delta]['target'] = $item['target'];
-        }
-        elseif ($field['php'] && strpos($item['target'], '<?php') === 0) {
+        if (!empty($field['php_target'])) {
           // Use eval rather than drupal_eval to allow access to local variables.
-          $items[$delta]['target'] = eval('?>'. $item['target']);
+          $items[$delta]['target'] = eval($field['php_target']);
+        }
+        elseif ($field['dynamic_target'] && !empty($node->$field['dynamic_target'])) {
+          if (is_array($node->$field['dynamic_target']) && is_numeric($node->{$field['dynamic_target']}[0]['nid'])) {
+            $items[$delta]['target'] = $node->{$field['dynamic_target']}[0]['nid'];
+          }
+          elseif (is_numeric($node->$field['dynamic_target'])) {
+            $items[$delta]['target'] = $node->$field['dynamic_target'];
+          }
         }
 
         if (is_numeric($items[$delta]['target'])) {
-          if ($item['rating'] == 0) {
-            votingapi_unset_vote('node', $items[$delta]['target'], $node->uid);
-          }
-          else {
-            _fivestar_cast_vote('node', $items[$delta]['target'], $item['rating'], $items[$delta]['axis'], $node->uid);
-          }
+          _fivestar_cast_vote('node', $items[$delta]['target'], $items[$delta]['rating'], $items[$delta]['axis'], $node->uid);
+          votingapi_recalculate_results('node', $items[$delta]['target']);
         }
       }
       break;
@@ -127,7 +146,8 @@ function fivestar_field($op, &$node, $field, &$items, $teaser, $page) {
           $items[$delta]['target'] = eval('?>'. $item['target']);
         }
         if (is_numeric($items[$delta]['target'])) {
-          votingapi_unset_vote('node', $items[$delta]['target'], $node->uid);
+          _fivestar_cast_vote('node', $items[$delta]['target'], 0, $items[$delta]['axis'], $node->uid);
+          votingapi_recalculate_results('node', $items[$delta]['target']);
         }
       }
       break;
@@ -139,12 +159,12 @@ function fivestar_field($op, &$node, $field, &$items, $teaser, $page) {
  */
 function fivestar_widget_info() {
   return array(
-    'radios' => array(
-      'label' => t('Radio Buttons'),
-      'field types' => array('fivestar'),
-    ),
     'stars' => array(
       'label' => t('Stars'),
+      'field types' => array('fivestar'),
+    ),
+    'radios' => array(
+      'label' => t('Select list'),
       'field types' => array('fivestar'),
     ),
   );
@@ -158,11 +178,9 @@ function fivestar_widget_settings($op, $widget) {
     case 'form':
       $form = array();
       $form['allow_clear'] = array(
-        '#type' => 'select',
-        '#title' => t('Allow Clearing'),
-        '#options' => array(1 => t('True'), 0 => t('False')),
+        '#type' => 'checkbox',
+        '#title' => t('Allow user to clear value'),
         '#default_value' => $widget['allow_clear'] ? $widget['allow_clear'] : 1,
-        '#description' => t("Display a button to clear the user's current vote."),
       );
       return $form;
     case 'save':
@@ -182,8 +200,8 @@ function fivestar_widget($op, &$node, $field, &$items) {
       $form[$field['field_name']][0]['rating'] = array(
         '#type' => 'fivestar',
         '#title' => $field['widget']['label'],
-        '#default_value' => $items[0]['rating'],
-        '#stars' => $field['stars'] ? $field['stars'] : 5,
+        '#default_value' => isset($items[0]['rating']) ? $items[0]['rating'] : NULL,
+        '#stars' => is_numeric($field['stars']) ? $field['stars'] : 5,
         '#allow_clear' => $field['widget']['allow_clear'],
         '#description' => $field['widget']['description'],
         '#weight' => $field['widget']['weight'],
@@ -235,6 +253,9 @@ function fivestar_field_formatter($field, $item, $formatter, $node) {
   if (!isset($item['rating'])) {
     $item['rating'] = 0;
   }
+  if (empty($field['stars'])) {
+    $field['stars'] = 5;
+  }
 
   switch ($formatter) {
     case 'rating':
@@ -244,6 +265,6 @@ function fivestar_field_formatter($field, $item, $formatter, $node) {
       return $item['rating'];
 
     default:
-      return theme('fivestar_static', $item['rating'], $field['stars'] ? $field['stars'] : 5);
+      return theme('fivestar_static', $item['rating'], $field['stars']);
   }
 }

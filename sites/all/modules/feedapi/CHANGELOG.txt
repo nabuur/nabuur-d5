@@ -1,4 +1,7 @@
-// $Id: CHANGELOG.txt,v 1.1.2.12 2008/10/10 15:43:00 aronnovak Exp $
+// $Id: CHANGELOG.txt,v 1.1.2.13 2008/12/05 21:17:15 aronnovak Exp $
+FeedAPI 1.5, 2008-12-05
+-----------------------
+- Enclosure and location support in parser_simplepie
 
 FeedAPI 1.4, 2008-10-10
 -----------------------

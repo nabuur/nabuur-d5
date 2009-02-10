@@ -1,5 +1,5 @@
 <?php
-// $Id: odeo.inc,v 1.1 2008/01/30 17:13:44 alexua Exp $
+// $Id: odeo.inc,v 1.2 2008/05/12 04:10:53 alexua Exp $
 define('EMAUDIO_ODEO_MAIN_URL', 'http://odeo.com/');
 /**
  * Implementation of hook emaudio_odeo_info().
@@ -75,7 +75,7 @@ function theme_emaudio_odeo_flash($embed, $width, $height, $autoplay) {
       quality=\"high\" width=\"322\" height=\"54\" 
       name=\"odeo_player_black\" align=\"middle\" 
       allowScriptAccess=\"always\" wmode=\"transparent\"  
-      type=\"application/x-shockwave-flash\" flashvars=\"type=audio&id=" . $embed . "\" pluginspage=\"http://www.macromedia.com/go/getflashplayer\" />
+      type=\"application/x-shockwave-flash\" flashvars=\"type=audio&id=". $embed ."\" pluginspage=\"http://www.macromedia.com/go/getflashplayer\" />
       </object>
     \n";
   }

@@ -1,5 +1,5 @@
 <?php
-// $Id: brightcove.inc,v 1.5 2008/01/04 18:25:20 aaron Exp $
+// $Id: brightcove.inc,v 1.6 2008/05/12 04:10:54 alexua Exp $
 
 define('VIDEO_CCK_BRIGHTCOVE_MAIN_URL', 'http://www.brightcove.tv/');
 
@@ -73,7 +73,7 @@ function video_cck_brightcove_extract($embed = '') {
  *    a string containing the URL to view the video at the original provider's site
  */
 function video_cck_brightcove_video_link($video_code) {
-  return 'http://www.brightcove.tv/title.jsp?title=' . $video_code;
+  return 'http://www.brightcove.tv/title.jsp?title='. $video_code;
 }
 
 /**

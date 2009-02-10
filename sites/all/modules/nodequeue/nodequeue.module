@@ -1,5 +1,5 @@
 <?php
-// $Id: nodequeue.module,v 1.39.2.28.2.30 2008/02/26 19:27:54 merlinofchaos Exp $
+// $Id: nodequeue.module,v 1.39.2.28.2.37 2008/07/06 16:35:41 ezrag Exp $
 
 // --------------------------------------------------------------------------
 // Drupal Hooks
@@ -21,6 +21,15 @@ function nodequeue_init() {
     include_once drupal_get_path('module', 'nodequeue') . '/nodequeue.actions.inc';
   }
 
+  if (module_exists('workflow_ng')) {
+    if (module_exists('actions')) {
+      // Workflow_ng and actions module can't work together becuase of API collision.
+      drupal_set_message(t('Nodequeue\'s integration with workflow_ng module couldn\'t intizalize as actions module is enabled. Actions module and workflow_ng can\'t be enabled in the same time.'));
+    }
+    else {
+      include_once drupal_get_path('module', 'nodequeue') . '/nodequeue.workflow_ng.inc';	
+    }
+  }
   if (module_exists('views')) {
     include_once drupal_get_path('module', 'nodequeue') . '/nodequeue.views.inc';
   }
@@ -153,6 +162,7 @@ function nodequeue_menu($may_cache) {
 
       $sqid = arg(5);
       if (is_numeric($sqid) && $subqueue = nodequeue_load_subqueue($sqid)) {
+        $access = ($access && nodequeue_api_subqueue_access($subqueue, $user, $queue));
         // The following operations require a sqid and a nid.
         $nid = arg(6);
         if (in_array(arg(4), array('add', 'remove-node')) &&
@@ -443,6 +453,11 @@ function nodequeue_node_tab($node, $queues) {
 function nodequeue_view_queues() {
   // Fetch all of the queues.
   $queues = nodequeue_load_queues(nodequeue_get_all_qids(25));
+  foreach ($queues as $queue) {
+    if (!nodequeue_queue_access($queue)) {
+      unset($queues[$queue->qid]);
+    }
+  }
   if (empty($queues)) {
     return t('No node queues exist.');
   }
@@ -458,11 +473,11 @@ function nodequeue_view_queues() {
   $subqueues = nodequeue_load_subqueues_by_queue($qids);
   // Relate all the subqueues we loaded back to our queues.
   foreach ($subqueues as $subqueue) {
-    $queues[$subqueue->qid]->subqueue = $subqueue;
-  }
+    if (nodequeue_api_subqueue_access($subqueue, NULL, $queues[$subqueue->qid]));
+      $queues[$subqueue->qid]->subqueue = $subqueue;
+    }
 
   $header = array(t('Title'), t('Max nodes'), t('Subqueues'), t('Operation'));
-
   $rows = array();
   foreach ($queues as $queue) {
     $sub_text = $queue->subqueues;
@@ -501,12 +516,14 @@ function nodequeue_view_subqueues($queue) {
 
   $rows = array();
   foreach ($subqueues as $subqueue) {
-    $sub_text = nodequeue_subqueue_size_text($queue->size, $subqueue->count, FALSE);
-    $rows[] = array(
-      array('class' => 'nodequeue-title', 'data' => check_plain($subqueue->title)),
-      array('class' => 'nodequeue-subqueues', 'data' => $sub_text),
-      array('class' => 'nodequeue-operation', 'data' => l(t('View'), "admin/content/nodequeue/$queue->qid/view/$subqueue->sqid"))
-    );
+    if (nodequeue_api_subqueue_access($subqueue, NULL, $queue)) {
+      $sub_text = nodequeue_subqueue_size_text($queue->size, $subqueue->count, FALSE);
+      $rows[] = array(
+        array('class' => 'nodequeue-title', 'data' => check_plain($subqueue->title)),
+        array('class' => 'nodequeue-subqueues', 'data' => $sub_text),
+        array('class' => 'nodequeue-operation', 'data' => l(t('View'), "admin/content/nodequeue/$queue->qid/view/$subqueue->sqid"))
+      );
+    }
   }
 
   $output = '<p>' . t('Max nodes in queue: @size', array('@size' => $queue->size ? $queue->size : t("Infinite"))) . '</p>';
@@ -770,6 +787,9 @@ function nodequeue_admin_view($queue, $sqid = NULL) {
     // Adjust properties of the page so our subqueue is in the right
     // visual place.
     $subqueue = nodequeue_load_subqueue($sqid);
+    if (!nodequeue_api_subqueue_access($subqueue, NULL, $queue)) {
+      return drupal_not_found();
+    }
     drupal_set_title(t("Subqueue '@title'",
       array('@title' => nodequeue_title_substitute($queue->subqueue_title, $queue, $subqueue))));
     $breadcrumb = drupal_get_breadcrumb();
@@ -1282,6 +1302,10 @@ function _nodequeue_ajax_add($sqid, $position, $string) {
     return array('error' => t('Invalid sqid'));
   }
 
+  if (!nodequeue_api_subqueue_access($subqueue)) {
+    return array('error' => t('Access denied'));
+  }
+
   $queue = nodequeue_load($subqueue->qid);
   if (!$queue) {
     return array('error' => t('Invalid sqid'));
@@ -1359,7 +1383,12 @@ function nodequeue_queue_access($queue, $account = NULL) {
   }
 
   // Automatically false if they can't manipulate queues at all.
-  if (!user_access('manipulate queues')) {
+  if (!user_access('manipulate queues') || empty($queue->roles)) {
+    return FALSE;
+  }
+  
+  // Return false if the queue's owner rejects access to the queue.
+  if (!nodequeue_api_queue_access($queue, $account)) {
     return FALSE;
   }
 
@@ -2177,7 +2206,7 @@ function nodequeue_fetch_back($sqid, $teaser = true, $links = true) {
 }
 
 function nodequeue_fetch_random($sqid, $teaser = true, $links = true) {
-  $count = db_result(db_query("SELECT count(*) FROM {nodequeue_nodes} WHERE sqid = %d", $sqid));
+  $count = db_result(db_query(db_rewrite_sql("SELECT COUNT(n.nid) FROM {node} n INNER JOIN {nodequeue_nodes} nn ON n.nid = nn.nid WHERE nn.sqid = %d AND n.status = 1"), $sqid));
   return nodequeue_nodes($sqid, false, $teaser, $links, rand(0, $count - 1), 1);
 }
 
@@ -2351,6 +2380,54 @@ function nodequeue_api_autocomplete($queue, $subqueue, $string) {
  */
 function nodequeue_api_info() {
   return module_invoke_all('nodequeue_info');
+}
+
+/**
+ * Allows the owning module of a queue to restrict access to viewing and
+ * manipulating the queue.
+ */
+function nodequeue_api_queue_access($queue, $account = NULL) {
+  if (!$account) {
+    global $user;
+    $account = $user;
+  }
+
+  if ($queue->owner != 'nodequeue') { // Avoids an infinite loop.
+    $function = $queue->owner . '_queue_access';
+    if (function_exists($function)) {
+      $access = $function($queue, $account);
+    }
+  }
+
+  if (!isset($access)) {
+    $access = TRUE;
+  }
+  return $access;
+}
+
+/**
+ * Allows the owning module of a subqueue to restrict access to viewing and
+ * manipulating the queue.
+ */
+function nodequeue_api_subqueue_access($subqueue, $account = NULL, $queue = NULL) {
+  if (!$account) {
+    global $user;
+    $account = $user;
+  }
+  
+  if (!$queue) {
+    $queue = nodequeue_load($subqueue->qid);
+  }
+
+  $function = $queue->owner . '_subqueue_access';
+  if (function_exists($function)) {
+    $access = $function($subqueue, $account, $queue);
+  }
+
+  if (!isset($access)) {
+    $access = TRUE;
+  }
+  return $access;
 }
 
 /**

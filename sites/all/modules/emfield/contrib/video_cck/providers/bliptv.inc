@@ -1,5 +1,5 @@
 <?php
-// $Id: bliptv.inc,v 1.9 2008/05/11 03:56:54 alexua Exp $
+// $Id: bliptv.inc,v 1.10 2008/05/12 04:10:54 alexua Exp $
 define('VIDEO_CCK_BLIPTV_MAIN_URL', 'http://blip.tv/');
 define('VIDEO_CCK_BLIPTV_DEFAULT_RSS_TYPE', 'flv');
 
@@ -133,7 +133,7 @@ function video_cck_bliptv_data($field, $item) {
   $data['description'] = $api['en']['DESCRIPTION'][0] ? $api['en']['DESCRIPTION'][0] : $rss['ITEM']['BLIP:PUREDESCRIPTION'][0];
   $data['blip_user']['uid'] = $api['CREATEDBY']['UID'][0] ? $api['CREATEDBY']['UID'][0] : $rss['ITEM']['BLIP:USERID'][0];
   $data['blip_user']['username'] = $api['CREATEDBY']['LOGIN'][0] ? $api['CREATEDBY']['LOGIN'][0] : $rss['ITEM']['BLIP:USER'][0];
-  $data['blip_user']['url'] = $api['CREATEDBY']['LINKS']['LINK'][1] ? $api['CREATEDBY']['LINKS']['LINK'][1] : 'http://blip.tv/users/view/' . $data['blip_user']['username'];
+  $data['blip_user']['url'] = $api['CREATEDBY']['LINKS']['LINK'][1] ? $api['CREATEDBY']['LINKS']['LINK'][1] : 'http://blip.tv/users/view/'. $data['blip_user']['username'];
 
   $data['showpage'] = $rss['ITEM']['BLIP:SHOWPAGE'][0];
 
@@ -148,7 +148,7 @@ function video_cck_bliptv_data($field, $item) {
 function video_cck_bliptv_request($code, $cacheable = TRUE, $skin = 'rss', $show = FALSE) {
   $args = array();
   $file = $show ? "http://$code.blip.tv/file/?skin=" . $skin : "http://blip.tv/file/$code?skin=" . $skin;
-  return module_invoke('emfield', 'request_xml', 'bliptv', $file, $args, $cacheable, false, $code . ':' . $skin . ($show ? ':show' : ':post'));
+  return module_invoke('emfield', 'request_xml', 'bliptv', $file, $args, $cacheable, false, $code .':'. $skin . ($show ? ':show' : ':post'));
 }
 
 function video_cck_bliptv_extract($embed) {
@@ -163,13 +163,13 @@ function video_cck_bliptv_extract($embed) {
 }
 
 function video_cck_bliptv_video_link($video_code) {
-  return 'http://blip.tv/file/' . $video_code;
+  return 'http://blip.tv/file/'. $video_code;
 }
 
 function _video_cck_bliptv_get_video_info_from_preferred_tag($data, $var) {
   $preferred_tags = (array)variable_get($var, array(VIDEO_CCK_BLIPTV_DEFAULT_RSS_TYPE => VIDEO_CCK_BLIPTV_DEFAULT_RSS_TYPE));
 
-  foreach($preferred_tags as $test_tag) {
+  foreach ($preferred_tags as $test_tag) {
     // if we override the tag with a type, then break so it can be handled
     if ($test_tag == 'override') {
       $video_info = 'override';

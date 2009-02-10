@@ -1,5 +1,5 @@
 <?php
-// $Id: nodecomment_views.inc,v 1.1.1.2 2008/06/13 14:56:17 kester Exp $
+// $Id: nodecomment_views.inc,v 1.2.2.9 2008/07/30 19:28:38 sirkitree Exp $
 
 /**
  * This include file implements views functionality on behalf of relationship.module

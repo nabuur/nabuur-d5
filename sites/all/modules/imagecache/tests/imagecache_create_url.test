@@ -1,6 +1,20 @@
-<?php // $Id: imagecache_create_url.test,v 1.1.2.2 2008/05/11 23:58:47 dopry Exp $
+<?php // $Id: imagecache_create_url.test,v 1.1.2.3 2008/07/09 03:08:37 dopry Exp $
 
+/**
+ * Test class for testing imagecache_create_url() in several use cases with
+ * the different combinations of clean URLs and private/public download method.
+ */
 class ImageCacheUrlTests extends DrupalTestCase {
+
+  /**
+   * General admin user.
+   */
+  var $admin_user;
+
+  /**
+   * The id of the php input format.
+   */
+  var $input_format_id;
 
   /**
    * Drupal SimpleTest method: return metadata about the test.
@@ -13,59 +27,88 @@ class ImageCacheUrlTests extends DrupalTestCase {
      );
   }
 
-  /** 
-   * No Clean URLs + public downloads  : http://example.com/?q=path/to/files/imagecache/preset/foo.jpg
+  /**
+   * SimpleTest core method: code run before each and every test method.
    */
-  function testDirtyUrlsPublicDownloads() {
+  function setUp() {
+    // Always call the setUp() function from the parent class.
+    parent::setUp();
+
+    // Make sure that the ImageCache module is enabled.
+    $this->drupalModuleEnable('imagecache');
+
+    // Create admin user
+    $permissions = array(
+      'administer filters',
+    );
+    $this->admin_user = $this->drupalCreateUserRolePerm($permissions);
+
+    // Log in with admin user.
+    $this->drupalLoginUser($this->admin_user);
+
+    // Add an input format with PHP evaluator.
+    $edit = array(
+      'name' => $this->randomName(10, 'inputformat_'),
+      'filters[filter/1]' => TRUE,
+      'roles[2]' => TRUE,
+    );
+    $this->drupalPostRequest('admin/settings/filters/add', $edit, t('Save configuration'));
+    // Store the format id of the created input format.
+    $this->input_format_id = db_result(db_query("SELECT format FROM {filter_formats} WHERE name = '%s'", $edit['name']));
+    $this->assertTrue($this->input_format_id, t('Input format id (%s)'));
+
+  }
+
+  /**
+   * SimpleTest core method: code run after each and every test method.
+   */
+  function tearDown() {
+    // Remove input format.
+    $this->drupalPostRequest('admin/settings/filters/delete/'. $this->input_format_id, array(), t('Delete'));
+    // Log out admin user.
+    $this->drupalGet('logout');
+
+    // Always call the tearDown() function from the parent class.
+    parent::tearDown();
+  }
+
+  /**
+   * Test function that tests imagecache_create_url() under
+   * the different combinations of clean URLs and file download method
+   */
+  function testImageCacheCreateUrl() {
+    // No Clean URLs + public downloads  : http://example.com/?q=path/to/files/imagecache/preset/foo.jpg
     $this->_ImagecacheCreateUrlTest(
       false, FILE_DOWNLOADS_PUBLIC,
       'path/to/files', 'preset', 'foo.jpg',
-      'http://example.com/?q=path/to/files/imagecache/preset/foo.jpg',
-      'DirtyUrlsPublicDownloads'
+      'http://example.com/?q=path/to/files/imagecache/preset/foo.jpg'
     );
-  }
 
-  /**
-   * Clean URLs    + public downloads  : http://example.com/path/to/files/imagecache/preset/foo.jpg
-   */
-  function testCleanUrlsPublicDownloads() {
+    // Clean URLs    + public downloads  : http://example.com/path/to/files/imagecache/preset/foo.jpg
     $this->_ImagecacheCreateUrlTest(
       true, FILE_DOWNLOADS_PUBLIC,
       'path/to/files', 'preset', 'foo.jpg',
-      'http://example.com/path/to/files/imagecache/preset/foo.jpg',
-      'CleanUrlsPublicDownloads'
+      'http://example.com/path/to/files/imagecache/preset/foo.jpg'
     );
-  }
 
-
-  /**
-   * No Clean URLs + private downloads : http://example.com/?q=system/files/imagecache/preset/foo.jpg
-   */
-  function testDirtyUrlsPrivateDownloads() {
+    // No Clean URLs + private downloads : http://example.com/?q=system/files/imagecache/preset/foo.jpg
     $this->_ImagecacheCreateUrlTest(
       false, FILE_DOWNLOADS_PRIVATE,
       'path/to/files', 'preset', 'foo.jpg',
-      'http://example.com/?q=system/files/imagecache/preset/foo.jpg',
-      'DirtyUrlsPrivateDownloads'
+      'http://example.com/?q=system/files/imagecache/preset/foo.jpg'
     );
-  }
 
-
-  /**
-   * Clean URLs    + private downloads : http://example.com/system/files/imagecache/preset/foo.jpg
-   */
-  function testCleanUrlsPrivateDownloads() {
+    // Clean URLs    + private downloads : http://example.com/system/files/imagecache/preset/foo.jpg
     $this->_ImagecacheCreateUrlTest(
       true, FILE_DOWNLOADS_PRIVATE,
       'path/to/files', 'preset', 'foo.jpg',
-      'http://example.com/system/files/imagecache/preset/foo.jpg',
-      'CleanUrlsPrivateDownloads'
+      'http://example.com/system/files/imagecache/preset/foo.jpg'
     );
   }
 
 
   /**
-   * function to actually perform URL tests.
+   * Function to actually perform URL tests.
    * @param $clean_url
    *    'clean_url' setting for test.
    * @param $file_downloads
@@ -78,27 +121,49 @@ class ImageCacheUrlTests extends DrupalTestCase {
    *    file path to be used for generating output.
    * @param $expected
    *    the url expected as output from imagecache_create_url
-   * @param $error
-   *    error message to be displayed on assertion failure.
+   *
+   * Note about the implementation:
+   * At first sight one might think this can be easily implemented with just
+   * setting the Drupal settings, calling imagecache_create_url() and checking
+   * the result. This does not work however because the url() function, which is
+   * used by imagecache_create_url(), caches the clean_url setting with an
+   * internal static variable. This means that only one setting of clean_url
+   * can be evaluated per page view.
+   * To make testing possible, this function creates a node with the PHP
+   * evaluator as input filter and puts a proper call to imagecache_create_url()
+   * in the node body. The node view, which is a page view on its own can then
+   * be checked for the correctly generated URL.
    */
- 
-  private function _ImagecacheCreateUrlTest($clean_url, $file_downloads, $file_directory_path, $preset, $path, $expected, $error = '') {
+  private function _ImagecacheCreateUrlTest($clean_url, $file_downloads, $file_directory_path, $preset, $path, $expected) {
     // Drupal settings
     $this->drupalVariableSet('clean_url', $clean_url);
     $this->drupalVariableSet('file_downloads', $file_downloads);
     $this->drupalVariableSet('file_directory_path', $file_directory_path);
-    // Change base_url (and save original value)
-    $original_baseurl = $GLOBALS['base_url'];
-    $GLOBALS['base_url'] = 'http://example.com';
 
-    // Generate URL and check it.
-    $url = imagecache_create_url($preset, $path); 
-    $this->assertTrue($url == $expected,
-      t('[@type] expected "@expected" and got "@result"', array('@type' => $error, '@expected' => $expected, '@result' =>  $url))
+    // Build node body (php code).
+    $body = "<?php
+      // Change base_url
+      \$GLOBALS['base_url'] = 'http://example.com';
+      // Generate URL and check it.
+      echo imagecache_create_url('$preset', '$path');
+      ?>";
+    // Create node.
+    $node = $this->drupalCreateNode(array(
+      'body' => $body,
+      'format' => $this->input_format_id,
+    ));
+
+    // Show node.
+    $this->drupalGet(url('node/' . $node->nid, NULL, NULL, TRUE));
+
+    // Check if expected url shows up
+    $this->assertWantedRaw($expected,
+      t('[ImageCacheUrlTests] @clean_url + @file_downloads should return "@expected"', array(
+        '@clean_url' => ($clean_url ? 'Clean URLs' : 'No clean URLs'),
+        '@file_downloads' => ($file_downloads == FILE_DOWNLOADS_PRIVATE ? 'private downloads' : 'public downloads'),
+        '@expected' => $expected)
+      )
     );
-
-    // Restore base_url.
-    $GLOBALS['base_url'] = $original_baseurl;
   }
 
 }

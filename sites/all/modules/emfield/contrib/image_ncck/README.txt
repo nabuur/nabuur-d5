@@ -1,4 +1,4 @@
-/* $Id: README.txt,v 1.3 2007/08/19 00:04:43 aaron Exp $ */
+/* $Id: README.txt,v 1.4 2008/06/04 12:05:15 alexua Exp $ */
 
 /********************/
  Embedded Image Field
@@ -27,6 +27,6 @@ Images may be displayed in a thumbnail, preview, or full size, each of configura
 images are not stored locally, we don't have access to the powerful features of imagecache.
 
 Some providers may provide other features that are supported by Image Neighborhood CCK. You can find those settings at
-admin/content/video_cck, in the fieldset for the specific provider.
+admin/content/emfield, in the fieldset for the specific provider.
 
 Questions can be directed to winborn at advomatic dot com

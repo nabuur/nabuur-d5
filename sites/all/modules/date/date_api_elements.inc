@@ -1,5 +1,5 @@
 <?php
-//$Id: date_api_elements.inc,v 1.27.2.10 2008/02/19 17:17:39 karens Exp $
+//$Id: date_api_elements.inc,v 1.27.2.48 2008/12/04 11:15:42 karens Exp $
 /**
  * @file
  * Date API elements themes and validation.
@@ -60,7 +60,7 @@
  */
 function _date_api_elements() {
   $date_base = array(
-    '#input' => TRUE, '#tree' => TRUE, '#date' => NULL,
+    '#input' => TRUE, '#tree' => TRUE,
     '#date_timezone' => date_default_timezone_name(),
     '#date_format' => variable_get('date_format_short', 'm/d/Y - H:i'),
     '#date_text_parts' => array(),
@@ -69,16 +69,13 @@ function _date_api_elements() {
     );
   $type['date_select'] = array_merge($date_base, array(
     '#process' => array('date_select_process' => array()),
-    '#validate' => array('date_select_validate' => array()),
     ));
   $type['date_text'] = array_merge($date_base, array(
     '#process' => array('date_text_process' => array()),
-    '#validate' => array('date_text_validate' => array()),
     ));
   $type['date_timezone'] = array(
     '#input' => TRUE, '#tree' => TRUE,
     '#process' => array('date_timezone_process' => array()),
-    '#validate' => array('date_timezone_validate' => array()),
     );
   return $type;
 }
@@ -91,6 +88,7 @@ function _date_api_elements() {
  *   the timezone form element
  */
 function date_timezone_process($element, $edit = NULL) {
+  $element['#tree'] = TRUE;
   $element['timezone'] = array(
     '#type' => 'select',
     '#title' => theme('date_part_label_timezone', 'select', $element),
@@ -98,9 +96,14 @@ function date_timezone_process($element, $edit = NULL) {
     '#options' => date_timezone_names($element['#required']),
     '#weight' => $element['#weight'],
     '#required' => $element['#required'],
-    '#attributes' => array('class' => 'date-timezone'),
     '#theme' => 'date_select_element',
   );
+  if (isset($element['#validate'])) {
+    array_push($element['#validate'], array('date_timezone_validate' => array()));
+  }
+  else {
+    $element['#validate'] = array('date_timezone_validate' => array());
+  }
   return $element;
 }
 
@@ -111,12 +114,22 @@ function date_timezone_process($element, $edit = NULL) {
  *
  * The exact parts displayed in the field are those in #date_granularity.
  * The display of each part comes from #date_format.
+ * 
+ * In regular FAPI processing $element['#value'] will contain a string
+ * value before the form is submitted, and an array during submission.
+ * 
+ * In regular FAPI processing $edit is empty until the form is submitted
+ * when it will contain an array.
+ * 
+ * When used as a Views widget, $edit is always empty, and the validation
+ * step is bypassed. $element['#value'] is the only available value,
+ * but it is a string before submission and an array afterward.
  */
 function date_text_process($element, $edit = NULL) {
-  // There are some cases, like when using this as a Views form element,
-  // where $edit is empty and $element['#value'] holds an array of input values.
-  // This happens when the processing bypasses the element validation step
-  // that resets the value from the date and time subparts.
+  if (empty($edit)) {
+    $edit = date_views_filter_value($element);
+  }
+  $date = NULL;
   if (!empty($edit) || is_array($element['#value'])) {
     if (empty($edit)) {
       $edit = $element['#value'];
@@ -127,19 +140,28 @@ function date_text_process($element, $edit = NULL) {
   elseif (!empty($element['#value'])) {
     $date = date_make_date($element['#value'], $element['#date_timezone']);
   }
-  elseif ($element['#required']) {
-    $date = date_now($element['#date_timezone']);
-  }
 
   // Don't overwrite values already added to $element['date'] in case
   // using something like jscalendar that needs to set custom values.
   $element['#tree'] = TRUE;
+
   $element['date']['#type'] = 'textfield';
   $element['date']['#weight'] = !empty($element['date']['#weight']) ? $element['date']['#weight'] : $element['#weight'];
   $element['date']['#default_value'] = is_object($date) ? date_format($date , $element['#date_format']) : '';
   $element['date']['#attributes']['class'] = $element['date']['#attributes']['class'] .' date-date';
-  $element['date']['#required'] = $element['#required'];
+  
+  // Keep the system from creating an error message for the sub-element.
+  // We'll set our own message on the parent element.
+  //$element['date']['#required'] = $element['#required'];
   $element['date']['#theme'] = 'date_textfield_element';
+  $element['date']['#description'] .= ' '. t('Format: @date', array('@date' => date($element['#date_format'], time())));
+  
+  if (isset($element['#validate'])) {
+    array_push($element['#validate'], array('date_text_validate' => array()));
+  }
+  else {
+    $element['#validate'] = array('date_text_validate' => array());
+  }
   return $element;
 }
 
@@ -152,13 +174,22 @@ function date_text_process($element, $edit = NULL) {
  *
  * The exact parts displayed in the field are those in #date_granularity.
  * The display of each part comes from ['#date_settings']['format'].
+ * 
+ * In regular FAPI processing $element['#value'] will contain a string
+ * value before the form is submitted, and an array during submission.
+ * 
+ * In regular FAPI processing $edit is empty until the form is submitted
+ * when it will contain an array.
+ * 
+ * When used as a Views widget, $edit is always empty, and the validation
+ * step is bypassed. $element['#value'] is the only available value,
+ * but it is a string before submission and an array afterward.
  */
-function date_select_process($element, $edit = NULL) {
-  // There are some cases, like when using this as a Views form element,
-  // where $edit is empty and $element['#value'] holds an array of input values.
-  // This happens when the processing bypasses the element validation step
-  // that resets the value from the date and time
-  // subparts.
+function date_select_process(&$element, $edit = NULL) {
+  if (empty($edit)) {
+    $edit = date_views_filter_value($element);
+  }
+  $date = NULL;
   if (!empty($edit) || is_array($element['#value'])) {
     if (empty($edit)) {
       $edit = $element['#value'];
@@ -168,12 +199,28 @@ function date_select_process($element, $edit = NULL) {
   elseif (!empty($element['#value'])) {
     $date = date_make_date($element['#value'], $element['#date_timezone']);
   }
-  elseif ($element['#required']) {
-    $date = date_now($element['#date_timezone']);
-  }
+
   $element['#tree'] = TRUE;
   date_increment_round($date, $element['#date_increment']);
   $element += (array) date_parts_element($element, $date, $element['#date_format']);
+
+  // Store a hidden value for all date parts not in the current display.
+  $granularity = date_format_order($element['#date_format']);
+  $formats = array('year' => 'Y', 'month' => 'n', 'day' => 'j', 'hour' => 'H', 'minute' => 'i', 'second' => 's');
+  foreach (date_nongranularity($granularity) as $field) {
+    if ($field != 'timezone') {
+      $element[$field] = array(
+        '#type' => 'hidden',
+        '#value' => is_object($date) ? intval(date_format($date, $formats[$field])) : 0);
+    }
+  }
+  
+  if (isset($element['#validate'])) {
+    array_push($element['#validate'], array('date_select_validate' => array()));
+  }
+  else {
+    $element['#validate'] = array('date_select_validate' => array());
+  }
   return $element;
 }
 
@@ -195,6 +242,7 @@ function date_select_process($element, $edit = NULL) {
  */
 function date_parts_element($element, $date, $format) {
   $granularity = date_format_order($format);
+  $sub_element = array('#granularity' => $granularity);
   $order = array_flip($granularity);
 
   $hours_format  = strpos(strtolower($element['#date_format']), 'a') ? 'g': 'G';
@@ -202,7 +250,9 @@ function date_parts_element($element, $date, $format) {
   $count = 0;
   $increment = min(intval($element['#date_increment']), 1);
   foreach ($granularity as $field) {
-    $part_required = $element['#required'];
+    // Allow empty value as option if date is not required 
+    // or if empty value was provided as a starting point.
+    $part_required = ($element['#required'] && is_object($date)) ? TRUE : FALSE;
     $part_type = in_array($field, $element['#date_text_parts']) ? 'textfield' : 'select';
     $sub_element[$field] = array(
       '#weight' => $order[$field],
@@ -224,29 +274,41 @@ function date_parts_element($element, $date, $format) {
           $max_year = max($value_year, $max_year);
         }
         $sub_element[$field]['#default_value'] = is_object($date) ? date_format($date, 'Y') : '';
-        $sub_element[$field]['#options'] = drupal_map_assoc(date_years($min_year, $max_year, $part_required));
+        if ($part_type == 'select') {
+          $sub_element[$field]['#options'] = drupal_map_assoc(date_years($min_year, $max_year, $part_required));
+        }
         break;
       case 'month':
         $sub_element[$field]['#default_value'] = is_object($date) ? date_format($date, 'n') : '';
-        $sub_element[$field]['#options'] = $month_function($part_required);
+        if ($part_type == 'select') {
+          $sub_element[$field]['#options'] = $month_function($part_required);
+        }
         break;
       case 'day':
         $sub_element[$field]['#default_value'] = is_object($date) ? date_format($date, 'j') : '';
-        $sub_element[$field]['#options'] = drupal_map_assoc(date_days($part_required));
+        if ($part_type == 'select') {
+          $sub_element[$field]['#options'] = drupal_map_assoc(date_days($part_required));
+        }
         break;
       case 'hour':
         $sub_element[$field]['#default_value'] = is_object($date) ? date_format($date, $hours_format) : '';
-        $sub_element[$field]['#options'] = drupal_map_assoc(date_hours($hours_format, $part_required));
+        if ($part_type == 'select') {
+          $sub_element[$field]['#options'] = drupal_map_assoc(date_hours($hours_format, $part_required));
+        }
         $sub_element[$field]['#prefix'] = theme('date_part_hour_prefix', $element);
         break;
       case 'minute':
         $sub_element[$field]['#default_value'] = is_object($date) ? date_format($date, 'i') : '';
-        $sub_element[$field]['#options'] = drupal_map_assoc(date_minutes('i', $part_required, $element['#date_increment']));
+        if ($part_type == 'select') {
+          $sub_element[$field]['#options'] = drupal_map_assoc(date_minutes('i', $part_required, $element['#date_increment']));
+        }
         $sub_element[$field]['#prefix'] = theme('date_part_minsec_prefix', $element);
         break;
       case 'second':
         $sub_element[$field]['#default_value'] = is_object($date) ? date_format($date, 's') : '';
-        $sub_element[$field]['#options'] = drupal_map_assoc(date_seconds('s', $part_required, $element['#date_increment']));
+        if ($part_type == 'select') {
+          $sub_element[$field]['#options'] = drupal_map_assoc(date_seconds('s', $part_required, $element['#date_increment']));
+        }
         $sub_element[$field]['#prefix'] = theme('date_part_minsec_prefix', $element);
         break;
     }
@@ -281,7 +343,7 @@ function date_parts_element($element, $date, $format) {
     }
   }
 
-  if (strtolower($hours_format) == 'g' && date_has_time($granularity)) {
+  if (($hours_format == 'g' || $hours_format == 'h') && date_has_time($granularity)) {
     $sub_element['ampm'] = array(
       '#type' => 'select',
       '#default_value' => is_object($date) ? (date_format($date, 'G') >= 12 ? 'pm' : 'am') : '',
@@ -334,52 +396,87 @@ function date_increment_round(&$date, $increment) {
  *  Validation function for date selector.
  */
 function date_select_validate($element) {
+  
+  if (is_array($element['#value'])) {
+    // Strip field labels out of the results.
+    foreach ($element['#value'] as $field => $field_value) {
+      if (substr($field_value, 0, 1) == '-') {
+        $element['#value'][$field] = '';
+      }
+    }
+  }
+ 
   $error_field = implode('][', $element['#parents']);
-
-  // Strip field labels out of the results.
-  foreach ($element['#value'] as $field => $value) {
-    if (substr($value, 0, 1) == '-') {
-      $element['#value'][$field] = '';
-    }
-  }
-  if ($element['#value']['ampm'] == 'pm' && $element['#value']['hour'] < 12) {
-    $element['#value']['hour'] += 12;
-  }
-  elseif ($element['#value']['ampm'] == 'am' && $element['#value']['hour'] == 12) {
-    $element['#value']['hour'] -= 12;
-  }
-  if ($element['#required'] || !empty($form_values['year'])) {
+  $errors = array();
+  
+  if (in_array('year', $element['#granularity']) && ($element['#required'] || !empty($element['#value']['year']))) {
     if ($element['#value']['year'] < variable_get('date_min_year', 1) || $element['#value']['year'] > variable_get('date_max_year', 4000)) {
-      form_set_error($error_field .'][year', t('year must be a number between %min and %max.', array(
-        '%min' => variable_get('date_min_year', 1), '%max' => variable_get('date_max_year', 4000))));
-    }
-  }
-  if ($element['#required'] || !empty($element['#value']['month'])) {
-    if ($element['#value']['month'] < 1 || $element['#value']['month'] > 12) {
-      form_set_error($error_field .'][month', t('month must be a number between 1 and 12.'));
-    }
-  }
-  if ($element['#required'] || !empty($element['#value']['day'])) {
-    if ($element['#value']['day'] < 1 || $element['#value']['day'] > 31) {
-      form_set_error($error_field .'][day', t('day must be a number between 1 and 31.'));
-    }
-  }
-  if (!form_get_errors()) {
-    // If it creates a valid date, set it.
-    $value = date_select_input_value($element);
-    if (!empty($value)) {
-      form_set_value($element, $value);
-    }
-    elseif ($element['#required']) {
-      form_set_error($error_field, t('A valid date cannot be constructed from %m-%d-%year.', array(
-        '%m' => $element['#value']['month'],
-        '%d' => $element['#value']['day'],
-        '%y' => $element['#value']['year'],
-        )));
+      $errors[] = t('The year must be a number between %min and %max.', array(
+        '%min' => variable_get('date_min_year', 1), '%max' => variable_get('date_max_year', 4000)));  
     }
     else {
-      form_set_value($element, NULL);
+      $year = $element['#value']['year'];
     }
+  }
+  if (in_array('month', $element['#granularity']) && ($element['#required'] || !empty($element['#value']['month']))) {
+    if ($element['#value']['month'] < 1 || $element['#value']['month'] > 12) {
+      $errors[] = t('The month must be a number between 1 and 12.');
+    }
+    else {
+      $month = $element['#value']['month'];
+    }
+  }
+  if (in_array('day', $element['#granularity']) && ($element['#required'] || !empty($element['#value']['day']))) {
+    $min = 1;
+    $max = isset($year) && isset($month) ? date_days_in_month($year, $month) : 31;
+    if ($element['#value']['day'] < $min || $element['#value']['day'] > $max) {
+      $errors[] = t('The day must be a number between !min and !max.', array('!min' => $min, '!max' => $max));
+    }
+  }
+  if (in_array('hour', $element['#granularity']) && ($element['#required'] || !empty($element['#value']['hour']))) {
+    $min = isset($element['#value']['ampm']) ? 1 : 0;
+    $max = isset($element['#value']['ampm']) ? 12 : 23;
+    if ($element['#value']['hour'] < $min || $element['#value']['hour'] > $max) {
+      $errors[] = t('The hour must be a number between !min and !max.', array('!min' => $min, '!max' => $max));
+    }
+  }
+  if (in_array('minute', $element['#granularity']) && ($element['#required'] || !empty($element['#value']['minute']))) {
+    $min = 0;
+    $max = 59;
+    if ($element['#value']['minute'] < $min || $element['#value']['minute'] > $max) {
+      $errors[] = t('The minute must be a number between !min and !max.', array('!min' => $min, '!max' => $max));
+    }
+  }
+  if (in_array('second', $element['#granularity']) && ($element['#required'] || !empty($element['#value']['second']))) {
+    $min = 0;
+    $max = 59;
+    if ($element['#value']['second'] < $min || $element['#value']['second'] > $max) {
+      $errors[] = t('The second must be a number between !min and !max.', array('!min' => $min, '!max' => $max));
+    }
+  }
+  if (isset($element['#value']['ampm'])) {
+    if ($element['#value']['ampm'] == 'pm' && $element['#value']['hour'] < 12) {
+      $element['#value']['hour'] += 12;
+    }
+    elseif ($element['#value']['ampm'] == 'am' && $element['#value']['hour'] == 12) {
+      $element['#value']['hour'] -= 12;
+    }
+  }
+  $value = date_select_input_value($element);
+  if (empty($value) && empty($errors) && $element['#required']) {
+    $errors[] = t('A valid value is required.');
+  }
+  if (!empty($errors)) {
+    array_unshift($errors, t('%field has errors.', array('%field' => $element['#title'])));
+    form_set_error($error_field, implode(' ', $errors));
+  }
+     
+  // If there are no errors and the value is valid, set it.
+  if (empty($errors) && !empty($value)) {
+    form_set_value($element, $value);
+  }
+  else {
+    form_set_value($element, NULL);
   }
 }
 
@@ -397,18 +494,20 @@ function date_select_input_value($element) {
  *  Validation for text input.
  */
 function date_text_validate($element) {
-  $form_values = $element['#value'];
   $value = date_text_input_value($element);
-
-  if (!$element['#required'] && empty($value)) {
+  
+  // If the field is empty and not required, set it to empty and return.
+  if (empty($value) && !$element['#required']) {
     form_set_value($element, NULL);
+    return;
   }
-  elseif (!empty($value)) {
+
+  if (!empty($value)) {
     form_set_value($element, $value);
   }
   else {
     $error_field = implode('][', $element['#parents']);
-    form_set_error($error_field, t('A valid date cannot be created from %date', array('%date' => $value)));
+    form_set_error($error_field, t('A valid date is required for %title.', array('%title' => $element['#title']))); 
   }
 }
 
@@ -419,13 +518,26 @@ function date_text_input_value($element) {
   $form_values = $element['#value'];
   $input = $form_values['date'];
   if (!$element['#required'] && trim($input) == '') return NULL;
-
+  
   $value = date_convert_from_custom($input, $element['#date_format']);
-
+  
+  // Check for special case when using partial dates, like year only.
+  // We have to create a valid date out of the results to test validity.
+  $granularity = date_format_order($element['#date_format']);
+  $non_granularity = date_nongranularity($granularity);
+  if (array_intersect($non_granularity, array('year', 'month', 'day'))) {
+    $value = date_fuzzy_datetime($value);
+  }
+  
   // If it creates a valid date, use it.
   if (date_is_valid($value)) {
     return $value;
   }
+  // TODO come back and try to find a way to use strtotime to guess
+  // a valid value. Previous attempts to do it were too forgiving and
+  // invalid input was just silently converted to 'now'.
+  // See http://drupal.org/node/265076.
+  
   return NULL;
 }
 
@@ -434,7 +546,7 @@ function date_text_input_value($element) {
  *
  *  Move the timezone value from the nested field back to the original field.
  */
-function  date_timezone_validate($element) {
+function date_timezone_validate($element) {
   form_set_value($element, $element['#value']['timezone']);
 }
 
@@ -541,12 +653,9 @@ function date_convert_from_custom($date, $format) {
   elseif ($ampm == 'am' && $final_date['hour'] == 12) {
     $final_date['hour'] -= 12;
   }
-  if (date_is_valid($final_date, DATE_ARRAY)) {
-    return date_convert($final_date, DATE_ARRAY, DATE_DATETIME);
-  }
-  else {
-    return NULL;
-  }
+  // Don't test for valid date, we might use this to extract
+  // incomplete date part info from user input.
+  return date_convert($final_date, DATE_ARRAY, DATE_DATETIME);
 }
 
 /**
@@ -559,7 +668,7 @@ function date_convert_from_custom($date, $format) {
  *   A themed HTML string representing the date selection boxes.
  */
 function theme_date_timezone($element) {
-  return theme('form_element', $element, $element['#children']);
+  return '<div class="date-clear">'. theme('form_element', $element, $element['#children']) .'</div>';
 }
 
 /**
@@ -572,7 +681,16 @@ function theme_date_timezone($element) {
  *   A themed HTML string representing the date selection boxes.
  */
 function theme_date_select($element) {
-  return '<div class="container-inline-date clear-block">'. theme('form_element', $element, $element['#children']) .'</div>';
+  $output = '';
+  $class = 'container-inline-date';
+  // Add #date_float to allow date parts to float together on the same line. 
+  if (empty($element['#date_float'])) {
+    $class .= ' date-clear-block';
+  }
+  if (isset($element['#children'])) {
+    $output = $element['#children'];
+  }
+  return '<div class="'. $class .'">'. theme('form_element', $element, $output) .'</div>';
 }
 
 /**
@@ -585,7 +703,16 @@ function theme_date_select($element) {
  *   A themed HTML string representing the date selection boxes.
  */
 function theme_date_text($element) {
-  return theme('form_element', $element, $element['#children']);
+  $output = '';
+  $class = 'container-inline-date';
+  // Add #date_float to allow date parts to float together on the same line. 
+  if (empty($element['#date_float'])) {
+    $class .= ' date-clear-block';
+  }
+  if (isset($element['#children'])) {
+    $output = $element['#children'];
+  }
+  return '<div class="'. $class .'">'. theme('form_element', $element, $output) .'</div>';
 }
 
 /**
@@ -593,12 +720,12 @@ function theme_date_text($element) {
  */
 function theme_date_select_element($element) {
   $part = array_pop($element['#parents']);
-  return '<div class="date-'. $part .'">'. theme('select', $element, $element['#children']) .'</div>';
+  return '<div class="date-part date-'. $part .'">'. theme('select', $element, $element['#children']) .'</div>';
 }
 
 function theme_date_textfield_element($element) {
   $part = array_pop($element['#parents']);
-  return '<div class="date-'. $part .'">'. theme('textfield', $element, $element['#children']) .'</div>';
+  return '<div class="date-part date-'. $part .'">'. theme('textfield', $element, $element['#children']) .'</div>';
 }
 
 /**

@@ -3,9 +3,3 @@ name = SimplePie parser
 description = "Provides an XML parser for FeedAPI modules. Uses SimplePie library. Requires SimplePie 1.01+."
 package = FeedAPI Default
 dependencies = feedapi
-
-; Information added by drupal.org packaging script on 2008-10-10
-version = "5.x-1.4"
-project = "feedapi"
-datestamp = "1223654422"
-

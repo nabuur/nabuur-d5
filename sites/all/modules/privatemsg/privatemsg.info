@@ -1,10 +1,4 @@
-; $Id: privatemsg.info,v 1.1.1.1 2008/05/23 12:23:44 kester Exp $
+; $Id: privatemsg.info,v 1.1.2.3 2008/06/13 05:11:48 litwol Exp $
 name = Private messages
 description = Allow private messages between users.
 package = Mail
-
-; Information added by drupal.org packaging script on 2008-05-09
-version = "5.x-2.x-dev"
-project = "privatemsg"
-datestamp = "1210291880"
-

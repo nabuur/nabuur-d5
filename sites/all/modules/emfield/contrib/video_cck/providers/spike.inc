@@ -1,7 +1,7 @@
 <?php
-// $Id: spike.inc,v 1.2 2008/05/02 16:10:01 alexua Exp $
+// $Id: spike.inc,v 1.4 2008/06/23 15:22:43 aaron Exp $
 
-define('VIDEO_CCK_IFILM_MAIN_URL', 'http://www.spike.com/');
+define('VIDEO_CCK_SPIKE_MAIN_URL', 'http://www.spike.com/');
 
 function video_cck_spike_info() {
   $name = t('Spike TV');
@@ -37,7 +37,7 @@ function video_cck_spike_request($embed, $cacheable = TRUE) {
 }
 
 function video_cck_spike_video_link($video_code) {
-  return 'http://www.spike.com/video/' . $video_code;
+  return 'http://www.spike.com/video/'. $video_code;
 }
 
 function theme_video_cck_spike_flash($embed, $width, $height, $autoplay) {
@@ -45,14 +45,17 @@ function theme_video_cck_spike_flash($embed, $width, $height, $autoplay) {
   //<embed width="448" height="365" src="http://www.spike.com/efp" quality="high" bgcolor="000000" name="efp" align="middle" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" flashvars="flvbaseclip=2952560&"> </embed>
  if ($embed) {
     $autoplay = $autoplay ? ' autoplay="true"' : '';
-    $output = '<embed width="' . $width . '" height="' . $height . '" src="http://www.spike.com/efp" quality="high" bgcolor="000000" name="efp" align="middle" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" flashvars="flvbaseclip=' . $embed .'"> </embed>';
+    $output = '<embed width="'. $width .'" height="'. $height .'" src="http://www.spike.com/efp" quality="high" bgcolor="000000" name="efp" align="middle" type="application/x-shockwave-flash" pluginspage="http://www.macromedia.com/go/getflashplayer" flashvars="flvbaseclip='. $embed .'"> </embed>';
   }
   return $output;
 }
 
+/**
+ *  TODO: Is this correct? Using ifilmpro for thumbnails.
+ */
 function video_cck_spike_thumbnail($field, $item, $formatter, $node, $width, $height) {
   $picturelink = substr($item['value'], 0, 7);
-  return 'http://img1.ifilmpro.com/resize/image/stills/films/resize/istd/' . $picturelink . '.jpg?width=' . $width;
+  return 'http://img1.ifilmpro.com/resize/image/stills/films/resize/istd/'. $picturelink .'.jpg?width='. $width;
 }
 
 function video_cck_spike_video($embed, $width, $height, $field, $item, $autoplay) {

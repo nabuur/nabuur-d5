@@ -1,5 +1,5 @@
 <?php
-// $Id: parser_simplepie.module,v 1.6.2.30 2008/10/10 14:10:06 aronnovak Exp $
+// $Id: parser_simplepie.module,v 1.6.2.31 2008/11/10 10:43:12 aronnovak Exp $
 
 /**
  * @file
@@ -161,6 +161,13 @@ function _parser_simplepie_feedapi_parse($feed) {
           $curr_item->options->enclosures[$type][$subtype][] = $enclosure;
         }
       }
+    }
+    // Location
+    $latitude = $simplepie_item->get_latitude();
+    $longitude = $simplepie_item->get_longitude();
+    if (!is_null($latitude) && !is_null($longitude)) {
+      $curr_item->options->location->latitude[] = $latitude;
+      $curr_item->options->location->longitude[] = $longitude;
     }
     // Extract tags related to the item
     $simplepie_tags = $simplepie_item->get_categories();

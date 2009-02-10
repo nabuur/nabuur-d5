@@ -1,5 +1,5 @@
 <?php
-// $Id: video_cck.install,v 1.5 2008/02/17 19:07:51 aaron Exp $
+// $Id: video_cck.install,v 1.6 2008/05/12 04:10:54 alexua Exp $
 
 /**
  * Implementation of hook_install().
@@ -56,9 +56,9 @@ function video_cck_update_3() {
   $ret = array();
   foreach (emfield_system_list('video_cck') as $provider) {
     // TODO: this will need some attention when we upgrade to d6
-    $test = variable_get('video_cck_allow_' . $provider->name, NULL);
+    $test = variable_get('video_cck_allow_'. $provider->name, NULL);
     if (isset($test)) {
-      variable_set('emfield_' . $module . '_allow_' . $provider->name, variable_get('video_cck_allow_' . $provider->name, true));
+      variable_set('emfield_'. $module .'_allow_'. $provider->name, variable_get('video_cck_allow_'. $provider->name, true));
     }
   }
   $ret[] = array(
@@ -80,9 +80,9 @@ function video_cck_update_4() {
   $ret = array();
   foreach (emfield_system_list('video_cck') as $provider) {
     // TODO: this will need some attention when we upgrade to d6
-    $test = variable_get('video_cck_allow_' . $provider->name, NULL);
+    $test = variable_get('video_cck_allow_'. $provider->name, NULL);
     if (isset($test)) {
-      variable_set('video_cck_allow_' . $provider->name, NULL);
+      variable_set('video_cck_allow_'. $provider->name, NULL);
     }
   }
   $ret[] = array(

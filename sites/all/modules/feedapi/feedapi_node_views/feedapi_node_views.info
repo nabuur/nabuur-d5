@@ -3,9 +3,3 @@ name = "FeedAPI Node Views"
 description = "Integrates Views module with FeedAPI Node. Allows you to use views to create your own listings of feed items. In development."
 package = FeedAPI Add On
 dependencies = feedapi feedapi_node views
-
-; Information added by drupal.org packaging script on 2008-10-10
-version = "5.x-1.4"
-project = "feedapi"
-datestamp = "1223654422"
-

@@ -1,5 +1,5 @@
 <?php
-// $Id: picasa.inc,v 1.3 2008/05/11 20:30:26 alexua Exp $
+// $Id: picasa.inc,v 1.4 2008/05/12 04:10:53 alexua Exp $
 
 define('IMAGE_NCCK_PICASA_MAIN_URL', 'http://picasaweb.google.com/');
 define('IMAGE_NCCK_PICASA_API_INFO', 'http://code.google.com/apis/picasaweb/gdata.html');
@@ -40,13 +40,13 @@ function image_ncck_picasa_info() {
  */
 function image_ncck_picasa_request($data = array(), $kind = '', $cached = TRUE) {
   $args['kind'] = $kind;
-  $xml =  module_invoke('emfield', 'request_xml', 'picasa', IMAGE_NCCK_PICASA_REST_ENDPOINT . "{$data['userid']}/album/{$data['album']}/photoid/{$data['photoid']}", $args, $cached, FALSE, ":{$data['userid']}:{$data['album']}?{$data['photoid']}");
+  $xml =  module_invoke('emfield', 'request_xml', 'picasa', IMAGE_NCCK_PICASA_REST_ENDPOINT ."{$data['userid']}/album/{$data['album']}/photoid/{$data['photoid']}", $args, $cached, FALSE, ":{$data['userid']}:{$data['album']}?{$data['photoid']}");
   return $xml;
 }
 
 function image_ncck_picasa_data($field, $item) {
   $data = array();
-  if(preg_match('!picasaweb\.google\.com/([^/]*)/([^/]*)/photo\#(.*)!i', $item['embed'], $matches)){
+  if (preg_match('!picasaweb\.google\.com/([^/]*)/([^/]*)/photo\#(.*)!i', $item['embed'], $matches)) {
     $data = array(
       'userid' => $matches[1],
       'album' => $matches[2],
@@ -69,7 +69,7 @@ function image_ncck_picasa_data($field, $item) {
 
 function image_ncck_picasa_extract($embed = '') {
   // http://picasaweb.google.com/kaos777/YearlyKos/photo#5119063656501095090
-  if(preg_match('!picasaweb\.google\.com/([^/]*)/([^/]*)/photo\#(.*)!i', $embed, $matches)) {
+  if (preg_match('!picasaweb\.google\.com/([^/]*)/([^/]*)/photo\#(.*)!i', $embed, $matches)) {
     return $matches[3];
   }
   return array();
@@ -108,7 +108,7 @@ function image_ncck_picasa_image_url($code, $width, $height, $formatter, $field,
     $size = _image_ncck_picasa_guess_size($width, $height);
   }
   //http://lh5.google.com/kaos777/RwqRRgxcKrI/AAAAAAAAAB0/pl5FboT6x2M/IMG_0468.JPG
- if(preg_match('!([^/]*)\.ggpht\.com/([^/]*)/([^/]*)/([^/]*)/([^/]*)/(.*)!i', $code, $matches)){
+ if (preg_match ('!([^/]*)\.ggpht\.com/([^/]*)/([^/]*)/([^/]*)/([^/]*)/(.*)!i', $code, $matches)) {
     $info = array(
       'server' => $matches[1],
      'userid' => $matches[2],

@@ -1,5 +1,5 @@
 <?php
-// $Id: feedapi_mapper.module,v 1.1.2.8 2008/09/08 12:07:21 alexb Exp $
+// $Id: feedapi_mapper.module,v 1.1.2.9 2008/09/16 12:25:04 alexb Exp $
 
 /**
  * Implementation of hook_help().
@@ -478,17 +478,17 @@ function _feedapi_mapper_get_field_mappers($node_type) {
   $field_names = _feedapi_mapper_get_field_names($node_type);
   $node->type = $node_type;
   $field_mappers[0] = t('No mapping');
+
   // Load all available mappers and create an array of fields available as mapping target.
   _feedapi_mapper_load_mappers();
   $modules = module_implements('feedapi_mapper');
   foreach ($field_names as $field_name) {
     foreach ($modules as $module) {
       if ($sub_fields = module_invoke($module, 'feedapi_mapper', 'list', $node, $field_name)) {
-        $field_category = t('Map to') .' '. $field_name .' '. t('(!module_name module)', array('!module_name' => $module));
+        $field_category = t('Map to @field (@module)', array('@field' => $field_name, '@module' => $module));
         if (is_array($sub_fields)) {
-          $field_mappers[$field_category] = array();
           foreach ($sub_fields as $sub_field_id => $sub_field_name) {
-            $field_mappers[$field_category][serialize(array($module, $field_name, $sub_field_id))] = $sub_field_name;
+            $field_mappers[$field_category][serialize(array($module, $field_name, $sub_field_id))] = $field_category .': '. $sub_field_name;
           }
         }
         else {
@@ -497,6 +497,7 @@ function _feedapi_mapper_get_field_mappers($node_type) {
       }
     }
   }
+  
   return $field_mappers;
 }
 
@@ -565,6 +566,7 @@ function _feedapi_mapper_get_field_names($node_type) {
         $field_names[$node_type][$i++] = $k;
       }
     }
+    sort($field_names[$node_type]);
   }
   return $field_names[$node_type];
 }

@@ -1,27 +1,41 @@
 <?php
-// $Id: taxonomy_image_link_alter.module,v 1.1.2.2 2008/04/08 15:15:41 nancyw Exp $
+// $Id: taxonomy_image_link_alter.module,v 1.1.2.5 2008/10/03 17:56:20 nancyw Exp $
 
 /**
  *  Implement hook_link_alter to picturize the taxonomy term links
  */
 function taxonomy_image_link_alter(&$node, &$links) {
+  // We make these static so we only have to get them once per page view.
+  static $type_enabled, $show_name, $preset;
+  if (!isset($type_enabled)) {
+    $type_enabled = variable_get('taxonomy_image_link_types', array());
+    $show_name = variable_get('taxonomy_image_link_show_name', 0);
+    $preset = variable_get('taxonomy_image_link_preset', 'ORIGINAL');
+  }
 
   // Is the type one we want to change?
   $type_enabled = variable_get('taxonomy_image_link_types', array());
   if (!$type_enabled[$node->type]) {
     return;
   }
+  drupal_add_css(drupal_get_path('module', 'taxonomy_image') .'/taxonomy_image.css');
 
   foreach ($links AS $module => $link) {
     if (strstr($module, 'taxonomy_term')) {
       // Link back to my display and not the taxonomy term page
       $tid = substr($module, 14);
       $term = taxonomy_image_get_object($tid);
-      $tname = $term->name;
+      $tname = $show_name ? ('<br />'. $term->name) : NULL;
       // See if we have a taxonomy image associated with this term
-      $taxo_image = taxonomy_image_display($term->tid, null, null, array('wrapper' => false));
+      $taxo_image = taxonomy_image_display($term->tid, null, $preset, array('wrapper' => false));
       if ($taxo_image) {
-        $links[$module]['title'] = $taxo_image;
+        if (isset($links[$module]['attributes']['class'])) {
+          $links[$module]['attributes']['class'] .= ' taxonomy-image-link-alter';
+        }
+        else {
+          $links[$module]['attributes']['class'] = 'taxonomy-image-link-alter';
+        }
+        $links[$module]['title'] = $taxo_image . $tname;
         $links[$module]['html'] = TRUE;   /* if we don't do this, it will come out as text */
       }
     }
@@ -48,6 +62,27 @@ function taxonomy_image_link_alter_form_alter($form_id, &$form) {
       '#suffix' => '</div>',
       '#weight' => -3,
       );
+
+    $form['link_alter']['taxonomy_image_link_show_name'] = array(
+      '#type' => 'radios',
+      '#title' => t('Link style'),
+      '#options' => array(0 => t('Image only'), 1 => t('Image and name')),
+      '#default_value' => variable_get('taxonomy_image_link_show_name', 0),
+      '#description' => t('For the selected content types, this determines how the taxonomy links will be displayed.'),
+      '#prefix' => '<div class="taxonomy_image_radios">',
+      '#suffix' => '</div>',
+      );
+
+    if (module_exists('imagecache')) {
+      $form['link_alter']['taxonomy_image_link_preset'] = array(
+        '#type' => 'radios',
+        '#title' => t('Imagecache Preset'),
+        '#options' => drupal_map_assoc(_taxonomy_image_presets()),
+        '#default_value' => variable_get('taxonomy_image_link_preset', 'ORIGINAL'),
+        '#prefix' => '<div class="taxonomy_image_radios">',
+        '#suffix' => '</div>',
+        );
+    }
 
     $form['buttons']['submit']['#weight'] = 4;
     $form['buttons']['reset']['#weight'] = 5;
