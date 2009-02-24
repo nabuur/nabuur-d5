@@ -709,4 +709,105 @@ function nabuur01_task_discussion_node_form($form) {
   
   return $output;   
 }
+function phptemplate_faceted_search_ui_page($search, $content) {
+  $classes = array(
+    'faceted-search-page',
+    'faceted-search-stage-'. $search->ui_state['stage'],
+    'faceted-search-env-'. faceted_search_variable_get($search->get_env_id(), 'name', 'faceted_search'),
+  );
+  if ( ($search->_env_id == 4 || $search->_env_id == 5) && $search->ui_state['stage'] == 'select') {
+    // villages or groups
+    return '<div class="'. implode(' ', $classes) .'">'. $content .'</div>'."\n";
+  }
+  else {
+    return '<div class="'. implode(' ', $classes) .'">'. $content .'</div>'."\n";
+  }
+}
+
+// function phptemplate_faceted_search_ui_stage_facet($search, $index, $facet, $categories) {
+
+function phptemplate_faceted_search_ui_stage_select($search, $keyword_block_content, $guided_block_content, $description_content = '') {
+/*
+  if ($description_content != '') {
+    $form['description'] = array(
+      '#type' => 'item',
+      '#value' => check_markup($description_content, FILTER_FORMAT_DEFAULT, FALSE),
+      '#weight' => -5,
+      '#attributes' => array('class' => 'faceted-search-description'),
+    );
+  }
+*/
+  if ( ($search->_env_id == 4 || $search->_env_id == 5) && $search->ui_state['stage'] == 'select') {
+    if ($search->_env_id == 5) {
+      // village
+//    $view = views_get_view('recent_active_tasks_'. $gtype);
+//      $view = views_get_view('village_news_latest_all');
+//      print ' <pre>'. var_export($view,true) .'</pre>';
+//      $middle_one = views_build_view('block', $view, NULL, 0, 5);
+      $description = check_markup($description_content, FILTER_FORMAT_DEFAULT, FALSE);
+      $middle_one = nabuur_og_list_active_villages();
+//      $view = views_get_view('og_new_villages');
+//      $middle_two = views_build_view('block', $view, NULL, 0, 5);
+      $middle_two = nabuur_og_new_active_villages();
+      $assist_img_link =l('<img height = "120px" align = "center" src="/files/static/connect-village.jpg"/>', '/assistance-your-community', null, null, null, null, true);
+      $assist_link = l(t('Click here to register on NABUUR'), '/assistance-your-community');
+      $form['middle']['#value'] = '<div class="search-description">'. $description .'</div>
+      <div class="village-assist"><div class="nabuur-box nabuur-beige"><div class="nabuur-content"><div class="content"><div class="picture">'. $assist_img_link .'</div><div style="text-align: center">'. $assist_link .'</div></div></div></div></div>
+      <div class="search-middle-first nabuur-box nabuur-border"><h3 class="title">News from the villages</h3><div class="content">'. $middle_one .'</div>
+      </div><div class=spacer>&nbsp;</div>
+      <div class="search-middle-second nabuur-box nabuur-border"><h3>New Villages on NABUUR.com</h3>'. $middle_two .'</div>
+      <div class=spacer>&nbsp;</div>
+      <div class="search-middle"><div class="search-top"><div class="search-middle-map" ><img src="/files/furniture/worldmap-s.png" width="350" height="181" border="0" usemap="#map" /><map name="map"><area title="Africa" shape="poly" coords="138,70,165,51,199,60,208,85,219,85,217,103,211,110,223,116,217,139,203,136,190,151,179,151,169,125,171,111,164,100,147,100,138,82,139,76" href="/village/results/taxonomy%3A8" />
+      <area title="South America" shape="poly" coords="71,102,84,82,110,94,110,101,126,106,123,120,119,123,107,151,100,163,97,173,86,169,82,127,70,112" href="/village/results/taxonomy%3A10" />
+      <area title="North America" shape="poly" coords="66,98,76,93,91,78,118,36,56,7,15,24,14,36,32,31,35,38,30,53,33,68,34,68" href="/village/results/taxonomy%3A11" />
+      <area title="Asia" shape="poly" coords="223,86,231,75,251,99,257,91,255,80,262,80,265,92,294,89,286,79,297,61,288,53,263,38,211,40,196,36,198,59,209,74" href="/village/results/taxonomy%3A9" />
+      </map></div>
+      <div class="search-middle-where nabuur-box nabuur-border"><h3>Where do you want to go?</h3><h4><a href="/village/results/taxonomy:8">Africa</a></h4>
+      <p>
+      <a href="/village/results/taxonomy:8.12">Burundi</a> | <a href="/village/results/taxonomy:8.13">Cameroon</a> | <a href="/village/results/taxonomy:8.214">DR of the Congo</a> | <a href="/village/results/taxonomy:8.15">Gambia</a> | <a href="/village/results/taxonomy:8.16">Ghana</a> | <a href="/village/results/taxonomy:8.17">Kenya</a> | <a href="/village/results/taxonomy:8.290">Madagascar</a> | <a href="/village/results/taxonomy:8.18">Mali</a> | <a href="/village/results/taxonomy:8.19">Morocco</a> | <a href="/village/results/taxonomy:8.20">Nigeria</a> | <a href="/village/results/taxonomy:8.21">Rwanda</a> | <a href="/village/results/taxonomy:8.22">Senegal</a> | <a href="/village/results/taxonomy:8.23">Sierra Leone</a> | <a href="/village/results/taxonomy:8.24">South Africa</a> | <a href="/village/results/taxonomy:8.25">Tanzania</a> | <a href="/village/results/taxonomy:8.26">Uganda</a> | <a href="/village/results/taxonomy:8.27">Zambia</a> </p>
+      <h4><a href="/village/results/taxonomy:9">Asia</a></h4>
+      <p>
+      <a href="/village/results/taxonomy:9.30">Bangladesh</a> | <a href="/village/results/taxonomy:9.31">Cambodia</a> | <a href="/village/results/taxonomy:9.208">China</a> | <a href="/village/results/taxonomy:9.32">India</a> | <a href="/village/results/taxonomy:9.33">Nepal</a> | <a href="/village/results/taxonomy:9.34">Sri Lanka</a> | <a href="/village/results/taxonomy:9.1215">Tibet</a> 
+      </p>
+      <h4><a href="/village/results/taxonomy:10">Latin America</a></h4>
+      <p>
+      <a href="/village/results/taxonomy:10.226">Ecuador</a> | <a href="/village/results/taxonomy:10.29">Peru</a> | <a href="/village/results/taxonomy:11.35">Mexico</a>
+      </p></div></div></div>
+      <div class=spacer>&nbsp;</div>
+      </div>';
+    }
+    else {
+      // id = 4 group
+      $view = views_get_view('recent_needshelp_tasks_village');
+      $middle_two = views_build_view('block', $view, NULL, 0, 5);
+    }
+  }
+  if ($description_content != '') {
+    $form['description'] = array(
+      '#type' => 'item',
+//      '#value' => check_markup($description_content, FILTER_FORMAT_DEFAULT, FALSE),
+      '#weight' => -5,
+      '#attributes' => array('class' => 'faceted-search-description'),
+    );
+  }
+  if ($keyword_block_content) {
+    $form['keyword'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Keyword search'),
+      '#value' => $keyword_block_content,
+      '#weight' => 0,
+      '#attributes' => array('class' => 'faceted-search-keyword'),
+    );
+  }
+  if ($guided_block_content) {
+    $form['guided'] = array(
+      '#type' => 'fieldset',
+      '#title' => t('Guided search'),
+      '#value' => $guided_block_content,
+      '#weight' => 1,
+      '#attributes' => array('class' => 'faceted-search-guided'),
+    );
+  }
+  return drupal_render($form);
+}
 

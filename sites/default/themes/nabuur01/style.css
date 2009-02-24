@@ -922,3 +922,83 @@ div.ab-service {
 div.ab-fivestar {
   padding:10px 10px 10px 35px;
 }
+
+
+/* village search page settings.... */
+div.search-middle-map {
+  float: right;
+  margin: 60px 5px 0px 0px;
+}
+
+div.search-middle-where {
+ float: left;
+ width: 510px;
+ margin: 10px 0;
+ padding: 10px;
+}
+
+div.search-middle-first, div.search-middle-second, .faceted-search-guided {
+  clear: both;
+  margin-top: 10px;
+}
+
+.faceted-search-guided fieldset {
+  padding: 1.5em;
+}
+
+div.search-middle-first table, div.search-middle-second table {
+  width: 888px;
+}
+
+th.view-field-node-title {
+  width: 90px;
+}
+
+th.view-village-image-fid {
+  width: 120px;
+}
+
+th.view-field-term-node-3-name {
+  width: 90px;
+}
+
+th.view-field-og-subscribe {
+  width: 100px;
+}
+
+#village-frontpage table {
+  width: 395px;
+}
+
+table.faceted-search {
+  background:#D9EDE1 none repeat scroll 0%;
+  width: 400px;
+}
+
+table.faceted-search td {
+  background:#D9EDE1 none repeat scroll 0 0;
+  border:0 none;
+  padding:0 1em 0 0;
+  vertical-align:top;
+}
+
+div.village-assist {
+  clear:none;
+  float:right;
+  height:70px;
+  position:relative;
+  text-align:center;
+  top:-120px;
+  width:200px;
+  padding-right: 70px;
+}
+
+div.search-middle {
+  clear:both;
+  position:relative;
+}
+
+div.search-description {
+  width: 530px;
+}
+
