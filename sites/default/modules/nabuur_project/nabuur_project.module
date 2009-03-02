@@ -334,6 +334,12 @@ function phptemplate_views_view_list_project_forum($view, $nodes, $type) {
     'view_type' => $type,
   );
 
+  // Set up the taxonomy term Status table
+  $result = db_query("SELECT tid, name  FROM {term_data} WHERE vid = 6");
+  while ($tid = db_fetch_array($result)) {
+    $tids[$tid['name']] = $tid['tid'];
+  }
+  
   $output = '';
   foreach ($set as $label => $nodes) {
     $items = array();
@@ -349,9 +355,11 @@ function phptemplate_views_view_list_project_forum($view, $nodes, $type) {
           $vars[$name . '_label'] = $field['label'];
         }
       }
+      // replace the tid, the view-query delivers not from project, with term Status tid .........
+      $vars['tid'] = taxonomy_image_display($tids[$vars['name']]);
       if (! ($vars['name'] == t('Finished') && ! $node_page)) {
         // exclude finish tasks on the overview page - show on node page
-        $items[] = array($vars['name'], $vars['title'], $vars['comment_count'], $vars['last_comment_timestamp']);
+        $items[] = array($vars['tid'], $vars['title'], $vars['comment_count'], $vars['last_comment_timestamp']);
       }
     }
     if (count($items)) {

@@ -1002,3 +1002,8 @@ div.search-description {
   width: 530px;
 }
 
+.village-project table td img {
+  display: table;
+  padding-left: 13px;
+  vertical-align: middle;
+}
