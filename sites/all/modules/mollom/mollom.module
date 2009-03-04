@@ -494,6 +494,21 @@ function mollom_data_node_form($form_values) {
   return $data;
 }
 
+function mollom_data_privatemsg_new_form($form_values) {
+  global $user;
+
+  $data = array(
+    'post_title'  => $form_values['subject'],
+    'post_body'   => $form_values['privatemsgbody'],
+    'author_name' => $user->name,
+    'author_mail' => $user->mail,
+    'author_id'   => $user->uid,
+    'author_ip'   => _mollom_ip_address(),
+  );
+
+  return $data;
+}
+
 /**
  * This function is a generic validate function that will protect any given
  * form as long there is a variable for it (i.e. as long it is configured to
@@ -587,6 +602,14 @@ function mollom_protectable_forms() {
       $forms[$type .'_node_form'] = array(
           'name' => strtolower($name) ." form",
           'mode' => MOLLOM_MODE_ANALYSIS);
+    }
+
+    // Protect private messages.
+    if (module_exists('privatemsg')) {
+      $forms['privatemsg_new_form'] = array(
+        'name' => 'privatemsg message form',
+        'mode' => MOLLOM_MODE_ANALYSIS,
+      );
     }
   } 
   
