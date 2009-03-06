@@ -1,0 +1,32 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ *   Installs the og_statistics module.
+ */
+
+/**
+ * Implemenation of hook_install().
+ */
+function og_statistics_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE if not exists {og_statistics} (
+        nid int(10) unsigned NOT NULL PRIMARY KEY,
+        user_count int(10) unsigned default 0,
+        node_count int(10) unsigned default 0,
+        comment_count int(10) unsigned default 0,
+        last_node_timestamp int(10) unsigned default 0,
+        last_comment_timestamp int(10) unsigned default 0,
+        last_member_timestamp int(10) unsigned default 0)");
+  }
+}
+
+/**
+ * Implemenation of hook_uninstall().
+ */
+function og_statistics_uninstall() {
+  db_query("DROP TABLE {og_statistics}");
+}

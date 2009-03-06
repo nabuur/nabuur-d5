@@ -1,0 +1,257 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ *   Logs statistics for og nodes.
+ */
+
+/**
+ * Implementation of hook_init().
+ */
+function og_statistics_init() {
+  if (module_exists('views')) {
+    include_once drupal_get_path('module', 'og_statistics') .'/og_statistics.views.inc';
+  }
+  if (module_exists('faceted_search')) {
+    include_once drupal_get_path('module', 'og_statistics') .'/og_statistics.faceted_search.inc';
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function og_statistics_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  switch ($op) {
+    case 'insert':
+      if (og_is_group_type($node->type)) {
+        og_statistics_write_pure_record($node->nid);
+      }
+      else if (og_is_group_post_type($node->type)) {
+        if (isset($node->og_groups)) {
+          $node->og_groups = array_unique($node->og_groups);
+          foreach ($node->og_groups as $gid) {
+            og_statistics_add_node($gid);
+            og_statistics_update_last_node($node->created, $gid);
+          }
+        }
+      }
+      break;
+    case 'delete':
+      if (og_is_group_type($node->type)) {
+        og_statistics_delete_record($node->nid);
+      }
+      else if (og_is_group_post_type($node->type)) {
+        // @todo This is broken if there are comments on the node:-
+        //   comment details have normally been deleted by this point, 
+        //   comment_count is going to get out of sync - I guess messy things
+        //   with og if this is weighted differently to make it run earlier
+        if (isset($node->og_groups)) {
+          foreach ($node->og_groups as $gid) {
+            og_statistics_remove_node($gid);
+          }
+        }
+      }
+      break;
+    case 'update':
+      if (og_is_group_post_type($node->type)) {
+        if (isset($node->og_groups)) {
+          $updated_gid = array_intersect($node->og_groups, $node->og_initial_groups);
+          $added_gid = array_diff($node->og_groups, $node->og_initial_groups);
+          $removed_gid = array_diff($node->og_initial_groups, $node->og_groups);
+          foreach ($updated_gid as $gid) {
+            og_statistics_update_last_node($node->changed, $gid);
+          }
+          foreach ($added_gid as $gid) {
+            og_statistics_add_node($gid);
+            og_statistics_update_last_node($node->changed, $gid);
+          }
+          foreach ($removed_gid as $gid) {
+            og_statistics_remove_node($gid);
+          }
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_comment().
+ */
+function og_statistics_comment(&$a1, $op) {
+  switch ($op) {
+    case 'insert':
+      $node = node_load($a1['nid']);
+      if (og_is_group_post_type($node->type)) {
+        foreach ($node->og_groups as $gid) {
+          og_statistics_add_comment($gid);
+          og_statistics_update_last_comment($a1['timestamp'], $gid);
+        }
+      }
+      break;
+    case 'delete':
+      $node = node_load($a1->nid);
+      if (og_is_group_post_type($node->type)) {
+        foreach ($node->og_groups as $gid) {
+          og_statistics_remove_comment($gid);
+        }
+      }
+      break;
+    case 'update':
+      $node = node_load($a1['nid']);
+      if (og_is_group_post_type($node->type)) {
+        foreach ($node->og_groups as $gid) {
+          og_statistics_update_last_comment($a1['timestamp'], $gid);
+        }
+      }
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_og().
+ */
+function og_statistics_og($op, $gid, $uid, $args) {
+  switch ($op) {
+    case 'user insert':
+      $time = time();
+      og_statistics_add_user($gid);
+      og_statistics_update_last_member($time, $gid);
+      break;
+    case 'user delete':
+      og_statistics_remove_user($gid);
+      break;
+  }
+}
+
+/**
+ * Returns a statistic for a group().
+ */
+function og_statistics_load($gid) {
+  $result = db_query("SELECT * FROM {og_statistics} WHERE nid = %d", $gid);
+  return db_fetch_array($result);
+}
+
+/**
+ * Inserts a record of statistics without any content, but nid.
+ *
+ * @param $group_node
+ *   The group which should a statistic record.
+ */
+function og_statistics_write_pure_record($gid) {
+  db_query("INSERT INTO {og_statistics} (nid, user_count, node_count, comment_count, last_node_timestamp, last_comment_timestamp, last_member_timestamp) VALUES (%d, 0, 0, 0, 0, 0, 0)", $gid);
+}
+
+/**
+ * Add 1 to node_count of a group.
+ */
+function og_statistics_add_node($gid) {
+  $stat = og_statistics_load($gid);
+  $stat['node_count']++;
+  db_query("UPDATE {og_statistics} SET node_count = %d WHERE nid = %d", $stat['node_count'], $gid);
+}
+
+/**
+ * Removes 1 form node_count of a group.
+ */
+function og_statistics_remove_node($gid) {
+  $stat = og_statistics_load($gid);
+  $stat['node_count']--;
+  db_query("UPDATE {og_statistics} SET node_count = %d WHERE nid = %d", $stat['node_count'], $gid);
+}
+
+/**
+ * Updates the last node of a group.
+ */
+function og_statistics_update_last_node($timestamp, $gid) {
+  $stat = og_statistics_load($gid);
+  $stat['last_node_timestamp'] = $timestamp;
+  db_query("UPDATE {og_statistics} SET last_node_timestamp = %d WHERE nid = %d", $stat['last_node_timestamp'], $gid);
+}
+
+/**
+ * Add 1 to comment_count of a group.
+ */
+function og_statistics_add_comment($gid) {
+  $stat = og_statistics_load($gid);
+  $stat['comment_count']++;
+  db_query("UPDATE {og_statistics} SET comment_count = %d WHERE nid = %d", $stat['comment_count'], $gid);
+}
+
+/**
+ * Removes 1 from comment_count of a group.
+ */
+function og_statistics_remove_comment($gid) {
+  $stat = og_statistics_load($gid);
+  $stat['comment_count']--;
+  db_query("UPDATE {og_statistics} SET comment_count = %d WHERE nid = %d", $stat['comment_count'], $gid);
+}
+
+/**
+ * Updates the last comment of a group.
+ */
+function og_statistics_update_last_comment($timestamp, $gid) {
+  $stat = og_statistics_load($gid);
+  $stat['last_comment_timestamp'] = $timestamp;
+  db_query("UPDATE {og_statistics} SET last_comment_timestamp = %d WHERE nid = %d", $stat['last_comment_timestamp'], $gid);
+}
+
+/**
+ * Add 1 to user_count of a group.
+ */
+function og_statistics_add_user($gid) {
+  $stat = og_statistics_load($gid);
+  $stat['user_count']++;
+  db_query("UPDATE {og_statistics} SET user_count = %d WHERE nid = %d", $stat['user_count'], $gid);
+}
+
+/**
+ * Removes 1 from comment_count of a group.
+ */
+function og_statistics_remove_user($gid) {
+  $stat = og_statistics_load($gid);
+  $stat['user_count']--;
+  db_query("UPDATE {og_statistics} SET user_count = %d WHERE nid = %d", $stat['user_count'], $gid);
+}
+
+/**
+ * Updates the last member of a group.
+ */
+function og_statistics_update_last_member($timestamp, $gid) {
+  $stat = og_statistics_load($gid);
+  $stat['last_member_timestamp'] = $timestamp;
+  db_query("UPDATE {og_statistics} SET last_member_timestamp = %d WHERE nid = %d", $stat['last_member_timestamp'], $gid);
+}
+
+function og_statistics_delete_record($gid) {
+  db_query("DELETE FROM {og_statistics} WHERE nid = %d", $gid);
+}
+
+/**
+ * (Re)Set the statistics.
+ * 
+ * Presently being run as
+ * @todo make a menu item, 'are you sure', and add it to the install
+ * instructions for anyone adding the module after already having og.
+ */
+//og_statistics_reset();
+function og_statistics_reset() {
+  // delete anything that might be there
+  db_query("DELETE FROM {og_statistics}");
+  // users first, count and last joined
+  // it's not possible to have a group with _no_ member is it?
+  $result = db_query("SELECT o.nid, count(o.uid) as user_count, max(o.created) as last_member_timestamp FROM {og_uid} o GROUP BY o.nid");
+  while ($group = db_fetch_array($result)) {
+    db_query("INSERT INTO {og_statistics} (nid, user_count, node_count, comment_count, last_node_timestamp, last_comment_timestamp, last_member_timestamp) VALUES (%d, %d, 0, 0, 0, 0, %d)", $group['nid'], $group['user_count'], $group['last_member_timestamp']);
+  }
+  // last node timestamp, and number of nodes
+  $result = db_query("SELECT o.group_nid as nid, count(o.nid) as node_count, max(n.changed) as last_node_timestamp FROM {node} n INNER JOIN {og_ancestry} o ON n.nid = o.nid GROUP BY o.group_nid");
+  while ($group = db_fetch_array($result)) {
+    db_query("UPDATE {og_statistics} SET node_count = %d, last_node_timestamp = %d WHERE nid = %d", $group['node_count'], $group['last_node_timestamp'], $group['nid']);
+  }
+  // last comment timestamp and count
+  $result = db_query("SELECT o.group_nid as nid, sum(c.comment_count) as comment_count, max(c.last_comment_timestamp) as last_comment_timestamp FROM {node_comment_statistics} c INNER JOIN {og_ancestry} o ON o.nid = c.nid GROUP BY o.group_nid");
+  while ($group = db_fetch_array($result)) {
+    db_query("UPDATE {og_statistics} SET comment_count = %d, last_comment_timestamp = %d WHERE nid = %d", $group['comment_count'], $group['last_comment_timestamp'], $group['nid']);
+  }
+}
