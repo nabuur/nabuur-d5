@@ -34,6 +34,6 @@ function og_statistics_form_alter($form_id, &$form) {
 function og_statistics_faceted_search_query_alter($search, &$query) {
   if (faceted_search_variable_get($search->_env_id, 'og_statistics_sort', FALSE)) { // change for a variable
     $query->tables['default']['c']['table'] = 'og_statistics';
-    $query->fields['default']['score']['field'] = '%d * POW(2, (GREATEST(MAX(n.created), MAX(n.changed), MAX(c.last_node_timestamp)) - %d) * 6.43e-8)';
+    $query->fields['default']['score']['field'] = str_replace('c.last_comment_timestamp', 'c.last_node_timestamp', $query->fields['default']['score']['field']);
   }
 }
