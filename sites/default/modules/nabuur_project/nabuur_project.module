@@ -6,6 +6,9 @@
  * nabuur.com site group/project pages.
  */
 
+function nabuur_project_menu($cached) {
+}
+
 /**
  * Implementation of hook_block().
  */
@@ -40,6 +43,86 @@ function nabuur_project_block($op = 'list', $delta = 0, $edit = array()) {
     }
   }
 }
+
+/**
+ * Implementation of hook_cron().
+ */
+function nabuur_project_cron() {
+  if (variable_get('nabuur_project_cron_lastrun', 0) + 86400 < time()) {
+    nabuur_project_stalled_check();
+    variable_set('nabuur_project_cron_lastrun', time());
+  }
+}
+
+/********************************************************************
+ * Project admin
+ */
+
+/**
+ * Sets projects with no activity onto stalled term.
+ *
+ * @TODO this is schedual (custom event) + workflow type stuff - 
+ *       generalise or use modules to do this?
+ */
+function nabuur_project_stalled_check() {
+  $query = "SELECT n.nid as nid, max(c.last_comment_timestamp) as last_comment_timestamp, t.tid as tid"
+    ." FROM {node} n INNER JOIN {term_node} t on n.nid = t.nid and t.tid in (166, 55, 165)"
+    // Only in active terms: 55, 165, 166 // see also unset at end
+    ." LEFT JOIN {relativity} r on n.nid=r.parent_nid"
+    // Task
+    ." LEFT JOIN {node_comment_statistics} c on r.nid = c.nid"
+    // Task discussion
+    ." WHERE n.type = 'project_outline' AND n.changed < unix_timestamp() - 7776000"
+    // Projects and only ones last edited more than 3 months ago
+    ." GROUP BY n.nid"
+    ." ORDER BY max(c.last_comment_timestamp)"
+    // Group and max to get the last comment per project node
+    ." LIMIT 100";
+
+  $result = db_query($query);
+  while ($row = db_fetch_array($result)) {
+    if ($row['last_comment_timestamp'] > time() - 7776000) {
+      break;
+    }
+
+    $node = node_load($row['nid']);
+
+    // @TODO move this into an og_ / nabuur_og_ function -- it's like og_notify by the way
+    foreach ($node->og_groups_both as $gid => $group) {
+      $admins = db_query("SELECT uid FROM {og_uid} WHERE is_admin = 1 AND nid = %d", $gid);
+      while ($admin = db_fetch_object($admins)) {
+        // t() user or group language?
+        $subject = t("@group: project status set to STALLED", array('@group' => $group, '@project' => $node->title));
+        $message = t("During the last 3 months there has been no activity in your project @project. Therefore its status has been set to STALLED", array('@project' => $node->title)) ."\n\n".
+                   t("You can visit the project to update it at !url", array('!url' => url('node/'. $node->nid, NULL, NULL, TRUE))) ."\n\n".
+                   t("If you need help with updating your project, http://www.nabuur.com/en/group/meeting-place-new-local-representatives/project/task/defining-your-project-tips-and-resources find tips and best practices here.") ."\n\n".
+                   t("If you need a new facilitator for your Village, http://www.nabuur.com/en/group/the-local-representative-village/project/task/does-your-village-need-a-facilitator-sign-here sign up here.") ."\n\n";
+        $recipient_user = user_load(array('uid' => $admin->uid));
+        $recipient = $recipient_user->mail;
+        drupal_mail('nabuur_project_stalled_notify', $recipient, $subject, $message);
+      }
+      watchdog('nabuur', $subject);
+      // @TODO temporary fix hard coded staff members to get notification
+      $staff = array('pelle@nabuur.com', 'romina@nabuur.com');
+      foreach ($staff as $recipient) {
+        $subject = t("@group: project @project stalled", array('@group' => $group, '@project' => $node->title));
+        $message = t("The project project in the @group has been set to stalled status. You can visit the project to update it at !url", array('@group' => $group, '!url' => url('node/'. $node->nid, NULL, NULL, TRUE)));
+        drupal_mail('nabuur_project_stalled_notify', $recipient, $subject, $message);
+      }
+    }
+
+    // @TODO hard coded taxonomy terms - 167 is stalled
+    unset($node->taxonomy[55], $node->taxonomy[165], $node->taxonomy[166]);
+    $node->taxonomy[167] = taxonomy_get_term(167);
+
+    node_save($node);
+  }
+}
+/********************************************************************
+ * Similar nodes for projects
+ *
+ * Uses projects as well as their tasks, and discussion.
+ */
 
 /**
  * Similarnode individual_profile display block.
