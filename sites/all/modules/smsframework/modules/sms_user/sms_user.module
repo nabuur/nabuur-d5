@@ -124,7 +124,13 @@ function sms_user_settings_add_form($account) {
     '#type' => 'submit', 
     '#value' => t('Confirm number'),
   );
-
+  if (user_access('administer sms_user')) {
+    $form['bypass'] = array(
+      '#type' => 'submit',
+      '#value' => t('Submit number'),
+    );
+  }
+  
   return $form;
 }
 
@@ -138,7 +144,17 @@ function sms_user_settings_add_form_submit($form_id, $form_values, $account = NU
   if (!$account) {
     $account = user_load(array('uid' => arg(1)));
   }
-  sms_user_send_confirmation($account, $form_values['number'], $form_values['gateway']);
+  if (user_access('administer sms_user') && $form_values['op'] ==  t('Submit number')) {
+    $data[0] = array(
+      'number'  => $form_values['number'],
+      'status'  => 2,
+      'gateway' => $form_values['gateway'],
+    );
+    user_save($account, array('sms_user' => $data), 'mobile');
+  }
+  else {
+    sms_user_send_confirmation($account, $form_values['number'], $form_values['gateway']);
+  }
 }
 
 function sms_user_settings_confirm_form($account) {
