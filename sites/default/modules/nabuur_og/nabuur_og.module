@@ -149,6 +149,8 @@ function nabuur_og_block($op = 'list', $delta = 0, $edit = array()) {
     
     $blocks[2]['info'] = t('Group owner picture - local rep');
 
+    $blocks[3]['info'] = t('Group\'s without facilitators');
+
     return $blocks;
   }
   elseif ($op == 'view') {
@@ -159,8 +161,31 @@ function nabuur_og_block($op = 'list', $delta = 0, $edit = array()) {
         return nabuur_og_block_subscribers();
       case 2:
         return nabuur_og_group_owner_image();
+      case 3:
+        return nabuur_og_group_facilitator_needed();
     }
   }
+}
+
+function nabuur_og_group_facilitator_needed() {
+  $villages = array();
+
+  // first all those public villages with just one admin (local_rep)
+  /*$result = db_query("select n.nid as nid, n.title as title, count(ou.uid) as admins from {og_uid} ou inner join {node} n on ou.nid = n.nid and status = 1 and n.type = 'village' inner join {og} on ou.nid = og.nid and og.private = 0 where ou.is_admin = 1 GROUP BY ou.nid ORDER BY count(ou.uid)");
+  while ($village = db_fetch_array($result)) {
+    if ($village['admins'] < 2) {
+      $villages[$village['nid']] = l($village['title'], 'node/'. $village['nid']);
+    }
+  }*/
+
+  // next all those with the user 'vacancy' as an admin
+  $result = db_query("select n.nid, n.title, og.description from {og_uid} ou inner join {node} n on ou.nid = n.nid and n.status = 1 and n.type = 'village' inner join {og} on ou.nid = og.nid and og.private = 0 where ou.uid = 11576 and ou.is_admin = 1");
+  while ($village = db_fetch_array($result)) {
+    $villages[$village['nid']] = l($village['title'], 'node/'. $village['nid']) .' - '. $village['description'];
+  }
+
+  $block = array('title' => 'Villages in need of a facilitator', 'content' => theme('item_list', $villages));
+  return $block;
 }
 
 function nabuur_og_group_owner_image() {
