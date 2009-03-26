@@ -442,7 +442,7 @@ function phptemplate_views_view_list_project_forum($view, $nodes, $type) {
       $vars['tid'] = taxonomy_image_display($tids[$vars['name']]);
       if (! ($vars['name'] == t('Finished') && ! $node_page)) {
         // exclude finish tasks on the overview page - show on node page
-        $items[] = array($vars['tid'], $vars['title'], $vars['comment_count'], $vars['last_comment_timestamp']);
+        $items[] = array($vars['tid'], $vars['title'], $vars['comment_count'], $vars['last_comment_timestamp'], $vars['field_time_needed_value']);
       }
     }
     if (count($items)) {
@@ -452,7 +452,7 @@ function phptemplate_views_view_list_project_forum($view, $nodes, $type) {
       else {
         $output .= '<h3>'. t('General tasks') .'</h3>';
       }
-      $output .= theme('table', array(t('Status'), t('Task'), t('Replies'), t('Last reply')), $items);
+      $output .= theme('table', array(t('Status'), t('Task'), t('Replies'), t('Last reply'), t('Time')), $items);
     }
   }
   return $output;
