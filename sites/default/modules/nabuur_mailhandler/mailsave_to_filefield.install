@@ -1,0 +1,22 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ */
+
+/**
+ * Implemenation of hook_install().
+ */
+function mailsave_to_filefield_install() {
+  db_query("UPDATE {system} SET weight = -1 WHERE name = 'mailsave_to_filefield'");
+  // ah because we can know this on our set up....
+  db_query("UPDATE {system} SET weight = -2 WHERE name = 'mailsave_to_imagefield'");
+  db_query("UPDATE {system} SET weight = -3 WHERE name = 'nabuur_mailhandler'");
+}
+
+/**
+ * Implemenation of hook_uninstall().
+ */
+function mailsave_to_filefield_uninstall() {
+}

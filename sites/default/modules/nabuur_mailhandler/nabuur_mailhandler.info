@@ -1,0 +1,5 @@
+; $Id: nabuur_path.info,v 1.1.2.1 2008/06/13 08:11:51 kester Exp $
+name = nabuur mailhandler
+description = "Nabuur mailhandler configuration"
+dependencies = mailhandler
+package = nabuur

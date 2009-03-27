@@ -1,0 +1,4 @@
+name = Mailsave to CCK Filefield
+description = Nabbur custom - works with mailsave to create CCK filefield items from attached files that are not images
+dependencies = mailsave filefield
+package = "nabuur"

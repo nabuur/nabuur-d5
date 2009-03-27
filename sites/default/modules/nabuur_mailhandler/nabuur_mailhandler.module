@@ -1,0 +1,47 @@
+<?php
+
+/**
+ * @file
+ *   Nabuur mailhandler extension. 
+ */
+function nabuur_mailhandler_mailhandler($node, $result, $i, $header, $mailbox) {
+
+  switch ($header->toaddress) {
+    case 'news@nabuur.com':
+      if (nabuur_mailhandler_localrep($node, $result, $i, $hedaer, $mailbox)) {
+        return $node;
+      }
+    default:
+      return FALSE;
+  }
+}
+
+function nabuur_mailhandler_localrep(&$node, $result, $i, $header, $mailbox) {
+  // not assuming user switched by mailhandler here 
+  // get node owner subscriptions
+  $subscriptions = og_get_subscriptions($node->uid);
+  $node->og_inital_groups = array();
+  $node->og_groups = array();
+  $node->og_public = TRUE;
+
+  foreach ($subscriptions as $group_nid => $sub) {
+    if ($sub['is_admin']) {
+      // don't bother loading node to see if they are local rep unless
+      // they are at least an admin
+      $group = node_load($group_nid);
+      if ($group->uid == $node->uid) {
+        // they are the owner of the group node (local rep)
+        $node->type = 'news_item';
+        $node->og_groups[$group->nid] = $group->nid;
+        $node->field_teaser = array(array('value' => $node->teaser, 'format' => $node->format));
+        $node->field_body = array(array('value' => substr($node->body, strlen($node->teaser)), 'format' => $node->format));
+        $node->teaser = '';
+        $node->body = '';
+        $node->status = TRUE;
+        $node->promote = TRUE;
+      }
+    }
+  }
+
+  return count($node->og_groups) ? TRUE : FALSE;
+}
