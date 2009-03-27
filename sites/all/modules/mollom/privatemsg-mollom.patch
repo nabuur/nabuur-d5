@@ -1,0 +1,48 @@
+? .svn
+? LICENSE.txt
+? mollom.patch
+? privatemsg.patch
+Index: mollom.module
+===================================================================
+RCS file: /cvs/drupal-contrib/contributions/modules/mollom/mollom.module,v
+retrieving revision 1.1.2.21
+diff -w -u -p -r1.1.2.21 mollom.module
+--- mollom.module	6 Jul 2008 20:27:13 -0000	1.1.2.21
++++ mollom.module	9 Jul 2008 09:16:57 -0000
+@@ -497,6 +497,21 @@ function mollom_data_node_form($form_val
+   return $data;
+ }
+ 
++function mollom_data_privatemsg_new_form($form_values) {
++  global $user;
++
++  $data = array(
++    'post_title'  => $form_values['subject'],
++    'post_body'   => $form_values['privatemsgbody'],
++    'author_name' => $user->name,
++    'author_mail' => $user->mail,
++    'author_id'   => $user->uid,
++    'author_ip'   => _mollom_ip_address(),
++  );
++
++  return $data;
++}
++
+ /**
+  * This function is a generic validate function that will protect any given
+  * form as long there is a variable for it (i.e. as long it is configured to
+@@ -584,6 +599,14 @@ function mollom_protectable_forms() {
+           'name' => strtolower($name) ." form",
+           'mode' => MOLLOM_MODE_ANALYSIS);
+     }
++
++    // Protect private messages.
++    if (module_exists('privatemsg')) {
++      $forms['privatemsg_new_form'] = array(
++        'name' => 'privatemsg message form',
++        'mode' => MOLLOM_MODE_ANALYSIS,
++      );
++    }
+   } 
+   
+   return $forms;
