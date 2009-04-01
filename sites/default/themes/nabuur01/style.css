@@ -116,6 +116,10 @@ h3 {
   color: #000000;
 }
 
+.project_outline h2 {
+  margin-top:20px;
+}
+
 
 /**
 .content img {
@@ -1006,4 +1010,15 @@ div.search-description {
   display: table;
   padding-left: 13px;
   vertical-align: middle;
+}
+
+div.field-field-step div.field-label{
+  float: left;
+  width: 9%;
+}
+
+div.field-field-step div.field-items{
+  float: left;
+  width: 90%;
+  margin-bottom: 20px;
 }
