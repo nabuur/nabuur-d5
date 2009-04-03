@@ -32,7 +32,10 @@ function og_statistics_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
           $node->og_groups = array_unique($node->og_groups);
           foreach ($node->og_groups as $gid) {
             og_statistics_add_node($gid);
-            og_statistics_update_last_node($node->created, $gid);
+            // nabuur specific - exclude feed items from updating latest node time
+            if ($node->type != 'news_feeditem') {
+              og_statistics_update_last_node($node->created, $gid);
+            }
           }
         }
       }
@@ -56,6 +59,8 @@ function og_statistics_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
     case 'update':
       if (og_is_group_post_type($node->type)) {
         if (isset($node->og_groups)) {
+          $node->og_groups = (array) $node->og_groups;
+          $node->og_initial_groups = (array) $node->og_initial_groups;
           $updated_gid = array_intersect($node->og_groups, $node->og_initial_groups);
           $added_gid = array_diff($node->og_groups, $node->og_initial_groups);
           $removed_gid = array_diff($node->og_initial_groups, $node->og_groups);
