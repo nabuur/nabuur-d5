@@ -455,7 +455,7 @@ function phptemplate_views_view_list_project_forum($view, $nodes, $type) {
       else {
         $output .= '<h3>'. t('General tasks') .'</h3>';
       }
-      $output .= theme('table', array(t('Status'), t('Task'), t('Replies'), t('Last reply'), t('Time')), $items);
+      $output .= theme('table', array(t('Status'), t('Task'), t('Replies'), t('Last reply'), t('Time needed')), $items);
     }
   }
   return $output;
