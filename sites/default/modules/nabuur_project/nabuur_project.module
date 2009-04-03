@@ -94,9 +94,12 @@ function nabuur_project_stalled_check() {
         // t() user or group language?
         $subject = t("@group: project status set to STALLED", array('@group' => $group, '@project' => $node->title));
         $message = t("During the last 3 months there has been no activity in your project @project. Therefore its status has been set to STALLED", array('@project' => $node->title)) ."\n\n".
-                   t("You can visit the project to update it at !url", array('!url' => url('node/'. $node->nid, NULL, NULL, TRUE))) ."\n\n".
-                   t("If you need help with updating your project, http://www.nabuur.com/en/group/meeting-place-new-local-representatives/project/task/defining-your-project-tips-and-resources find tips and best practices here.") ."\n\n".
-                   t("If you need a new facilitator for your Village, http://www.nabuur.com/en/group/the-local-representative-village/project/task/does-your-village-need-a-facilitator-sign-here sign up here.") ."\n\n";
+                   t("You can visit the project to update it at:") ."\n".  
+                   t("!url", array('!url' => url('node/'. $node->nid, NULL, NULL, TRUE))) ."\n\n".
+                   t("If you need help with updating your project, find tips and best practices here:") ."\n".
+                   t("http://www.nabuur.com/en/group/meeting-place-new-local-representatives/project/task/defining-your-project-tips-and-resources") ."\n\n".
+                   t("If you need a new facilitator for your Village, sign up here:") ."\n".
+                   t("http://www.nabuur.com/en/group/the-local-representative-village/project/task/does-your-village-need-a-facilitator-sign-here") ."\n\n";
         $recipient_user = user_load(array('uid' => $admin->uid));
         $recipient = $recipient_user->mail;
         drupal_mail('nabuur_project_stalled_notify', $recipient, $subject, $message);
