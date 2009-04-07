@@ -123,3 +123,16 @@ include_once('sites/default/modules/nabuur_path/nabuur_pathalias.inc');
 include_once('sites/all/modules/i18n/i18n.module');
 # Replace some English strings
 include_once('sites/default/custom_strings_en.inc');
+
+$conf['cache_inc'] = './sites/all/modules/cacherouter/cacherouter.inc';
+$conf['cacherouter'] = array(
+  'default' => array(
+    'engine' => 'memcache',
+    'server' => array('localhost:11211'),
+    'shared' => TRUE,
+    'prefix' => '',
+    'path' => 'files/filecache',
+    'static' => FALSE,
+    'fast_cache' => FALSE,
+  ),
+);
