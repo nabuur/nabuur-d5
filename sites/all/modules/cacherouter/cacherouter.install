@@ -1,0 +1,46 @@
+<?php
+// $Id: cacherouter.install,v 1.1.2.2 2008/04/07 22:31:42 slantview Exp $
+
+/**
+ * Add serialized field to cache tables.
+ * This is for Drupal 5.x ONLY
+ */
+function cacherouter_install() {
+  $core = array('cache', 'cache_filter', 'cache_menu', 'cache_page');
+  $alltables = array_merge($core, module_invoke_all('devel_caches'));
+
+  switch ($GLOBALS['db_type']) {
+    case 'pgsql':
+      foreach ($alltables as $table) {
+        db_query("DELETE FROM {{$table}}");
+        db_add_column($ret, $table, 'serialized', 'integer', array('default' => "'0'", 'not null' => TRUE));
+      }
+      break;
+    case 'mysql':
+    case 'mysqli':
+      foreach ($alltables as $table) {
+        db_query("DELETE FROM {{$table}}");
+        db_query("ALTER TABLE {{$table}} ADD serialized int(1) NOT NULL default '0'");
+      }
+      break;
+  }
+}
+
+/**
+ * Remove serialized field from cache tables
+ */
+function cacherouter_uninstall() {
+  $core = array('cache', 'cache_filter', 'cache_menu', 'cache_page');
+  $alltables = array_merge($core, module_invoke_all('devel_caches'));
+
+  switch ($GLOBALS['db_type']) {
+    case 'pgsql':
+    case 'mysql':
+    case 'mysqli':
+      foreach ($alltables as $table) {
+        db_query("ALTER TABLE {{$table}} DROP serialized");
+      }
+      break;
+  }
+}
+

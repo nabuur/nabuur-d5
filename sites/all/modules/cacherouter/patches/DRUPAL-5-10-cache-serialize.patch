@@ -1,0 +1,124 @@
+diff -ur drupal-5.10/includes/bootstrap.inc includes/bootstrap.inc
+--- includes/bootstrap.inc	2008-01-10 14:14:24.000000000 -0800
++++ includes/bootstrap.inc	2008-08-27 16:08:55.000000000 -0700
+@@ -382,14 +382,14 @@
+ function variable_init($conf = array()) {
+   // NOTE: caching the variables improves performance by 20% when serving cached pages.
+   if ($cached = cache_get('variables', 'cache')) {
+-    $variables = unserialize($cached->data);
++    $variables = $cached->data;
+   }
+   else {
+     $result = db_query('SELECT * FROM {variable}');
+     while ($variable = db_fetch_object($result)) {
+       $variables[$variable->name] = unserialize($variable->value);
+     }
+-    cache_set('variables', 'cache', serialize($variables));
++    cache_set('variables', 'cache', $variables);
+   }
+ 
+   foreach ($conf as $name => $value) {
+diff -ur drupal-5.10/includes/cache.inc includes/cache.inc
+--- includes/cache.inc	2008-02-09 18:05:00.000000000 -0800
++++ includes/cache.inc	2008-08-27 16:08:55.000000000 -0700
+@@ -22,12 +22,15 @@
+     db_query("DELETE FROM {". $table ."} WHERE expire != %d AND expire <= %d", CACHE_PERMANENT, $cache_flush);
+   }
+ 
+-  $cache = db_fetch_object(db_query("SELECT data, created, headers, expire FROM {". $table ."} WHERE cid = '%s'", $key));
++  $cache = db_fetch_object(db_query("SELECT data, created, headers, expire, serialized FROM {". $table ."} WHERE cid = '%s'", $key));
+   if (isset($cache->data)) {
+     // If the data is permanent or we're not enforcing a minimum cache lifetime
+     // always return the cached data.
+     if ($cache->expire == CACHE_PERMANENT || !variable_get('cache_lifetime', 0)) {
+       $cache->data = db_decode_blob($cache->data);
++      if ($cache->serialized) {
++        $cache->data = unserialize($cache->data);
++      }
+     }
+     // If enforcing a minimum cache lifetime, validate that the data is
+     // currently valid for this user before we return it by making sure the
+@@ -41,6 +44,9 @@
+       }
+       else {
+         $cache->data = db_decode_blob($cache->data);
++        if ($cache->serialized) {
++          $cache->data = unserialize($cache->data);
++        }
+       }
+     }
+     return $cache;
+@@ -79,8 +85,8 @@
+  *   The table $table to store the data in. Valid core values are 'cache_filter',
+  *   'cache_menu', 'cache_page', or 'cache'.
+  * @param $data
+- *   The data to store in the cache. Complex data types must be serialized first.
+- * @param $expire
++ *   The data to store in the cache. Complex data types will be automatically serialized before insertion.
++ *   Strings will be stored as plain text and not serialized. * @param $expire
+  *   One of the following values:
+  *   - CACHE_PERMANENT: Indicates that the item should never be removed unless
+  *     explicitly told to using cache_clear_all() with a cache ID.
+@@ -92,10 +98,15 @@
+  *   A string containing HTTP header information for cached pages.
+  */
+ function cache_set($cid, $table = 'cache', $data, $expire = CACHE_PERMANENT, $headers = NULL) {
++  $serialized = 0;
++  if (is_object($data) || is_array($data)) {
++    $data = serialize($data);
++    $serialized = 1;
++  }
+   db_lock_table($table);
+-  db_query("UPDATE {". $table. "} SET data = %b, created = %d, expire = %d, headers = '%s' WHERE cid = '%s'", $data, time(), $expire, $headers, $cid);
++  db_query("UPDATE {". $table. "} SET data = %b, created = %d, expire = %d, headers = '%s', serialized = %d WHERE cid = '%s'", $data, time(), $expire, $headers, $serialized, $cid);
+   if (!db_affected_rows()) {
+-    @db_query("INSERT INTO {". $table. "} (cid, data, created, expire, headers) VALUES ('%s', %b, %d, %d, '%s')", $cid, $data, time(), $expire, $headers);
++    @db_query("INSERT INTO {". $table. "} (cid, data, created, expire, headers, serialized) VALUES ('%s', %b, %d, %d, '%s', %d)", $cid, $data, time(), $expire, $headers, $serialized);
+   }
+   db_unlock_tables();
+ }
+@@ -165,4 +176,3 @@
+     }
+   }
+ }
+-
+Only in includes: cache.inc.orig
+diff -ur drupal-5.10/includes/menu.inc includes/menu.inc
+--- includes/menu.inc	2008-02-10 21:26:53.000000000 -0800
++++ includes/menu.inc	2008-08-27 16:08:55.000000000 -0700
+@@ -208,12 +208,12 @@
+ 
+     $cid = "$user->uid:$locale";
+     if ($cached = cache_get($cid, 'cache_menu')) {
+-      $_menu = unserialize($cached->data);
++      $_menu = $cached->data;
+     }
+     else {
+       _menu_build();
+       // Cache the menu structure for this user, to expire after one day.
+-      cache_set($cid, 'cache_menu', serialize($_menu), time() + (60 * 60 * 24));
++      cache_set($cid, 'cache_menu', $_menu, time() + (60 * 60 * 24));
+     }
+ 
+     // Make sure items that cannot be cached are added.
+diff -ur drupal-5.10/modules/locale/locale.module modules/locale/locale.module
+--- modules/locale/locale.module	2008-07-09 14:48:42.000000000 -0700
++++ modules/locale/locale.module	2008-08-27 16:08:55.000000000 -0700
+@@ -172,7 +172,7 @@
+       locale_refresh_cache();
+       $cache = cache_get("locale:$locale", 'cache');
+     }
+-    $locale_t = unserialize($cache->data);
++    $locale_t = $cache->data;
+   }
+ 
+   // We have the translation cached (if it is TRUE, then there is no
+@@ -231,7 +231,7 @@
+     while ($data = db_fetch_object($result)) {
+       $t[$data->source] = (empty($data->translation) ? TRUE : $data->translation);
+     }
+-    cache_set("locale:$locale", 'cache', serialize($t));
++    cache_set("locale:$locale", 'cache', $t);
+   }
+ }
+ 
