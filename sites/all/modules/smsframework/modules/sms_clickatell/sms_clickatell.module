@@ -419,3 +419,36 @@ function sms_clickatell_unicode($message) {
   }
   return FALSE;
 }
+
+/**
+ * Implementation of sms_$gateway_receive_parse()
+ * Tells sms_receive how to parse incoming messages
+ */
+function sms_clickatell_receive_parse() { // hook for for sms_receive.module
+  $result = array();
+// MMS  $result['type'] = check_plain($_GET['Type']); // will be 'sms' unless with media
+  $result['api_id'] = $_GET['api_id'];
+  $result['timestamp'] = $_GET['timestamp']; // no timezone so make unix timestamp?
+  $result['charset'] = check_plain($_GET['charset']);
+  $result['from'] = check_plain($_GET['from']);
+  // check_plain works with UTF-8 incoming isn't usually... 
+  // so breaks on some special chacters going into text
+  // inconv php >= 4.0.5, 5
+  if ($_GET['charset'] !=  'UTF-8') {
+    $_GET['text'] = iconv($_GET['charset'], 'UTF-8', $_GET['text']);
+  }
+  $_GET['text'] = html_entity_decode($_GET['text'], ENT_QUOTES, 'utf-8');
+  // no check plain here - going to have to decide depending on field it goes to
+  $result['text'] = $_GET['text'];
+  $result['to'] = check_plain($_GET['to']);
+  $result['msgid'] = check_plain($_GET['moMsgId']);
+  return $result;
+}
+
+/**
+ * Implementation of sms_$gateway_receive_ields()
+ * Tells sms_receive what fields are available
+ */
+function sms_clickatell_receive_fields() {
+  return array('from', 'text', 'timestamp', 'charset', 'to', 'msgid');
+}
