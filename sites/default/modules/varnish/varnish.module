@@ -1,0 +1,155 @@
+<?php
+// $Id$
+
+function d_s_m($message) {
+  if (! is_string($message) ) {
+    drupal_set_message(var_export($message, true));
+  }
+  else {
+    drupal_set_message($message);
+  }
+}
+
+/**
+ * @file
+ * Provides help for varnish cache.
+ */
+
+/**
+ * Implementation of hook_help(). Provides online user help.
+ */
+function varnish_help($section) {
+  switch ($section) {
+    case 'admin/modules#name':
+      return t('varnish');
+    case 'admin/modules#description':
+      return t('Provides help for varnish reverse cache.');
+    case 'admin/help#varnish':
+      break;
+/*    case 'admin/settings/varnish':
+      return ''; */
+  }
+}
+
+/**
+ * Implementation of hook_perm(). Defines user permissions.
+ *
+function varnish_perm() {
+  return array('administer cache');
+}
+
+/**
+ * Implementation of hook_menu(). Defines menu items and page callbacks.
+ *
+function varnish_menu($may_cache) {
+  $items = array();
+  if ($may_cache) {
+    $items[] = array(
+      'path'  => 'admin/settings/performance/varnish',
+      'title' => t('Varnish'),
+      'description' => t('Set, enable or disable varnish helper options.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('varnish_settings'),
+      'access' => user_access('administer site configuration'),
+    );
+  }
+  return $items;
+}
+
+/**
+ * Implementation of hook_init(). Performs page setup tasks.
+ */
+function varnish_init() {
+  // Stop right here unless we're being called for an ordinary page request
+  if (strpos($_SERVER['SCRIPT_FILENAME'], 'index.php') === FALSE)
+    return;
+
+  global $user;
+  if (! empty($user->uid)) {
+    d_s_m($user);
+    varnish_set_cookie($user);
+  }
+}
+
+/*
+function varnish_comment($comment, $op) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+      // Expire the relevant node page from the static page cache to prevent serving stale content:
+      if (!empty($comment['nid']))
+        varnish_cache_expire('node/' . $comment['nid'], TRUE);
+      break;
+    case 'publish':
+    case 'unpublish':
+    case 'delete':
+      if (!empty($comment->nid))
+        varnish_cache_expire('node/' . $comment->nid, TRUE);
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi(). Acts on nodes defined by other modules.
+ *
+function varnish_nodeapi(&$node, $op, $teaser = NULL, $page = NULL) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+    case 'delete':
+      // Expire all relevant node pages from the static page cache to prevent serving stale content:
+      if (!empty($node->nid))
+        varnish_cache_expire('node/' . $node->nid, TRUE);
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_taxonomy(). Acts on taxonomy changes.
+ *
+function varnish_taxonomy($op, $type, $term = NULL) {
+  switch ($op) {
+    case 'insert':
+    case 'update':
+    case 'delete':
+      // TODO: Expire all relevant taxonomy pages from the static page cache to prevent serving stale content.
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_user(). Acts on user account actions.
+ */
+function varnish_user($op, &$edit, &$account, $category = NULL) {
+  global $user;
+  switch ($op) {
+    case 'login':
+      d_s_m('login set');
+      varnish_set_cookie($user);
+      break;
+    case 'logout':
+      d_s_m('logout set');
+      varnish_set_cookie($user, time() - 864000);
+      break;
+    case 'insert':
+      break;
+    case 'delete':
+      // Expire the relevant user page from the static page cache to prevent serving stale content:
+      //if (!empty($account->uid))
+      //  varnish_cache_expire('user/' . $account->uid);
+      break;
+  }
+}
+
+function varnish_set_cookie($user, $expires = NULL) {
+  d_s_m('varnish_set_cookie :'.$user->uid.' :'.$expires);
+  if (! $expires) {
+    // Set special cookie to prevent logged-in users getting served pages from the static page cache.
+    $expires = ini_get('session.cookie_lifetime');
+    $expires = (!empty($expires) && is_numeric($expires) ? time() + (int)$expires : 0);
+    setcookie('DRUPAL_VARNISH', $user->uid, $expires, ini_get('session.cookie_path'), ini_get('session.cookie_domain'), ini_get('session.cookie_secure') == '1');
+   }
+   else {
+     setcookie('DRUPAL_VARNISH', FALSE, $expires, ini_get('session.cookie_path'), ini_get('session.cookie_domain'), ini_get('session.cookie_secure') == '1');
+   }
+}

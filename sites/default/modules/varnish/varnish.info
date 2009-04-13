@@ -1,0 +1,4 @@
+; $Id$
+name = Varnish
+description = Helper functions for varnish cache.
+package = Caching

@@ -1,0 +1,15 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Handles Varnish module install.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function varnish_install() {
+  // Ensure that the module is loaded early in the bootstrap:
+  db_query("UPDATE {system} SET weight = -90 WHERE name = 'varnish'");
+}
