@@ -416,14 +416,19 @@ function nabuur_og_list_users_page($gid) {
 // next add admin links -- and headings
 
 function _nabuur_og_list_users_page_admin($account, $gid) {
+  $rows = array();
   if ($account->is_active) {
-    $rows[] = l(t('remove'), "og/unsubscribe/$gid/$account->uid", array(), "destination=node/$gid/neighbours");
+    if (!$account->is_admin) {
+      $rows[] = l(t('remove'), "og/unsubscribe/$gid/$account->uid", array(), "destination=node/$gid/neighbours");
+    }
+    if (user_access('administer organic groups')) {
     if ($account->is_admin) {
       $rows[] = l(t('admin: remove'), "og/delete_admin/$gid/$account->uid", array(), 'destination='. $_GET['q']);
     }
     else {
       $rows[] = l(t('admin: create'), "og/create_admin/$gid/$account->uid", array(), 'destination='. $_GET['q']);
     }
+  }
   }
   else {
     $rows[] = l(t('approve'), "og/approve/$gid/$account->uid", array(), "destination=node/$gid/neighbours");
