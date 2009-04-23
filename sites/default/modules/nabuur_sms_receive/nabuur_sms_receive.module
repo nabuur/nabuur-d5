@@ -207,6 +207,7 @@ function nabuur_sms_receive_receive() {
     }
     $node->title = $title;
     $node->body = $message['text'];
+    $node->comment = 2; // force read.write comments
     global $user;
     foreach ($user->og_groups as $gid => $group) {
       $group = node_load($gid);
