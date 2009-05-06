@@ -463,56 +463,58 @@ function _nabuur_og_list_admins($group) {
 
 function nabuur_og_list_active_villages($nr_rows = 5) {
   global $user;
-  $sql = "SELECT node.nid AS village_nid, a.created AS action_created, node.title AS village_title, a.nid AS action_nid, a.title AS action_title, a.created AS action_created, t.name AS country, f.filepath AS image_path,
-          node_data_field_village_image.field_village_image_title AS image_title, node_data_field_village_image.field_village_image_alt AS image_alt, node_data_field_village_image.delta AS delta
-          FROM {node} node
-          LEFT JOIN {og} og ON node.nid = og.nid 
-          LEFT JOIN {og_ancestry} o ON o.group_nid = node.nid
-          INNER JOIN {node} a ON (a.nid = o.nid AND (node.status = '1') AND a.type IN ('newsletter','news_item','news_sms','task_discussion','task_wiki'))
-          LEFT JOIN {content_field_village_image} node_data_field_village_image ON node.vid = node_data_field_village_image.vid
-          LEFT JOIN {files} f ON f.fid = node_data_field_village_image.field_village_image_fid 
-          LEFT JOIN {term_data} t ON ( t.vid = 3 )
-          INNER JOIN {term_node} r ON (r.tid = t.tid AND r.nid = node.nid )
-          WHERE (node.status = '1') AND (node.type IN ('village')) AND (og.private = '0')
-          ORDER BY a.created DESC
-          LIMIT 0,25";
-  // @todo pager
-  $result = db_query($sql);
-  $output = '<pre>';
-  $done = array();
-  $i = 0;
-  while (($row = db_fetch_object($result)) && $i < $nr_rows) {
-    if ($done[$row->village_nid] != 'Done') {
-      $done[$row->village_nid] = 'Done';
-      $table_row = array();
-      $table_row[] = array (
-        'data' => $row->image_path != '' ? theme('imagecache', 'Thumbnail', $row->image_path, $row->image_alt, $row->village_title) : '',
-        'class' => 'view-cell-header view-village-image-fid',
-      );
-      $table_row[] = array (
-        'data' => $row->village_title != '' ? l($row->village_title, 'node/'. $row->village_nid) : '',
-        'class' => 'view-cell-header view-field-node-title',
-      );
-      $table_row[] = array (
-        'data' => $row->country != '' ? $row->country : '',
-        'class' => 'view-cell-header view-field-term-node-3-name',
-      );
-      $table_row[] = array (
-        'data' => $row->action_title != '' ? l($row->action_title, 'node/'. $row->action_nid) : '',
-        'class' => 'view-cell-header view-field-column-4',
-      );
-      $table_row[] = array (
-        'data' => (is_array($user->og_groups[$row->village_nid])) ? l('Visit project', 'node/'. $row->village_nid .'/project') : l('Join', 'og/subscribe/'. $row->village_nid),
-        'class' => 'view-cell-header view-field-og-subscribe',
-      );
-    $table_rows[] = $table_row;
-    // $output .= var_export($img,true) .' ---- '. $row->image_path .' ---- '. $row->image_alt .'<br>';
-    $i++;
-    }
-  }  
-  $output .= var_export($jan,true);
-  $output .= '</pre>';
-  
+  if ($table_rows_serial = cache_get('nabuur_og_list_active_villages', 'cache_nabuur_og')) {
+    $table_rows = unserialize($table_rows_serial->data);
+  }
+  else { 
+    $sql = "SELECT node.nid AS village_nid, a.created AS action_created, node.title AS village_title, a.nid AS action_nid, a.title AS
+            action_title, a.created AS action_created, t.name AS country, f.filepath AS image_path,
+            node_data_field_village_image.field_village_image_title AS image_title, node_data_field_village_image.field_village_image_alt AS image_alt, node_data_field_village_image.delta AS delta
+            FROM {node} node
+            LEFT JOIN {og} og ON node.nid = og.nid 
+            LEFT JOIN {og_ancestry} o ON o.group_nid = node.nid
+            INNER JOIN {node} a ON (a.nid = o.nid AND (node.status = '1') AND a.type IN ('newsletter','news_item','news_sms','task_discussion','task_wiki'))
+            LEFT JOIN {content_field_village_image} node_data_field_village_image ON node.vid = node_data_field_village_image.vid
+            LEFT JOIN {files} f ON f.fid = node_data_field_village_image.field_village_image_fid 
+            LEFT JOIN {term_data} t ON ( t.vid = 3 )
+            INNER JOIN {term_node} r ON (r.tid = t.tid AND r.nid = node.nid )
+            WHERE (node.status = '1') AND (node.type IN ('village')) AND (og.private = '0')
+            ORDER BY a.created DESC
+            LIMIT 0,25";
+    // @todo pager
+    $result = db_query($sql);
+    $done = array();
+    $i = 0;
+    while (($row = db_fetch_object($result)) && $i < $nr_rows) {
+      if ($done[$row->village_nid] != 'Done') {
+        $done[$row->village_nid] = 'Done';
+        $table_row = array();
+        $table_row[] = array (
+          'data' => $row->image_path != '' ? theme('imagecache', 'Thumbnail', $row->image_path, $row->image_alt, $row->village_title) : '',
+          'class' => 'view-cell-header view-village-image-fid',
+        );
+        $table_row[] = array (
+          'data' => $row->village_title != '' ? l($row->village_title, 'node/'. $row->village_nid) : '',
+          'class' => 'view-cell-header view-field-node-title',
+        );
+        $table_row[] = array (
+          'data' => $row->country != '' ? $row->country : '',
+          'class' => 'view-cell-header view-field-term-node-3-name',
+        );
+        $table_row[] = array (
+          'data' => $row->action_title != '' ? l($row->action_title, 'node/'. $row->action_nid) : '',
+          'class' => 'view-cell-header view-field-column-4',
+        );
+        $table_row[] = array (
+          'data' => (is_array($user->og_groups[$row->village_nid])) ? l('Visit project', 'node/'. $row->village_nid .'/project') : l('Join', 'og/subscribe/'. $row->village_nid),
+          'class' => 'view-cell-header view-field-og-subscribe',
+        );
+      $table_rows[] = $table_row;
+      $i++;
+      }
+    }  
+    cache_set('nabuur_og_list_active_villages', 'cache_nabuur_og', serialize($table_rows), time() + 60*15);
+  }
   // define tableheader
   $table_header[] = array (
       'data' => ' ',
@@ -534,61 +536,62 @@ function nabuur_og_list_active_villages($nr_rows = 5) {
       'data' => 'Become a Neighbour!',
       'class' => 'view-cell-header view-field-og-subscribe',
     );
-  //return $output;
   return theme('table', $table_header, $table_rows);
 }
 
 
 function nabuur_og_new_active_villages($nr_rows = 5) {
   global $user;
-  $sql = "SELECT node.nid AS village_nid, node.created AS village_created, node.title AS village_title, node.changed AS node_changed, p.nid AS project_nid, p.title AS project_title, p.changed AS project_changed, t.name AS country,f.filepath AS image_path,
-          node_data_field_village_image.field_village_image_title AS image_title, node_data_field_village_image.field_village_image_alt AS image_alt, node_data_field_village_image.delta AS delta
-          FROM {node} node
-          LEFT JOIN {og} og ON node.nid = og.nid 
-          LEFT JOIN {og_ancestry} o ON o.group_nid = node.nid
-          INNER JOIN {node} p ON p.nid = o.nid AND p.type = 'project_outline'
-          LEFT JOIN {content_field_village_image} node_data_field_village_image ON node.vid = node_data_field_village_image.vid
-          LEFT JOIN {files} f ON f.fid = node_data_field_village_image.field_village_image_fid 
-          LEFT JOIN {term_data} t ON ( t.vid = 3 )
-          INNER JOIN {term_node} r ON (r.tid = t.tid AND r.nid = node.nid )
-          WHERE (node.status = '1') AND (node.type IN ('village')) AND (og.private = '0')
-          ORDER BY village_created DESC, project_changed
-          LIMIT 0,25";
-  $result = db_query($sql);
-  $output = '<pre>';
-  $done = array();
-  $i = 0;
-  while (($row = db_fetch_object($result))&& $i < $nr_rows) {
-    if ($done[$row->village_nid] != 'Done') {
-      $done[$row->village_nid] = 'Done';
-      $table_row = array();
-      $table_row[] = array (
-        'data' => $row->image_path != '' ? theme('imagecache', 'Thumbnail', $row->image_path, $row->image_alt, $row->village_title) : '',
-        'class' => 'view-cell-header view-village-image-fid',
-      );
-      $table_row[] = array (
-        'data' => $row->village_title != '' ? l($row->village_title, 'node/'. $row->village_nid) : '',
-        'class' => 'view-cell-header view-field-node-title',
-      );
-      $table_row[] = array (
-        'data' => $row->country != '' ? $row->country : '',
-        'class' => 'view-cell-header view-field-term-node-3-name',
-      );
-      $table_row[] = array (
-        'data' => $row->project_title != '' ? l($row->project_title, 'node/'. $row->project_nid) : '',
-        'class' => 'view-cell-header view-field-column-4',
-      );
-      $table_row[] = array (
-        'data' => (is_array($user->og_groups[$row->village_nid])) ? l('Visit project', 'node/'. $row->village_nid .'/project') : l('Join', 'og/subscribe/'. $row->village_nid),
-        'class' => 'view-cell-header view-field-og-subscribe',
-      );
-    $table_rows[] = $table_row;
-    // $output .= var_export($img,true) .' ---- '. $row->image_path .' ---- '. $row->image_alt .'<br>';
-    $i++;
+  if ($table_rows_serial = cache_get('nabuur_og_new_active_villages', 'cache_nabuur_og')) {
+    $table_rows = unserialize($table_rows_serial->data);
+  }
+  else { 
+    $sql = "SELECT node.nid AS village_nid, node.created AS village_created, node.title AS village_title, node.changed AS node_changed, p.nid AS project_nid, p.title AS project_title, p.changed AS project_changed, t.name AS country,f.filepath AS image_path,
+            node_data_field_village_image.field_village_image_title AS image_title, node_data_field_village_image.field_village_image_alt AS image_alt, node_data_field_village_image.delta AS delta
+            FROM {node} node
+            LEFT JOIN {og} og ON node.nid = og.nid 
+            LEFT JOIN {og_ancestry} o ON o.group_nid = node.nid
+            INNER JOIN {node} p ON p.nid = o.nid AND p.type = 'project_outline'
+            LEFT JOIN {content_field_village_image} node_data_field_village_image ON node.vid = node_data_field_village_image.vid
+            LEFT JOIN {files} f ON f.fid = node_data_field_village_image.field_village_image_fid 
+            LEFT JOIN {term_data} t ON ( t.vid = 3 )
+            INNER JOIN {term_node} r ON (r.tid = t.tid AND r.nid = node.nid )
+            WHERE (node.status = '1') AND (node.type IN ('village')) AND (og.private = '0')
+            ORDER BY village_created DESC, project_changed
+            LIMIT 0,25";
+    $result = db_query($sql);
+    $done = array();
+    $i = 0;
+    while (($row = db_fetch_object($result))&& $i < $nr_rows) {
+      if ($done[$row->village_nid] != 'Done') {
+        $done[$row->village_nid] = 'Done';
+        $table_row = array();
+        $table_row[] = array (
+          'data' => $row->image_path != '' ? theme('imagecache', 'Thumbnail', $row->image_path, $row->image_alt, $row->village_title) : '',
+          'class' => 'view-cell-header view-village-image-fid',
+        );
+        $table_row[] = array (
+          'data' => $row->village_title != '' ? l($row->village_title, 'node/'. $row->village_nid) : '',
+          'class' => 'view-cell-header view-field-node-title',
+        );
+        $table_row[] = array (
+          'data' => $row->country != '' ? $row->country : '',
+          'class' => 'view-cell-header view-field-term-node-3-name',
+        );
+        $table_row[] = array (
+          'data' => $row->project_title != '' ? l($row->project_title, 'node/'. $row->project_nid) : '',
+          'class' => 'view-cell-header view-field-column-4',
+        );
+        $table_row[] = array (
+          'data' => (is_array($user->og_groups[$row->village_nid])) ? l('Visit project', 'node/'. $row->village_nid .'/project') : l('Join', 'og/subscribe/'. $row->village_nid),
+          'class' => 'view-cell-header view-field-og-subscribe',
+        );
+      $table_rows[] = $table_row;
+      $i++;
+      }
     }
-  }  
-  $output .= '</pre>';
-  
+    cache_set('nabuur_og_new_active_villages', 'cache_nabuur_og', serialize($table_rows), time() + 60*59);
+  }
   // define tableheader
   $table_header[] = array (
       'data' => ' ',
@@ -610,8 +613,5 @@ function nabuur_og_new_active_villages($nr_rows = 5) {
       'data' => 'Become a Neighbour!',
       'class' => 'view-cell-header view-field-og-subscribe',
     );
-  global $user;
-  $output = '<pre>'. var_export($user->og_groups['82882'],true) .'</pre>';
-  // return $output;
   return theme('table', $table_header, $table_rows);
 }
