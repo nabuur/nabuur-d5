@@ -1,0 +1,13 @@
+Index: i18n/translation/translation.module
+===================================================================
+--- i18n/translation/translation.module	(revision 226)
++++ i18n/translation/translation.module	(working copy)
+@@ -1137,7 +1137,7 @@
+  *   Translated node nid if exists, or $default
+  */
+ function translation_node_nid($nid, $language = NULL, $default = NULL) {
+-  $translation = db_result(db_query("SELECT n.nid FROM {i18n_node} n INNER JOIN {i18n_node} a ON n.trid = a.trid AND n.nid <> a.nid WHERE a.nid = %d AND n.language = '%s' AND n.trid is not null", $nid, $language ? $language : i18n_get_lang()));
++  $translation = db_result(db_query("SELECT n.nid FROM {i18n_node} n INNER JOIN {i18n_node} a ON n.trid = a.trid AND n.nid <> a.nid WHERE a.nid = %d AND n.language = '%s' AND n.trid is not null and n.trid != 0", $nid, $language ? $language : i18n_get_lang()));
+   return $translation ? $translation : $default;
+ }
+ 
