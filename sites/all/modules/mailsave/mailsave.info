@@ -1,0 +1,6 @@
+; $Id: mailsave.info,v 1.2 2007/04/22 23:49:23 stuartgreenfield Exp $
+
+name = Mailsave
+description = Works with mailhandler to handle e-mail attachments.
+dependencies = mailhandler
+package = "Mailsave"
