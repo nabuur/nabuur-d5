@@ -375,6 +375,10 @@ function sms_user_save(&$edit, &$account, $category) {
   if (($category == 'mobile' || $category == 'account') && $edit['sms_user'][0]['number']) {
     foreach ($edit['sms_user'] as $delta => $number) {
       if (is_numeric($delta)) {
+        // @todo should go in sms_provider ?
+        if (strpos($number['number'], '+') === 0) {
+          $number['number'] = substr($number['number'], 1);
+        }
         $db_values = array($number['number'], $number['status'], isset($number['code']) ? $number['code'] : NULL, serialize($number['gateway']));
         if (isset($account->sms_user[$delta])) {
           db_query("UPDATE {sms_user} SET number = '%s', status = %d, code = '%s', gateway = '%s'
