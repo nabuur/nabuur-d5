@@ -136,6 +136,8 @@ function nabuur_project_block_similarusers() {
     return '';
   }
 
+  // clear expired cache entries
+  cache_clear_all(NULL, 'cache_nabuur_project');
   if ($nid_serial = cache_get('nabuur_project_block_'. $node->nid, 'cache_nabuur_project')) {
     $nodes = unserialize($nid_serial->data);
   }
@@ -157,6 +159,8 @@ function nabuur_project_block_similarog() {
     return '';
   }
   
+  // clear expired cache entries
+  cache_clear_all(NULL, 'cache_nabuur_project');
   if ($nid_serial = cache_get('nabuur_project_block_og_'. $node->nid, 'cache_nabuur_project')) {
     $nodes = unserialize($nid_serial->data);
   }
@@ -188,6 +192,8 @@ function nabuur_project_block_similarorg() {
     return '';
   }
 
+  // clear expired cache entries
+  cache_clear_all(NULL, 'cache_nabuur_project');
   if ($nid_serial = cache_get('nabuur_project_block_org_'. $node->nid, 'cache_nabuur_project')) {
     $nodes = unserialize($nid_serial->data);
   }

@@ -463,6 +463,8 @@ function _nabuur_og_list_admins($group) {
 
 function nabuur_og_list_active_villages($nr_rows = 5) {
   global $user;
+  // clear cache when expired..
+  cache_clear_all(NULL, 'cache_nabuur_og');
   if ($table_rows_serial = cache_get('nabuur_og_list_active_villages', 'cache_nabuur_og')) {
     $table_rows = unserialize($table_rows_serial->data);
   }
