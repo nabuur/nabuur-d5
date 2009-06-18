@@ -1,5 +1,5 @@
 <?php
-/* $Id: forward.module,v 1.30.2.58 2008/12/02 22:41:59 seanr Exp $ */
+/* $Id: forward.module,v 1.30.2.65 2009/06/09 21:02:14 seanr Exp $ */
 
 include(drupal_get_path('module', 'forward') .'/forward.theme');
 
@@ -102,6 +102,13 @@ function forward_admin_settings() {
     '#default_value' => variable_get('forward_link_type', false),
     '#description' => t('If checked, the link will read &quot;email this <em>nodetype</em>&quot;; if not, it will just read &quot;email this page&quot;'),
   );
+  $form['forward_options']['forward_link_title'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Link title'),
+    '#size' => 40,
+    '#default_value' => variable_get('forward_link_title', 'Email this !type'),
+    '#description' => t('Set the text of the link.  Use !type as a place holder for the node\'s content type or \'page\' depending on the setting above.'),
+  );
   $form['forward_options']['forward_display_teasers'] = array(
     '#type' => 'checkbox',
     '#title' => t('Show Forward on teasers'),
@@ -138,12 +145,12 @@ function forward_admin_settings() {
     '#description' => t('How many times a user can use the form in a one hour period. This will help prevent the forward module from being used for spamming.'),
   );
   $form['forward_options']['forward_flood_error'] = array(
-    '#type' => 'textarea',
+    '#type' => 'textfield',
     '#title' => t('Flood Control Error'),
     '#default_value' => variable_get('forward_flood_error', t('You can\'t send more than !number messages per hour. Please try again later.')),
-    '#cols' => 40,
-    '#rows' => 10,
-    '#description' => t('This text appears if a user exceeds the flood control limit.  The value of the flood control limit setting will appear in place of %number in the message presented to users'),
+    '#size' => 80,
+    '#maxlength' => 256,
+    '#description' => t('This text appears if a user exceeds the flood control limit.  The value of the flood control limit setting will appear in place of !number in the message presented to users'),
   );
   $form['forward_options']['forward_filter_html'] = array(
     '#type' => 'checkbox',
@@ -158,6 +165,14 @@ function forward_admin_settings() {
     '#size' => 40,
     '#default_value' => variable_get('forward_filter_tags', 'p,br,em,strong,cite,code,ul,ol,li,dl,dt,dd'),
     '#description' => t('List of allowed tags (separated by commas) that will be allowed by the XSS filter if enabled above.  The default tags allowed are: p,br,em,strong,cite,code,ul,ol,li,dl,dt,dd'),
+  );
+  $form['forward_options']['forward_sender_address'] = array(
+    '#type' => 'textfield',
+    '#title' => t('From Address'),
+    '#default_value' => variable_get('forward_sender_address', ''),
+    '#size' => 40,
+    '#maxlength' => 40,
+    '#description' => t('If left blank, the from address entered in the form will be used as the from address for the email.  Enter a valid email address here to override that.  The sender\'s email will still appear in the body of the message.'),
   );
 
   // Page Text Values
@@ -191,14 +206,6 @@ function forward_admin_settings() {
     '#collapsible' => true,
     '#collapsed' => false,
     '#description' => t('These options will set the default values for the "email this page" form.')
-  );
-  $form['forward_page_defaults']['forward_sender_addy'] = array(
-    '#type' => 'textfield',
-    '#title' => t('From Address'),
-    '#default_value' => variable_get('forward_sender_addy', 'NoReply@'. $host['host']),
-    '#size' => 40,
-    '#maxlength' => 40,
-    '#description' => t('The address to send from.  Should be a functioning email address.'),
   );
   $form['forward_page_defaults']['forward_header_image'] = array(
     '#type' => 'textfield',
@@ -329,7 +336,7 @@ function forward_page() {
   //print '<pre>'.print_r(menu_get_menu(),1).'</pre>'; exit;
   $nid = NULL;
   if (empty($_GET['path']) || ($_GET['path'] == 'node/0')) {
-    return 'No path was selected to forward';
+    return t('No path was selected to forward');
   }
   
   if (!empty($_GET['path'])) {
@@ -367,11 +374,15 @@ function forward_form($path = NULL, $title = NULL, $nodeapi = FALSE) {
 
   $form = array();
 
+  $cid = NULL;
   if ($path == 'epostcard') {
     $emailtype = 'postcard';
   }
   else {
     $emailtype = 'email';
+    if (!empty($_GET['cid'])) {
+      $cid = 'comment-'.$_GET['cid'];
+    }
   }
   
   if ($nodeapi == TRUE) {
@@ -420,7 +431,7 @@ function forward_form($path = NULL, $title = NULL, $nodeapi = FALSE) {
     $form['page'] = array(
       '#type' => 'item',
       '#title' => t('You are going to email the following'),
-      '#value' => l($title, $path),
+      '#value' => l($title, $path, NULL, NULL, $cid),
     );
   }
   $form['subject'] = array(
@@ -447,6 +458,10 @@ function forward_form($path = NULL, $title = NULL, $nodeapi = FALSE) {
   $form['path'] = array(
     '#type' => 'hidden',
     '#value' => $path,
+  );
+  $form['path_cid'] = array(
+    '#type' => 'hidden',
+    '#value' => (!empty($cid)) ? '#'.$cid : '',
   );
   $form['forward_footer'] = array(
     '#type' => 'hidden',
@@ -504,11 +519,6 @@ function forward_form_validate($form_id, &$form) {
   // Here the global variable where form values are stored is brought into the function for possible editing
   global $form_values;
   // To check values, simply access them w/ the same name with which they were declared
-  if (!user_access('administer forward')) {
-    if (!flood_is_allowed('forward', variable_get('forward_flood_control', 10))) {
-      form_set_error('recipients', variable_get('forward_flood_error', t('You can\'t send more than %number messages per hour. Please try again later.', array('%number' => variable_get('forward_flood_control', 10)))));
-    }
-  }
 
   $yname      = $form['edit']['yname'];
   $yemail     = $form['edit']['yemail'];
@@ -554,13 +564,21 @@ function forward_form_validate($form_id, &$form) {
       }
     }
   }
+  if (!user_access('administer forward')) {
+    // Check if it looks like we are going to exceed the flood limit.
+    // It is important to ensure that the number of e-mails to be sent count against the threshold.
+    if (!flood_is_allowed('forward', variable_get('forward_flood_control', 10) - count($recipient_addresses) + 1)) {
+      form_set_error('recipients', t(variable_get('forward_flood_error', 'You can\'t send more than !number messages per hour. Please try again later.'), array('!number' => variable_get('forward_flood_control', 10))));
+    }
+  }
   if (!$form['message']) {
     form_set_error('message', t('You must enter a message.'));
   }
 }
 
 function forward_form_submit($form_id, $edit) {
-  //print '<pre>'.print_r($edit,1).'</pre>'; exit;
+  global $base_url, $user;
+  $dynamic_content = "";
   // Prepare the sender:
   $from = $edit['mail'];
   // Compose the body:
@@ -592,6 +610,7 @@ function forward_form_submit($form_id, $edit) {
 
   if ($edit['path'] == 'epostcard') {
     $emailtype = 'postcard';
+    $returnurl = '';
   }
   else {
     $emailtype = 'email';
@@ -635,15 +654,18 @@ function forward_form_submit($form_id, $edit) {
     }
   }
   
+  global $theme_key;
+  $theme_key = variable_get('theme_default', '');
+  
   $vars = array(
-    'forward_header_image' => variable_get('forward_header_image', ''),
-    'site_name' => variable_get('site_name', 'Drupal'),
+    'logo' => (variable_get('forward_header_image', '') == '') ? theme_get_setting('logo') : variable_get('forward_header_image', ''),
+    'site_name' => check_plain(variable_get('site_name', 'Drupal')),
     'yemail' => $edit['yemail'],
     'forward_message' => t(variable_get('forward_'. $emailtype .'message', '!name thought you would like to see the !site web site.'), array('!name' => l($edit['yname'], 'mailto:'. $edit['yemail'], null, null, null, true), '!site' => variable_get('site_name', 'drupal'))),
     'message' => variable_get('forward_filter_html', false) ? nl2br(filter_xss($edit['message'], explode(',', variable_get('forward_filter_tags', 'p,br,em,strong,cite,code,ul,ol,li,dl,dt,dd')))) : nl2br(check_plain($edit['message'])),
     'base_url' => $base_url,
     'content' => $content,
-    'path' => $edit['path'],
+    'path' => $edit['path'].$edit['path_cid'],
     'dynamic_content' => $dynamic_content,
     'forward_ad_footer' => variable_get('forward_ad_footer', ''),
     'forward_footer' => variable_get('forward_footer', '')
@@ -652,18 +674,18 @@ function forward_form_submit($form_id, $edit) {
   $body = theme('forward_'. $emailtype, $vars);
   $subject = t(variable_get('forward_'. $emailtype .'subject', '!name has sent you a message from !site'), array('!name' => $edit['yname'], '!site' => variable_get('site_name', 'drupal')));
 
-  $from = $edit['yemail'];
+  $from = (variable_get('forward_sender_address', '') != '') ? variable_get('forward_sender_address', '') : $edit['yemail'];
   $headers['MIME-Version'] = '1.0';
   $headers['Content-Type'] = 'text/html; charset=utf-8';
 
   $recipients = trim($edit['recipients']);
-  $recipients = str_replace(array("\r\n", "\n", "\r"), ', ', $recipients);
-  $recipients = str_replace(', ', ', ', $recipients);
-  $recipients = str_replace(',  ', ', ', $recipients);
-  $recipients = explode(', ', $recipients);
+  $recipients = str_replace(array("\r\n", "\n", "\r"), ',', $recipients);
+  $recipients = explode(',', $recipients);
   
   foreach ($recipients as $to) {
-    drupal_mail('forward', $to, $subject, $body, $from, $headers);
+    drupal_mail('forward', trim($to), $subject, $body, $from, $headers);
+    // Ensure that we register a flood event for each e-mail.
+    flood_register_event('forward');
   }
   
   // insert record into db to record nid, type and timestamp of send
@@ -676,10 +698,35 @@ function forward_form_submit($form_id, $edit) {
   variable_set('forward_total', variable_get('forward_total', 0) +1);
   variable_set('forward_recipients', variable_get('forward_recipients', 0) + count($recipients));
 
-  flood_register_event('forward');
-
   drupal_set_message(variable_get('forward_thankyou', t('Thank you for your help in spreading the word about') .' '. variable_get('site_name', 'drupal') .'. '. t('We appreciate your help.')), 'status');
   //print $returnurl; exit;
+  
+  // CRMAPI hook - saves data to default enabled CRM
+  if (module_exists('crmapi')) {
+    if (!empty($user->crmapi_contact) && is_numeric($user->crmapi_contact)) {
+      $contact = crmapi_contact_load('', $user->crmapi_contact);
+      $contact_id = $user->crmapi_contact;
+    }
+    else {
+      $contact['email'] = $edit['yemail'];
+      $names = explode(' ', $edit['yname']);
+      $contact['first_name'] = $names[0];
+      $contact['last_name'] = isset($names[2]) ? $names[2] : $names[1];
+      $contact['mail_name'] = $edit['yname'];
+      $contact_id = crmapi_contact_save($contact);
+    }
+
+    $activity_params = array(
+      'contact_id' => $contact_id, 
+      'activity_id' => 'OLForward', 
+      'activity_type' => 'F',
+      'level' => '',
+      'flag' => '',
+      'description' => substr(url($returnurl, null, null, true), 0, 100),
+    );
+    crmapi_activity_save($activity_params);
+  }
+  
   return $returnurl;
 }
 
@@ -690,7 +737,7 @@ function forward_form_submit($form_id, $edit) {
 function forward_help($path) {
   if (user_access('access forward') && (preg_match("/^node\//i", $path) == 0) && (variable_get('forward_display_nonnode', false))) {
     drupal_add_css(drupal_get_path('module', 'forward') .'/forward.css');
-    $title = t('Email this page');
+    $title = t(variable_get('forward_link_title', 'Email this !type'), array('!type' => 'page'));
     $img = drupal_get_path('module', 'forward') .'/forward.gif';
     $html = false;
     switch (variable_get('forward_link_style', 0)) {
@@ -722,7 +769,7 @@ function forward_link($type, $node=0, $teaser=0) {
     $links=array();
     if (($type == 'system')) {
       // URL, page title, func called for page content, arg, 1 = don't disp menu
-      menu('forward', t('Email this page'), 'forward_page', 1, 1);
+      menu('forward', t(variable_get('forward_link_title', 'Email this !type'), array('!type' => 'page')), 'forward_page', 1, 1);
     }
 
     // This var is set in the settings section under the admin/modules/forward section
@@ -736,7 +783,7 @@ function forward_link($type, $node=0, $teaser=0) {
 
     if (!$teaser || variable_get('forward_display_teasers', 0)) {
       drupal_add_css(drupal_get_path('module', 'forward') .'/forward.css');
-      $title = t('Email this !type', array('!type' => $forward_link_type));
+      $title = t(variable_get('forward_link_title', 'Email this !type'), array('!type' => $forward_link_type));
       $img = drupal_get_path('module', 'forward') .'/forward.gif';
       $html = false;
       switch (variable_get('forward_link_style', 0)) {
