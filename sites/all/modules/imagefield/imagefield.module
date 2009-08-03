@@ -1,5 +1,5 @@
 <?php
-// $Id: imagefield.module,v 1.30.2.6.2.68 2008/09/08 19:29:22 drewish Exp $
+// $Id: imagefield.module,v 1.30.2.6.2.75 2009/03/15 08:47:50 quicksketch Exp $
 
 /**
  * @file
@@ -24,9 +24,6 @@ function imagefield_menu($maycache) {
     );
   }
   elseif ($_SESSION['imagefield']) {
-    // do this variable_get once....
-    $download_method = variable_get('file_downloads', FILE_DOWNLOADS_PUBLIC);
-
     // Iterate over each field stored in session imagefield looking
     // for files in a preview state to add menu items for. This
     // allows us to preview new uploads before a node is submitted.
@@ -38,23 +35,10 @@ function imagefield_menu($maycache) {
         // If the file is not a preview do not display it.
         if (empty($file['preview']))  continue;
 
-        // filepath to pass into _imagefield_preview
-        $filepath = $file['preview'];
-
-        // build url path for private files menu item.
-        if ($download_method == FILE_DOWNLOADS_PRIVATE) {
-          // strip out the file_directory_path. It shouldn't be a part
-          // of the URL with private downloads.
-          if (strpos($file['preview'], file_directory_path()) !== false) {
-            $file['preview'] = trim(substr($file['preview'], strlen(file_directory_path())), '\\/');
-          }
-          $file['preview'] = 'system/files/'. $file['preview'];
-        }
-
         $items[] = array(
           'path' => $file['preview'],
           'callback' => '_imagefield_preview',
-          'callback arguments' => array($filepath),
+          'callback arguments' => array($file['preview']),
           'access' => true,
           'type' => MENU_CALLBACK,
         );
@@ -283,7 +267,20 @@ function imagefield_file_update($node, &$file, $field) {
     if (empty($node->old_vid)) {
       _imagefield_file_delete($file, $field['field_name']);
     }
-    return array();
+    if ($field['multiple']) {
+      // If multiple, return an empty array so the file entry is removed from
+      // the content field table.
+      $file = array();
+    }
+    else {
+      // If not multiple, empty the array so it's updated to 0 in the main
+      // content type table. If we don't do this, a reference to a non existent
+      // file (fid) will be left on the content type table.
+      foreach ($file as $key => $value) {
+        $file[$key] = NULL;
+      }
+    }
+    return $file;
   }
   if ($file['fid'] == 'upload') {
     return imagefield_file_insert($node, $file, $field);
@@ -385,7 +382,12 @@ function imagefield_field($op, $node, $field, &$items, $teaser, $page) {
     case 'view':
       $context = $teaser ? 'teaser' : 'full';
       $formatter = isset($field['display_settings'][$context]['format']) ? $field['display_settings'][$context]['format'] : 'default';
-      if ($field['use_default_image'] && empty($items) ) {
+      foreach ($items as $delta => $item) {
+        if ($item['fid'] == 0) {
+          unset($items[$delta]);
+        }
+      }
+      if ($field['use_default_image'] && empty($items)) {
         $items[0] = $field['default_image'];
       }
       foreach ($items as $delta => $item) {
@@ -610,7 +612,15 @@ function _imagefield_widget_prepare_form_values(&$node, $field, &$items) {
         $widget_image_path = $field['widget']['image_path'];
       }
       imagefield_check_directory($widget_image_path);
+
+      // Create the filepath for the image preview
       $filepath = file_create_filename($file['filename'], file_create_path($widget_image_path));
+      if (variable_get('file_downloads', FILE_DOWNLOADS_PUBLIC) ==  FILE_DOWNLOADS_PRIVATE) {
+        if (strpos($filepath, file_directory_path()) !== FALSE) {
+          $filepath = trim(substr($filepath, strlen(file_directory_path())), '\\/');
+        }
+        $filepath = 'system/files/' . $filepath;
+      }
 
       $file['fid'] = 'upload';
       $file['preview'] = $filepath;
@@ -768,7 +778,7 @@ function _imagefield_widget_form($node, $field, &$items) {
             '#type' => 'textfield',
             '#title' =>  t('Alternate text'),
             '#default_value' => $file['alt'],
-            '#description' => t('Alternate text to be displayed if the image cannot be displayed.'),
+            '#description' => t('This text will be used by screen readers, search engines, or when the image cannot be loaded.'),
             '#maxlength' => 255,
             '#size' => 10,
           );
@@ -908,11 +918,10 @@ function _imagefield_widget_upload_validate($node, $field, $items, $file) {
 
 /**
  * Implementation of hook_field_formatter_info().
-
  */
 function imagefield_field_formatter_info() {
   $formatters = array(
-    'imagefield_default' => array(
+    'default' => array(
       'label' => 'Default',
       'field types' => array('image'),
     ),
@@ -940,12 +949,18 @@ function imagefield_field_formatter_info() {
  * Implementation of hook_field_formatter().
  */
 function imagefield_field_formatter($field, $item, $formatter, $node = null) {
+  // Use a default image if available.
   if (empty($item['fid']) && $field['use_default_image']) {
     $item = $field['default_image'];
   }
-  // If there is no image on the database, use default.
-  if (empty($item['filepath'])) {
+  // If a filepath isn't loaded, see if we can load one.
+  if (!empty($item['fid']) && empty($item['filepath'])) {
     $item = array_merge($item, _imagefield_file_load($item['fid']));
+  }
+
+  // If we don't have a filepath at this point, no point in continuing.
+  if (empty($item['filepath'])) {
+    return '';
   }
 
   $parts = explode('_', $formatter);
@@ -1029,10 +1044,9 @@ function theme_imagefield_image($file, $alt = '', $title = '', $attributes = nul
   }
   if (!$getsize || (list($width, $height, $type, $image_attributes) = @getimagesize($file['filepath']))) {
     $attributes = drupal_attributes($attributes);
-    $path = ($file['fid'] == 'upload') ? $file['preview'] : $file['filepath'];
+    $url = ($file['fid'] == 'upload') ? url($file['preview']) : file_create_url($file['filepath']);
     $alt = empty($alt) ? $file['alt'] : $alt;
     $title = empty($title) ? $file['title'] : $title;
-    $url = file_create_url($path);
     return '<img src="'. check_url($url) .'" alt="'.
         check_plain($alt) .'" title="'. check_plain($title) .'" '. $image_attributes . $attributes .' />';
   }
@@ -1157,8 +1171,8 @@ function imagefield_js() {
   }
   $form = form_builder('imagefield_js', $form);
 
-  $output =  theme('status_messages') . drupal_render($form);
-
+  $output =  theme('status_messages', 'error') . drupal_render($form);
+  
   // We send the updated file attachments form.
   $GLOBALS['devel_shutdown'] = false;
   echo drupal_to_js(array('status' => true, 'data' => $output));
