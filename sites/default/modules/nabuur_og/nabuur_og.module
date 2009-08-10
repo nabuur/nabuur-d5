@@ -14,7 +14,7 @@ function nabuur_og_menu($may_cache) {
 
   if (! $may_cache) {
     if (arg(0) == 'node' && is_numeric(arg(1)) && $node = node_load(array('nid' => arg(1)))) {
-      if ($node->type == 'village' && $node->og_private == 1) {
+      if (($node->type == 'village' || $node->type == 'group') && $node->og_private == 1) {
         $items[] = array(
           'title' => 'publish',
           'path' => 'node' .'/'. arg(1) .'/publish',
@@ -35,7 +35,11 @@ function nabuur_og_publish($nid) {
   }
   
   db_query('UPDATE og SET private = 0 WHERE nid = %d', $nid);
-  db_query('UPDATE node_access n INNER JOIN og_ancestry o ON n.nid = o.nid AND o.group_nid = %d SET n.grant_view = 1 WHERE n.realm = og_public', $nid);
+  $nodes = db_query('SELECT nid FROM {og_ancestry} WHERE group_nid = %d', $nid);
+  while ($node = db_fetch_object($nodes)) {
+    $grants = array(array('realm' => 'og_public', 'gid' => 0, 'grant_view' => 1, 'grant_update' => 0, 'grant_delete' => 0));
+    node_access_write_grants($node, $grants, 'og_public');
+  }
 
   return 'DONE!';
 }
