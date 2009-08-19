@@ -60,6 +60,7 @@ Disallow: /?q=contact/
 Disallow: /?q=logout/
 Disallow: /?q=node/add/
 Disallow: /?q=search/
+Disallow: /?q=user/
 Disallow: /?q=user/password
 Disallow: /?q=user/register
 Disallow: /?q=user/login
@@ -75,6 +76,7 @@ Disallow: /en/contact/
 Disallow: /en/logout/
 Disallow: /en/node/add/
 Disallow: /en/search/
+Disallow: /en/user/
 Disallow: /en/user/register
 Disallow: /en/user/password
 Disallow: /en/user/login
@@ -90,6 +92,7 @@ Disallow: /es/contact/
 Disallow: /es/logout/
 Disallow: /es/node/add/
 Disallow: /es/search/
+Disallow: /es/user/
 Disallow: /es/user/register
 Disallow: /es/user/password
 Disallow: /es/user/login
@@ -105,6 +108,7 @@ Disallow: /fr/contact/
 Disallow: /fr/logout/
 Disallow: /fr/node/add/
 Disallow: /fr/search/
+Disallow: /fr/user/
 Disallow: /fr/user/register
 Disallow: /fr/user/password
 Disallow: /fr/user/login
@@ -120,8 +124,9 @@ Disallow: /nl/contact/
 Disallow: /nl/logout/
 Disallow: /nl/node/add/
 Disallow: /nl/search/
+Disallow: /nl/user/
 Disallow: /nl/user/register
 Disallow: /nl/user/password
 Disallow: /nl/user/login
 # see http://www.sitemaps.org/protocol.php#submit_robots
-Sitemap: http://www.nabuur.com/sitemap.xml
+# Sitemap: http://www.nabuur.com/sitemap.xml
