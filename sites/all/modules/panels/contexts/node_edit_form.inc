@@ -40,7 +40,7 @@ function panels_context_create_node_edit_form($empty, $node = NULL, $conf = FALS
 
   if (!empty($node) && node_access('update', $node)) {
     // This is from node_edit_page cause Drupal still doesn't use fapi right.
-    if ($_POST['op'] == t('Delete')) {
+    if ($_POST['op'] == t('Delete') && !isset($_POST['confirm'])) {
       // Note: we redirect from node/nid/edit to node/nid/delete to make the tabs disappear.
       if ($_REQUEST['destination']) {
         $destination = drupal_get_destination();
