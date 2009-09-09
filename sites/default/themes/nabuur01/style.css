@@ -1022,3 +1022,22 @@ div.field-field-step div.field-items{
   width: 90%;
   margin-bottom: 20px;
 }
+
+/* style urgent-tasks table on urgent_tasks page */
+
+.urgent_tasks-frontpage table th.view-field-term-image-tid {
+  width: 10%;
+}
+
+.urgent_tasks-frontpage table th.view-field-node-title {
+  width: 57%;
+}
+
+.urgent_tasks-frontpage table th.view-field-og-node-data-title {
+  width: 15%;
+}
+
+.urgent_tasks-frontpage table th.view-field-node-created {
+  width: 17%;
+}
+
