@@ -310,7 +310,8 @@ function _phptemplate_links_inline($links, $attributes) {
 
 function phptemplate_views_more($url) {
   $more = 'more';
-  if ($url == 'urgent_tasks') {
+  if ($url == 'urgent_tasks' && arg(0) == 'user') {
+    $url = 'volunteer-opportunities';
     $more = 'more volunteering opportunities';
   }
   return '<div align="right" class="views_more"><ul><li>' . l(t($more), $url) . '</li></ul></div>';
