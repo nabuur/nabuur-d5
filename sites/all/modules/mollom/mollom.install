@@ -1,5 +1,10 @@
 <?php
-// $Id: mollom.install,v 1.1.2.4 2008/11/01 17:14:01 dries Exp $
+// $Id: mollom.install,v 1.1.2.5 2009/07/30 23:41:28 davereid Exp $
+
+/**
+ * @file
+ * Install and uninstall functions as well as schema definition for the Mollom module.
+ */
 
 /**
  * Implementation of hook_install().
@@ -16,7 +21,7 @@ function mollom_install() {
         INDEX (session)
       );");
       break;
-      
+
     case 'pgsql':
       db_query("CREATE TABLE {mollom} (
         did varchar(255) NOT NULL default '',
