@@ -1,0 +1,55 @@
+<?php
+// $Id: flag_actions.install,v 1.1.4.8 2008/09/30 03:09:42 quicksketch Exp $
+
+/**
+ * @file
+ * Flag actions install file.
+ */
+
+/**
+ * Implementation of hook_install().
+ */
+function flag_actions_install() {
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      db_query("CREATE TABLE {flag_actions} (
+        aid int(11) NOT NULL auto_increment,
+        fid smallint(6) default NULL,
+        event varchar(255) default NULL,
+        threshold smallint(6) default NULL,
+        callback varchar(255) NOT NULL default '',
+        parameters longtext NOT NULL,
+        PRIMARY KEY (aid)
+      ) /*!40100 DEFAULT CHARACTER SET utf8 */;");
+      break;
+    case 'pgsql':
+      db_query("CREATE TABLE {flag_actions} (
+        aid serial,
+        fid smallint default NULL,
+        event varchar(255) default NULL,
+        threshold smallint default NULL,
+        callback varchar(255) NOT NULL default '',
+        parameters text NOT NULL,
+        PRIMARY KEY (aid)
+      )");
+      break;
+  }
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function flag_actions_uninstall() {
+  db_query("DROP TABLE {flag_actions}");
+}
+
+/**
+ * We don't support Actions 1.x.
+ */
+function flag_actions_enable() {
+  if (drupal_get_installed_schema_version('actions', TRUE) < 10) {
+    drupal_set_message(t("The <em>Flag actions</em> module supports the <a href='@actions-url'>Actions module in its version 2.x</a> only. You are using Actions 1.x and you won't be able to enjoy Flag's actions support.", array('@actions-url' => 'http://drupal.org/project/actions')), 'error');
+    module_disable(array('flag_actions'));
+  }
+}
