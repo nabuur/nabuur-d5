@@ -66,6 +66,11 @@
         <p>
           <!-- @todo Move footer PHP to template.php or nabuur module -->
           <?php
+            $social_media = array(
+              l(t('Follow us on Twitter'), 'http://twitter.com/nabuur', array(), NULL, NULL, TRUE, FALSE),
+              l(t('Join our LinkedIn Group'), 'http://www.linkedin.com/groups?gid=81324', array(), NULL, NULL, TRUE, FALSE),
+              l(t('Become a fan on Facebook'), 'http://www.facebook.com/nabuur', array(), NULL, NULL, TRUE, FALSE),
+            );
             $about = l(t('About NABUUR'), "/about-nabuur");
             $faq = l(t('FAQ'), "/frequently-asked-questions");
             $privacy = l(t('Privacy'), "/privacy");
@@ -73,7 +78,8 @@
             $contact = l(t('Contact'), "/contact");
             $sitemap = l(t('Sitemap'), "/sitemap");
             $volunteering = t('Volunteering in'). ' '. $continents;
-            print "$about | $faq | $contact<br/>";
+            print implode(' | ', $social_media) .'<br /><br />';
+            print "$about | $faq | $contact<br />";
             print "$volunteering<br />";
             // Todo: sitemap
             print "$feedback | $privacy<br />";

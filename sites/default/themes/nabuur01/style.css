@@ -299,18 +299,17 @@ div.messages a, div.messages :link, div.messages :visited {
   background-color: #0D6147;
   border-top:1px solid #FFFFFF;
   clear: both;
-  height: 72px;
   margin: 10px auto;
-  padding-top: 10px;
   width: 100%;
 }
 
 #footer p {
+  padding-top: 10px;
+  padding-bottom: 20px;
   color:#FFFFFF;
   text-align:center;
-  font-size:1.2em;
+  font-size:1.1em;
   line-height:1.25;
-  margin-bottom:1em;
 }
 
 #footer p a {
