@@ -21,24 +21,142 @@ function nabuur_stats_menu($may_cache) {
       'access' => user_access('administer site configuration'),
     );
     $items[] = array(
-      'path' => 'admin/logs/nabuur/villages',
+      'path' => 'admin/logs/nabuur/villages/reps',
       'title' => t('Report: Villages, Local Reps and Facilitators'),
       'description' => t('Prints a report of all villages, with their local reps and facilitators names'),
-      'callback' => 'nabuur_stats_report_villages',
+      'callback' => 'nabuur_stats_report_villages_reps',
+      'access' => user_access('administer site configuration'),
+    );
+    $items[] = array(
+      'path' => 'admin/logs/nabuur/villages/year',
+      'title' => t('Report: Villages active this year'),
+      'description' => t('Prints a report of all villages with new (local) content this year'),
+      'callback' => 'nabuur_stats_report_villages_year',
+      'access' => user_access('administer site configuration'),
+    );
+    $items[] = array(
+      'path' => 'admin/logs/nabuur/task/summary',
+      'title' => t('Report: Overview of open tasks'),
+      'description' => t('Prints a report of all open tasks'),
+      'callback' => 'nabuur_stats_report_tasks_summary',
       'access' => user_access('administer site configuration'),
     );
   }
   return $items;
 }
 
-function nabuur_stats_report_villages() {
-  $csv = arg(4) == 'csv' ? TRUE : FALSE;
+function nabuur_stats_report_tasks_summary() {
+  $csv = arg(5) == 'csv' ? TRUE : FALSE;
+  if ($csv) {
+    $output = "'status', 'project', 'created', 'tasks', 'discussion'\n";
+  }
+  else {
+    $output = '<p>'. t('List of <em>public</em> villages with posts this year.'). '</p>';
+    $output .= '<p>'. l(t('Download as CSV file.'), 'admin/logs/nabuur/task/summary/csv') .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
+    $header = array('status', 'project', 'created', 'tasks', 'discussion');
+  }
+
+  $query = "SELECT td.name as state, pr.nid, pr.title, pr.created, count(ta.nid) as tasks, sum(di.comment_count) as comments 
+            FROM node pr 
+            inner join term_node te on pr.nid = te.nid 
+            left join term_data td on td.tid = te.tid 
+            left join relativity ta on ta.parent_nid = pr.nid 
+            left join node_comment_statistics di on ta.nid = di.nid 
+            where te.tid in (55, 165, 166) 
+            group by pr.nid 
+            order by pr.created DESC";
+ 
+  $result = db_query($query);
+
+  $villages = array();
+  while ($row = db_fetch_array($result)) {
+    if ($csv) {
+      $villages[$row['nid']]['state'] = $row['state'];
+      $villages[$row['nid']]['title'] = $row['title'];
+      $villages[$row['nid']]['created'] = date('c', $row['created']);
+      $villages[$row['nid']]['tasks'] = $row['tasks'];
+      $villages[$row['nid']]['comments'] = $row['comments'];
+    }
+    else {
+      $villages[$row['nid']]['state'] = $row['state'];
+      $villages[$row['nid']]['title'] = l($row['title'], 'node/'. $row['nid']);
+      $villages[$row['nid']]['created'] = date('c', $row['created']);
+      $villages[$row['nid']]['tasks'] = $row['tasks'];
+      $villages[$row['nid']]['comments'] = $row['comments'];
+    }
+  }
+
+  if ($csv) {
+    foreach ($villages as $village) {
+      $output .= implode(', ', $village) ."\n";
+    }
+    drupal_set_header('Content-Type: text/csv');
+    print $output;
+    exit;
+  }
+  else {
+    $output .= theme('table', $header, $villages);
+  }
+
+  return $output;
+}
+
+function nabuur_stats_report_villages_year() {
+  $csv = arg(5) == 'csv' ? TRUE : FALSE;
+  if ($csv) {
+    $output = "'village', 'node count'\n";
+  }
+  else {
+    $output = '<p>'. t('List of <em>public</em> villages with posts this year.'). '</p>';
+    $output .= '<p>'. l(t('Download as CSV file.'), 'admin/logs/nabuur/villages/year/csv') .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
+    $header = array('village', 'post count');
+  }
+
+  $query = "SELECT v.nid, v.title, count(n.nid) as posts FROM og_ancestry o 
+            INNER JOIN node n ON o.nid = n.nid 
+            INNER JOIN node v ON o.group_nid = v.nid 
+            WHERE n.created > 1230678000 AND n.type != 'news_feeditem' 
+              AND v.status = 1 
+            GROUP BY v.nid 
+            ORDER BY count(n.nid) DESC";
+ 
+  $result = db_query($query);
+
+  $villages = array();
+  while ($row = db_fetch_array($result)) {
+    if ($csv) {
+      $villages[$row['nid']]['title'] = $row['title'];
+      $villages[$row['nid']]['posts'] = $row['posts'];
+    }
+    else {
+      $villages[$row['nid']]['title'] = l($row['title'], 'node/'. $row['nid']);
+      $villages[$row['nid']]['posts'] = $row['posts'];
+    }
+  }
+
+  if ($csv) {
+    foreach ($villages as $village) {
+      $output .= implode(', ', $village) ."\n";
+    }
+    drupal_set_header('Content-Type: text/csv');
+    print $output;
+    exit;
+  }
+  else {
+    $output .= theme('table', $header, $villages);
+  }
+
+  return $output;
+}
+
+function nabuur_stats_report_villages_reps() {
+  $csv = arg(5) == 'csv' ? TRUE : FALSE;
   if ($csv) {
     $output = "'village', 'local rep', 'facilitators'\n";
   }
   else {
     $output = '<p>'. t('List of <em>public</em> villages with their local reps and facilitators.'). '</p>';
-    $output .= '<p>'. l(t('Download as CSV file.'), 'admin/logs/nabuur/villages/csv') .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
+    $output .= '<p>'. l(t('Download as CSV file.'), 'admin/logs/nabuur/villages/reps/csv') .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
     $header = array('village', 'local rep', 'facilitators');
   }
 
