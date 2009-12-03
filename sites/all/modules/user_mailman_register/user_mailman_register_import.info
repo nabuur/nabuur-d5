@@ -1,0 +1,10 @@
+; $Id: user_mailman_register_import.info,v 1.1.4.2 2009/01/26 16:53:01 samuelet Exp $
+name = User Mailman Register Import Tool
+description = "Import a mailman dumpdb file and synchronize user subscriptions status and password."
+dependencies = mailman_manager user_mailman_register
+package = MailmanManager
+; Information added by drupal.org packaging script on 2009-10-02
+version = "5.x-2.1"
+project = "user_mailman_register"
+datestamp = "1254471404"
+

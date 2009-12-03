@@ -1,0 +1,11 @@
+; $Id: user_mailman_register.info,v 1.2.2.1 2009/01/18 11:02:52 samuelet Exp $
+name = User Mailman Register 
+description = "This is a module for mailman subscribing which extends the Mailman manager module features."
+package = MailmanManager
+dependencies = mailman_manager
+
+; Information added by drupal.org packaging script on 2009-10-02
+version = "5.x-2.1"
+project = "user_mailman_register"
+datestamp = "1254471404"
+
