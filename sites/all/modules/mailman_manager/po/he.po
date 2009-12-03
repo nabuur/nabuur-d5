@@ -1,0 +1,287 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Mailman Manager Drupal module\n"
+"POT-Creation-Date: 2008-11-28 10:16+0200\n"
+"PO-Revision-Date: 2008-11-28 10:45+0200\n"
+"Last-Translator: Haggai Eran <haggai.eran@gmail.com>\n"
+"Language-Team: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+"X-Poedit-Language: Hebrew\n"
+"X-Poedit-Country: Israel\n"
+"X-Poedit-SourceCharset: utf-8\n"
+
+#: mailman_manager.module:17;21
+msgid "Utilities related to Mailman manager, subscription system and database for Mailman mailing lists."
+msgstr "כלים הקשורים למנהל רשימות התפוצה Mailman, מערכת לרישום ומסד נתונים עבור רשימות Mailman."
+
+#: mailman_manager.module:22
+msgid "This tool works using the mailman email interface. All commands sent by this module are also BCC'ed to the list admin. One can optionally specify the web interface and/or the web archive of each list. The module can not know if a user is previously subscribed but allows the user to specify a password which can then be used to hook into an existing account."
+msgstr "כלי זה משתמש בממשק הדואר האלקטרוני של Mailman. כל הפקודות הנשלחות על ידי כלי זה ישלחו בהעתק מוסתר (BCC) למנהל הרשימה. ניתן להגדיר ממשק מבוסס דפדפן ו/או ארכיון לכל רשימה. הרכיב אינו מודע האם משתמש נרשם בעבר לרשימה, אך מאפשר למשתמש לרשום את הסיסמה שלו כדי להתחבר לחשבון קיים."
+
+#: mailman_manager.module:37;58;64;217
+msgid "Mailing Lists"
+msgstr "רשימות תפוצה"
+
+#: mailman_manager.module:37
+msgid "Subscribe to mailing lists"
+msgstr "הרשמה לרשימות תפוצה"
+
+#: mailman_manager.module:66
+msgid "Allow users to subscribe and change their subscriptions to Mailman mailing lists."
+msgstr "אפשר למשתמשים להרשם ולשנות את מצב ההרשמה שלהם לרשימות תפוצה של Mailman."
+
+#: mailman_manager.module:71
+msgid "Add New"
+msgstr "הוסף חדשה"
+
+#: mailman_manager.module:73;79;86
+msgid "Add new Mailman mailing lists."
+msgstr "הוספת רשימת תפוצה חדשה של Mailman."
+
+#: mailman_manager.module:77
+msgid "Edit Mailing list"
+msgstr "ערוך רשימת תפוצה"
+
+#: mailman_manager.module:84
+msgid "Delete Mailing list"
+msgstr "מחק רשימת תפוצה"
+
+#: mailman_manager.module:109
+msgid "You must be an authorized member to subscribe to mailing lists"
+msgstr "עליך להיות חבר רשום באתר כדי להרשם לרשימת תפוצה"
+
+#: mailman_manager.module:120
+msgid "The following email address will be subscribed to the email lists:"
+msgstr "כתובת הדואר האלקטרוני להלן תירשם לרשימת התפוצה"
+
+#: mailman_manager.module:122
+msgid "If you would like to have a different email address subscribed, change your email address in the account settings tab."
+msgstr "אם ברצונך לרשום כתובת אחרת, אנא שנה את כתובת הדואר האלקטרוני שלך בדף הגדרות החשבון"
+
+#: mailman_manager.module:127
+msgid "There are no lists available for subscription."
+msgstr "אין רשימות תפוצה להרשמה"
+
+#: mailman_manager.module:140;147
+msgid "Subscribe for digest (receive emails in a bundle)"
+msgstr "הרשמה לתקציר (קבלת הודעות מקובצות)"
+
+#: mailman_manager.module:141;148
+msgid "Subscribe for all Mail (normal delivery)"
+msgstr "הרשמה לכל ההודעות (שליחה רגילה)"
+
+#: mailman_manager.module:145
+msgid "Unsubscribe"
+msgstr "ביטול הרשמה"
+
+#: mailman_manager.module:146
+msgid "No mail (temporarily disable delivery)"
+msgstr "ללא דואר (ביטול זמני של משלוח ההודעות)"
+
+#: mailman_manager.module:149
+msgid "Mail password"
+msgstr "סיסמה"
+
+#: mailman_manager.module:154
+msgid "Change your subscription:"
+msgstr "שנה מצב הרשמה"
+
+#: mailman_manager.module:160
+msgid "Password for %listname (optional)"
+msgstr "סיסמה עבור %listname (לא חובה)"
+
+#: mailman_manager.module:167
+msgid "Visit"
+msgstr "בקר"
+
+#: mailman_manager.module:169
+msgid "Mailman Interface"
+msgstr "ממשק Mailman"
+
+#: mailman_manager.module:172
+msgid "or"
+msgstr "או"
+
+#: mailman_manager.module:175
+msgid "archive"
+msgstr "ארכיון"
+
+#: mailman_manager.module:182
+msgid "Your current email address is not subscribed to %status list(s)."
+msgstr "כתובת הדואר האלקטרוני הנוכחית שלך אינה רשומה ל-%status רשימות."
+
+#: mailman_manager.module:185
+msgid "Your current email address is currently subscribed to all lists."
+msgstr "כתובת הדואר האלקטרוני הנוכחית שלך רשומה לכל הרשימות."
+
+#: mailman_manager.module:250
+msgid "Your mailing list subscriptions have been updated"
+msgstr "מצב הרשמתך עודכן"
+
+#: mailman_manager.module:286
+msgid "Are you sure?"
+msgstr "האם את/ה בטוח/ה?"
+
+#: mailman_manager.module:289
+msgid "Delete !listname"
+msgstr "מחק !listname"
+
+#: mailman_manager.module:301
+msgid "Successfully deleted Mailman list %listid"
+msgstr "רשימת Mailman‏ %listid נמחקה בהצלחה"
+
+#: mailman_manager.module:340
+msgid "Mailing List 'request' address"
+msgstr "כתובת 'request' של רשימת התפוצה"
+
+#: mailman_manager.module:342
+msgid "Commands are sent here"
+msgstr "פקודות נשלחות לכאן"
+
+#: mailman_manager.module:347
+msgid "Mailing List 'admin' address"
+msgstr "כתובת מנהל ('admin') של רשימת התפוצה"
+
+#: mailman_manager.module:349
+msgid "(Optional. admin is used for BCC)"
+msgstr "(לא חובה, הודעות נשלחות למנהל בעותק מוסתר BCC)"
+
+#: mailman_manager.module:353
+msgid "Mailing list web address for users"
+msgstr "כתובת הדפדפן עבור משתמשים של רשימת התפוצה"
+
+#: mailman_manager.module:355
+msgid "http://..."
+msgstr ""
+
+#: mailman_manager.module:355;361
+msgid "Leave empty if hidden."
+msgstr "השאר ריק אם מוסתר."
+
+#: mailman_manager.module:359
+msgid "Mailing list web archive address for users"
+msgstr "כתובת ארכיון הרשימה עבור משתמשים"
+
+#: mailman_manager.module:361
+msgid "http://.... "
+msgstr ""
+
+#: mailman_manager.module:367
+msgid "Save"
+msgstr "שמור"
+
+#: mailman_manager.module:367
+msgid "Add"
+msgstr "הוסף"
+
+#: mailman_manager.module:382
+msgid "\"%reqaddress\" is not a valid email address"
+msgstr "\"%reqaddress\" אינה כתובת דואר אלקטרוני תקינה"
+
+#: mailman_manager.module:386
+msgid "\"%adminaddress\" is not a valid email address"
+msgstr "\"%adminadress\" אינה כתובת דואר אלקטרוני תקינה"
+
+#: mailman_manager.module:390
+msgid "\"%webaddress\" is not a valid url"
+msgstr "\"%webaddress\" אינה כתובת url תקינה"
+
+#: mailman_manager.module:394
+msgid "\"%webarchive\" is not a valid url"
+msgstr "\"%webarchive\" אינה כתובת url תקינה"
+
+#: mailman_manager.module:431
+msgid "New Mailman list %name successfully created"
+msgstr "רשימת Mailman חדשה %name נוצרה בהצלחה"
+
+#: mailman_manager.module:436
+msgid "Error in creating new Mailman list %name"
+msgstr "שגיאה ביצירת רשימת התפוצה %name"
+
+#: mailman_manager.module:452
+msgid "ID"
+msgstr ""
+
+#: mailman_manager.module:453
+msgid "Name"
+msgstr "שם"
+
+#: mailman_manager.module:454
+msgid "Request Address"
+msgstr "כתובת בקשה"
+
+#: mailman_manager.module:468
+msgid "Edit"
+msgstr "ערוך"
+
+#: mailman_manager.module:469
+msgid "Delete"
+msgstr "מחק"
+
+#: mailman_manager.module:476
+msgid "Add new mailing list"
+msgstr "הוסף רשימת תפוצה חדשה"
+
+#: mailman_manager.module:535
+msgid "User %uid unsubscribed from list %lid"
+msgstr "המשתמש %uid נמחק מן הרשימה %lid"
+
+#: mailman_manager.module:545
+msgid "Subscription to list %lid for user %uid changed to no mail"
+msgstr "ההרשמה של המשתמש %uid לרשימה %lid שונתה למצב ללא דואר"
+
+#: mailman_manager.module:559
+msgid "Subscription to list %lid for user %uid changed to digest"
+msgstr "ההרשמה של המשתמש %uid לרשימה %lid שונתה למצב תקציר"
+
+#: mailman_manager.module:574
+msgid "Subscription to list %lid for user %uid changed to all mail"
+msgstr "ההרשמה של המשתמש %uid לרשימה %lid שונתה למצב רגיל"
+
+#: mailman_manager.module:587
+msgid "Password for list %lid for user %uid sent by mail"
+msgstr "הסיסמה לרשימה %lid עבור המשתמש %uid נשלחה בדואר אלקטרוני"
+
+#: mailman_manager.module:621
+msgid "New subscription to list %lid for user %uid completed successfully."
+msgstr "ההרשמה של המשתמש %uid לרשימה %lid הושלמה בהצלחה."
+
+#: mailman_manager.module:625
+msgid "New subscription to list %lid for user %uid failed."
+msgstr "ההרשמה של המשתמש %uid לרשימה %lid נכשלה."
+
+#: mailman_manager.module:648
+msgid "Mail command sent to Mailman to: %commandaddress. Command: %command"
+msgstr "פקודה נשלחה ל-Mailman לכתובת %commandaddress.הפקודה:%command"
+
+#: mailman_manager.module:302;432;437;536;546;560;575;588;622;626;649
+msgid "mailman man"
+msgstr ""
+
+#: mailman_manager.module:47
+msgid "access mailman_manager"
+msgstr ""
+
+#: mailman_manager.module:47
+msgid "administer mailman_manager"
+msgstr ""
+
+#: mailman_manager.module:0
+msgid "mailman_manager"
+msgstr ""
+
+#: mailman_manager.info:0
+msgid "Mailman Manager"
+msgstr "מנהל Mailman"
+
+#: mailman_manager.info:0
+msgid "Allows members to subscribe and change their subscriptions to Mailman mailing lists."
+msgstr "מאפשר לחברים להרשם ולשנות מצב הרשמתם לרשימות תפוצה של Mailman."
+
+#: mailman_manager.info:0
+msgid "MailmanManager"
+msgstr ""
+
