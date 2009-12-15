@@ -41,6 +41,20 @@ function nabuur_stats_menu($may_cache) {
       'callback' => 'nabuur_stats_report_tasks_summary',
       'access' => user_access('administer site configuration'),
     );
+    $items[] = array(
+      'path' => 'admin/logs/nabuur/worldschool/students',
+      'title' => t('Report: Overview of worldschool students and posts'),
+      'description' => t('Prints a report of worldschool students and posts in worldschool villages'),
+      'callback' => 'nabuur_stats_report_worldschool_students',
+      'access' => user_access('administer site configuration'),
+    );
+    $items[] = array(
+      'path' => 'nabuur/worldschool/students',
+      'title' => t('Overview of worldschool students and posts'),
+      'description' => t('Prints a page of worldschool students and posts in worldschool villages'),
+      'callback' => 'nabuur_stats_report_worldschool_students_page',
+      'access' => user_access('access content'),
+    );
   }
   return $items;
 }
@@ -104,15 +118,15 @@ function nabuur_stats_report_tasks_summary() {
 function nabuur_stats_report_villages_year() {
   $csv = arg(5) == 'csv' ? TRUE : FALSE;
   if ($csv) {
-    $output = "'village', 'node count'\n";
+    $output = "'started', 'village', 'node count'\n";
   }
   else {
     $output = '<p>'. t('List of <em>public</em> villages with posts this year.'). '</p>';
     $output .= '<p>'. l(t('Download as CSV file.'), 'admin/logs/nabuur/villages/year/csv') .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
-    $header = array('village', 'post count');
+    $header = array('started', 'village', 'post count');
   }
 
-  $query = "SELECT v.nid, v.title, count(n.nid) as posts FROM og_ancestry o 
+  $query = "SELECT v.nid, FROM_UNIXTIME(v.created,'%%Y-%%m-%%d ') AS started, v.title, count(n.nid) as posts FROM og_ancestry o 
             INNER JOIN node n ON o.nid = n.nid 
             INNER JOIN node v ON o.group_nid = v.nid 
             WHERE n.created > 1230678000 AND n.type != 'news_feeditem' 
@@ -125,10 +139,12 @@ function nabuur_stats_report_villages_year() {
   $villages = array();
   while ($row = db_fetch_array($result)) {
     if ($csv) {
+      $villages[$row['nid']]['started'] = $row['started'];
       $villages[$row['nid']]['title'] = $row['title'];
       $villages[$row['nid']]['posts'] = $row['posts'];
     }
     else {
+      $villages[$row['nid']]['started'] = $row['started'];
       $villages[$row['nid']]['title'] = l($row['title'], 'node/'. $row['nid']);
       $villages[$row['nid']]['posts'] = $row['posts'];
     }
@@ -219,18 +235,32 @@ function nabuur_stats_settings() {
 /**
  * Implementation of hook_block.
  */
-function nabuur_stats_block($op = 'list', $delta = 'en') {
+function nabuur_stats_block($op = 'list', $delta = 0) {
   switch ($op) {
     case 'list':
+      $blocks = array();
+
       $blocks[0]['info'] = t('Nabuur stats');
+      // Auto-enable the group blocks for fresh installations.
+      $blocks[0]['status'] = 1;
+      $blocks[0]['weight'] = 0;
+
+      $blocks[1]['info'] = t('Worldschool messages');
+      $blocks[1]['weight'] = 0;
+
       return $blocks;
       break;
     case 'view':
-      if (user_access('access content')) {
-        $block['subject'] = t('NABUUR today');
-        $stats = nabuur_stats_get();
-        $block['content'] = theme('nabuur_stats', $stats);
-        return $block;
+    switch ($delta) {
+      case 0:
+        if (user_access('access content')) {
+          $block['subject'] = t('NABUUR today');
+          $stats = nabuur_stats_get();
+          $block['content'] = theme('nabuur_stats', $stats);
+          return $block;
+        }
+      case 1:
+        return nabuur_stats_block_worldschool_students();
       }
       break;
   }
@@ -303,4 +333,198 @@ function theme_nabuur_stats($stats) {
   $output .= '</p>';
 
   return $output;
+}
+
+/**
+ * Report worldschool students and their posts in worldschool villages
+ *
+ * @group themeable
+ */
+function nabuur_stats_report_worldschool_students() {
+  $all = arg(5) == 'all' ? TRUE : FALSE;
+  if ($all) {
+    $csv = arg(6) == 'csv' ? TRUE : FALSE;
+    $path = 'admin/logs/nabuur/worldschool/students/all/csv';
+    $other_page = '<p>'. l(t('Here is the page with messages in worldschool villages.'), 'admin/logs/nabuur/worldschool/students') .'</p>';
+  }
+  else {
+    $csv = arg(5) == 'csv' ? TRUE : FALSE;
+    $path = 'admin/logs/nabuur/worldschool/students/csv';
+    $other_page = '<p>'. l(t('Here is the page with messages in ALL villages.'), 'admin/logs/nabuur/worldschool/students/all') .'</p>';
+  }
+  if ($csv) {
+    $output = "'student', 'village', 'post', 'post date', 'post'\n";
+  }
+  else {
+    $output = '<p>'. t('List of worldschool students and their posts in (worldschool) villages.'). '</p>';
+    $output .= '<p>'. l(t('Download as CSV file.'), $path) .' '. t('This can be opened in a speadsheet with commas seperating the columns.') .'</p>'; // drupal table output...
+    $output .= $other_page;
+    $header = array('student', 'village', 'post', 'post date', 'post');
+  }  
+
+  $students = _nabuur_stats_report_worldschool_students($all, $csv);
+
+  if ($csv) {
+    foreach ($students as $student) {
+      $output .= implode(', ', $student) ."\n";
+    }
+    drupal_set_header('Content-Type: text/csv');
+    print $output;
+    exit;
+  }
+  else {
+    $output .= theme('table', $header, $students);
+  }
+
+  return $output;
+}
+
+function nabuur_stats_report_worldschool_students_page() {
+  $header = array(array('data' => 'student', 'class' => 'ws_student'), 
+                  array('data' => 'village', 'class' => 'ws_village'), 
+                  array('data' => 'post', 'class' => 'ws_post'),
+                  array('data' => 'post date', 'class' => 'ws_date'),
+                 );
+// add a page back function
+  $output = '<p>
+             <FORM><INPUT type="button" value="Back to NABUUR 4 Students group" onClick="history.back()"></FORM>
+             </p>';  
+
+  $students = _nabuur_stats_report_worldschool_students(TRUE, FALSE, FALSE);
+  $output .= theme('table', $header, $students);
+
+  return $output;
+}
+
+
+function nabuur_stats_block_worldschool_students() {
+  $arg2 = arg(2);
+  if ((arg(1) != 29305) && empty($arg2)) {
+    return NULL;
+  }
+  $header = array('student', 'village', 'post', 'post date');
+
+  $students = _nabuur_stats_report_worldschool_students(TRUE, FALSE, FALSE);
+// We only need first 5 here
+  $students_5 = array_slice($students, 0, 5);
+
+  $block['content'] = theme('table', $header, $students_5);
+  $block['content'] .= '<div class="views_more" align="right"><ul><li>'.
+                         l(t(more), 'nabuur/worldschool/students')
+                         ."</li></ul></div>";
+
+  return $block;
+}
+
+/**
+ * Help function for report worldschool students and their posts in worldschool villages
+ *
+ * @group themeable
+ */
+function _nabuur_stats_report_worldschool_students($all = FALSE, $csv = FALSE, $logs = TRUE) {
+// Get worldschool students
+  $query = "SELECT node.title as user_realname, user.uid AS user_uid, user.name AS user_account, user.created as user_created FROM node node
+            LEFT JOIN flag_content flag_content_worldschool 
+              ON node.nid = flag_content_worldschool.content_id 
+              AND flag_content_worldschool.fid = '2'
+            LEFT JOIN users user ON user.uid = node.uid
+            WHERE ( flag_content_worldschool.uid IS NOT NULL ) 
+              AND ( node.type IN ( 'individual_profile' ) )";
+
+  $result = db_query($query);
+
+  $users = array();
+  $user_nids = "";
+  while ($row = db_fetch_array($result)) {
+    if ($csv) {
+      $users[$row['user_uid']]['realname'] = $row['user_realname'];
+//      $users[$row['user_nid']]['created'] = $row['user_created'];
+    }
+    else {
+      $users[$row['user_uid']]['realname'] = l($row['user_realname'], 'user/'. $row['user_uid'] .'/profile');
+//      $users[$row['user_nid']]['created'] = $row['user_created'];
+    }
+    if ($user_uids == "") {
+      $user_uids = $row['user_uid'];
+    }
+    else {
+      $user_uids .= ", ". $row['user_uid'];
+    }
+  }
+
+// distinguish between post in all villages or only worldschool villages 
+  if ( $all ) {
+    $join = "";
+    $where = " WHERE node.type IN ( 'village' ) ";
+  }
+  else {
+    $join = " LEFT JOIN flag_content flag_content_worldschool 
+                ON node.nid = flag_content_worldschool.content_id 
+                AND flag_content_worldschool.fid = '2' ";
+    $where = " WHERE node.type IN ( 'village' ) 
+                 AND flag_content_worldschool.uid IS NOT NULL ";
+  }
+// Get villages
+  $query = "SELECT node.title as village_name, node.nid AS village_nid FROM node node ". $join . $where;
+
+  $result = db_query($query);
+
+  $villages = array();
+  $village_nids = "";
+  while ($row = db_fetch_array($result)) {
+    if ($csv) {
+      $villages[$row['village_nid']]['village_name'] = $row['village_name'];
+    }
+    else {
+      $villages[$row['village_nid']]['village_name'] = l($row['village_name'], 'node/'. $row['village_nid']);
+    }
+    if ($village_nids == "") {
+      $village_nids = $row['village_nid'];
+    }
+    else {
+      $village_nids .= ", ". $row['village_nid'];
+    }
+  }
+
+  $join = " JOIN og_ancestry oa ON oa.nid = node.nid
+            JOIN node_revisions nrev ON nrev.nid = node.nid ";
+  $where = " WHERE node.type IN ( 'task_discussion' )
+               AND node.uid IN ( ". $user_uids . " ) ";
+// distinguish between post in all villages or only worldschool villages 
+  if ( ! $all ) {
+    $where .= " AND oa.group_nid IN ( ". $village_nids ." ) ";
+  }
+
+// Get task_discussions from worldschool students in worldschool villages
+  $query = "SELECT node.uid AS post_uid, node.title as post_title, nrev.body AS post_body, 
+              node.nid AS post_nid, node.created AS post_created, oa.group_nid AS post_village_nid FROM node node ". 
+              $join . $where ." ORDER BY node.created DESC"; 
+
+  $result = db_query($query);
+
+  $students = array();
+  while ($row = db_fetch_array($result)) {
+    if ($csv) {
+      $students[$row['post_nid']]['realname'] = $users[$row['post_uid']]['realname'];
+      $students[$row['post_nid']]['village_name'] = $villages[$row['post_village_nid']]['village_name'];
+      // $students[$row['post_nid']]['task_title'] = "Not yet.....";
+      $students[$row['post_nid']]['post_title'] = $row['post_title'];
+      $students[$row['post_nid']]['post_created'] = format_date($row['post_created'], 'custom', 'd/M/Y');
+      if ($logs) {
+        $students[$row['post_nid']]['post_body'] = check_markup($row['post_body'], $format = FILTER_FORMAT_DEFAULT, $check = FALSE);
+      }
+    }
+    else {
+      $students[$row['post_nid']]['realname'] = $users[$row['post_uid']]['realname'];
+      $students[$row['post_nid']]['village_name'] = $villages[$row['post_village_nid']]['village_name'];
+      // $students[$row['post_nid']]['task_title'] = "Not yet.....";
+      $students[$row['post_nid']]['post_title'] = l($row['post_title'], 'node/'. $row['post_nid']);;
+      $students[$row['post_nid']]['post_created'] = format_date($row['post_created'], 'custom', 'd/M/Y');
+      if ($logs) {
+        $students[$row['post_nid']]['post_body'] = check_markup($row['post_body'], $format = FILTER_FORMAT_DEFAULT, $check = FALSE);
+      }
+    }
+  }
+
+  return $students;
 }
