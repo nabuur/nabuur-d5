@@ -1,0 +1,123 @@
+# $Id: fasttoggle.pot,v 1.1.2.1 2007/06/19 19:20:46 timcn Exp $
+#
+# LANGUAGE translation of Drupal (general)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from file: fasttoggle.module,v 1.4.2.8 2007/06/19 19:00:17 timcn
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2007-06-19 21:07+0200\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: fasttoggle.module:23
+msgid "toggle"
+msgstr ""
+
+#: fasttoggle.module:38;52
+msgid "status"
+msgstr ""
+
+#: fasttoggle.module:64
+msgid "Fasttoggle"
+msgstr ""
+
+#: fasttoggle.module:65;87
+msgid "Configure what fast toggling options are available."
+msgstr ""
+
+#: fasttoggle.module:101
+msgid "Posts"
+msgstr ""
+
+#: fasttoggle.module:102
+msgid "Select what options for fast toggling of post settings are available."
+msgstr ""
+
+#: fasttoggle.module:108;133;156
+msgid "Available settings"
+msgstr ""
+
+#: fasttoggle.module:110;135
+msgid "Status <small>(published/unpublished)</small>"
+msgstr ""
+
+#: fasttoggle.module:111
+msgid "Sticky <small>(stays at the top of listings)</small>"
+msgstr ""
+
+#: fasttoggle.module:112
+msgid "Promoted <small>(visible on the front page)</small>"
+msgstr ""
+
+#: fasttoggle.module:118;141
+msgid "Configure access restrictions for these settings on the <a href=\"@url\">access control</a> page."
+msgstr ""
+
+#: fasttoggle.module:127
+msgid "Select what options for fast toggling of comment settings are available."
+msgstr ""
+
+#: fasttoggle.module:150
+msgid "Select what options for fast toggling of user settings are available."
+msgstr ""
+
+#: fasttoggle.module:158
+msgid "Status <small>(unblocked/blocked)</small>"
+msgstr ""
+
+#: fasttoggle.module:164
+msgid "Get a listing of all users on the <a href=\"@url\">user overview</a> page."
+msgstr ""
+
+#: fasttoggle.module:207
+msgid "Toggle this setting"
+msgstr ""
+
+#: fasttoggle.module:379
+msgid "Are you sure you want to set the post %title to %option?"
+msgstr ""
+
+#: fasttoggle.module:382;435;491
+msgid "Change"
+msgstr ""
+
+#: fasttoggle.module:432
+msgid "Are you sure you want to set the user %user to %option?"
+msgstr ""
+
+#: fasttoggle.module:488
+msgid "Are you sure you want to set the comment %title to %option?"
+msgstr ""
+
+#: fasttoggle.module:77
+msgid "promote posts"
+msgstr ""
+
+#: fasttoggle.module:77
+msgid "make posts sticky"
+msgstr ""
+
+#: fasttoggle.module:77
+msgid "moderate posts"
+msgstr ""
+
+#: fasttoggle.module:77
+msgid "moderate users"
+msgstr ""
+
+#: fasttoggle.module:77
+msgid "moderate comments"
+msgstr ""
+
+#: fasttoggle.module:0
+msgid "fasttoggle"
+msgstr ""
+

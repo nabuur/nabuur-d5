@@ -1,0 +1,119 @@
+# $Id: ja.po,v 1.1.2.1 2007/04/23 10:58:15 imagine Exp $
+# -----------------------------------------------------------------------------
+# Japanese translation of Drupal (fasttoggle.module)
+#
+# Copyright (c) 2006-2007  Drupal Japan  ( http://drupal.jp/ )  /
+#                          Drupal Nippon ( http://drupon.org/ ) /
+#                          Takafumi      ( jp.drupal@imagine **reverse order**)
+#
+# Generated from file:
+#  fasttoggle.module,v 1.4.2.7 2007/04/21 18:11:39 timcn
+#  fasttoggle.info,v 1.1 2006/09/16 18:37:20 timcn
+#
+# -----------------------------------------------------------------------------
+msgid ""
+msgstr ""
+"POT-Creation-Date: 2007-04-23 03:06+0900\n"
+"Last-Translator: Takafumi <jp.drupal@imagine **reverse order**>\n"
+"Language-Team: Drupal Japan / Drupal Nippon\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n!=1);\n"
+
+#: fasttoggle.module:23
+msgid "toggle"
+msgstr "トグル"
+
+#: fasttoggle.module:38;52
+#msgid "status"
+#msgstr "状態"
+
+#: fasttoggle.module:107
+msgid "Toggle this setting"
+msgstr "この設定を切り替える"
+
+#: fasttoggle.module:146;162
+#msgid "not published"
+#msgstr "非掲載"
+
+#: fasttoggle.module:146;162
+#msgid "published"
+#msgstr "掲載"
+
+#: fasttoggle.module:149
+#msgid "not sticky"
+#msgstr "掲載位置がリスト上部に固定されていない"
+
+#: fasttoggle.module:149
+#msgid "sticky"
+#msgstr "掲載位置がリスト上部に固定されている"
+
+#: fasttoggle.module:152
+#msgid "not promoted"
+#msgstr "フロントページに掲載されていない"
+
+#: fasttoggle.module:152
+#msgid "promoted"
+#msgstr "フロントページに掲載されている"
+
+#: fasttoggle.module:157
+#msgid "blocked"
+#msgstr "ブロック"
+
+#: fasttoggle.module:157
+#msgid "active"
+#msgstr "アクティブ"
+
+#: fasttoggle.module:270
+msgid "Are you sure you want to set the post %title to %option?"
+msgstr "本当に、投稿「%title」を「%option」に設定してもよろしいですか？"
+
+#: fasttoggle.module:273;326;382
+msgid "Change"
+msgstr "変更"
+
+#: fasttoggle.module:273;326;382
+#msgid "Cancel"
+#msgstr "キャンセル"
+
+#: fasttoggle.module:323
+msgid "Are you sure you want to set the user %user to %option?"
+msgstr "本当に、ユーザ %user を「%option」に設定してもよろしいですか？"
+
+#: fasttoggle.module:379
+msgid "Are you sure you want to set the comment %title to %option?"
+msgstr "本当に、コメント「%title」を「%option」に設定してもよろしいですか？"
+
+#: fasttoggle.module:68
+msgid "promote posts"
+msgstr "投稿をフロントページに掲載"
+
+#: fasttoggle.module:68
+msgid "make posts sticky"
+msgstr "掲載位置をリスト上部に固定"
+
+#: fasttoggle.module:68
+msgid "moderate posts"
+msgstr "投稿のモデレート"
+
+#: fasttoggle.module:68
+msgid "moderate users"
+msgstr "ユーザのモデレート"
+
+#: fasttoggle.module:68
+msgid "moderate comments"
+msgstr "コメントのモデレート"
+
+#: fasttoggle.info:0
+msgid "Fast toggling"
+msgstr "ファストトグル"
+
+#: fasttoggle.info:0
+msgid "Enables fast toggling of binary settings."
+msgstr "二値の設定を素早く切り替えられるようにします。"
+
+#: fasttoggle.info:0
+msgid "fasttoggle"
+msgstr "fasttoggle"
+
