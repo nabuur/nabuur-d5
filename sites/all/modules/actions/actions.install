@@ -1,0 +1,244 @@
+<?php
+// $Id: actions.install,v 1.13 2008/09/21 02:15:20 jvandyk Exp $
+
+/**
+ * Implementation of hook_install().
+ */
+function actions_install() {
+
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      // Stores action information.
+      db_query("CREATE TABLE {actions} (
+        aid varchar (255) not null default '0',
+        type varchar(255) not null default '',
+        callback varchar(255) not null default '',
+        parameters longtext not null,
+        description varchar(255) not null default '0',
+        PRIMARY KEY (aid)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+
+      // Stores action IDs for non-default actions.
+      db_query("CREATE TABLE {actions_aid} (
+        aid bigint unsigned not null auto_increment,
+        PRIMARY KEY (aid)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+
+      // Maps action to hook and operation assignments from actions.module.
+      db_query("CREATE TABLE {actions_assignments} (
+        hook varchar(32) not null default '',
+        op varchar(46) not null default '',
+        aid varchar(255) not null default '',
+        weight int not null default '0',
+        PRIMARY KEY (hook, op, aid)
+      ) ENGINE=INNODB /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+      break;
+
+    case 'pgsql':
+      // Stores action information.
+      db_query("CREATE TABLE {actions} (
+        aid varchar (255) not null default '0',
+        type varchar(255) not null default '',
+        callback varchar(255) not null default '',
+        parameters text not null,
+        description varchar(255) not null default '0',
+        PRIMARY KEY (aid)
+      )");
+
+      // Stores action IDs for non-default actions.
+      db_query("CREATE TABLE {actions_aid} (
+        aid serial,
+        PRIMARY KEY (aid)
+      )");
+
+      // Maps action to hook and operation assignments from actions.module.
+      db_query("CREATE TABLE {actions_assignments} (
+        hook varchar(32) not null default '',
+        op varchar(40) not null default '',
+        aid varchar(255) not null default '',
+        weight int not null default '0' CHECK (weight >= 0),
+        PRIMARY KEY (hook, op, aid)
+      )");
+      break;
+      
+    case 'mssql':
+      // Stores action information.
+      db_query("CREATE TABLE {actions} (
+        aid varchar(255) not null default '0',
+        type varchar(255) not null default '',
+        callback varchar(255) not null default '',
+        parameters varchar(8000) not null,
+        description varchar(255) not null default '0',
+        PRIMARY KEY (aid)
+      )");
+
+      // Stores action IDs for non-default actions.
+      db_query("CREATE TABLE {actions_aid} (
+        aid bigint not null unique identity(1,1),
+        PRIMARY KEY (aid)
+      )");
+      
+			// Allow identity inserts.
+			db_query("SET IDENTITY_INSERT {actions_aid} ON");
+
+      // Maps action to hook and operation assignments from actions.module.
+      db_query("CREATE TABLE {actions_assignments} (
+      hook varchar(32) not null default '',
+      op varchar(46) not null default '',
+      aid varchar(255) not null default '',
+      weight int not null default '0',
+      PRIMARY KEY (hook, op, aid)
+      )");
+      break;			
+
+  }
+  
+  // Do initial synchronization of actions in code and the database.
+  include_once(drupal_get_path('module', 'actions') .'/actions.module');
+  actions_synchronize(actions_list());
+}
+
+/**
+ * Implementation of hook_uninstall().
+ */
+function actions_uninstall() {
+  // Remove tables.
+  db_query('DROP TABLE {actions}');
+  db_query('DROP TABLE {actions_aid}');
+  db_query('DROP TABLE {actions_assignments}');
+  if (db_table_exists('actions_old')) {
+    db_query('DROP TABLE {actions_old}');
+  }
+  if (db_table_exists('actions_registry')) {
+    db_query('DROP TABLE {actions_registry}');
+  }
+}
+
+function actions_update_10() {
+
+  $ret = array();
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      // Stash the user's data for safekeeping.
+      $ret[] = update_sql("ALTER TABLE {actions} RENAME TO {actions_old}");
+
+      // Stores action information.
+      $ret[] = update_sql("CREATE TABLE {actions} (
+        aid varchar (255) not null default '0',
+        type varchar(255) not null default '',
+        callback varchar(255) not null default '',
+        parameters longtext not null,
+        description varchar(255) not null default '0',
+        PRIMARY KEY (aid)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+
+      // Stores action IDs for non-default actions.
+      $ret[] = update_sql("CREATE TABLE {actions_aid} (
+        aid bigint unsigned not null auto_increment unique,
+        PRIMARY KEY (aid)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+
+      // Maps action to hook and operation assignments from actions.module.
+      $ret[] = update_sql("CREATE TABLE {actions_assignments} (
+        hook varchar(32) not null default '',
+        op varchar(32) not null default '',
+        aid varchar(255) not null default '',
+        weight int not null default '0',
+        PRIMARY KEY (hook, op, aid)
+      ) /*!40100 DEFAULT CHARACTER SET UTF8 */ ");
+      break;
+
+    case 'pgsql':
+      // Stash the user's data for safekeeping.
+      $ret[] = update_sql("ALTER TABLE {actions} RENAME TO {actions_old}");
+
+      // Stores action information.
+      $ret[] = update_sql("CREATE TABLE {actions} (
+        aid varchar (255) not null default '0',
+        type varchar(255) not null default '',
+        callback varchar(255) not null default '',
+        parameters text not null,
+        description varchar(255) not null default '0',
+        PRIMARY KEY (aid)
+      )");
+
+      // Stores action IDs for non-default actions.
+      $ret[] = update_sql("CREATE TABLE {actions_aid} (
+        aid serial,
+        PRIMARY KEY (aid)
+      )");
+
+      // Maps action to hook and operation assignments from actions.module.
+      $ret[] = update_sql("CREATE TABLE {actions_assignments} (
+        hook varchar(32) not null default '',
+        op varchar(32) not null default '',
+        aid varchar(255) not null default '',
+        weight int not null default '0' CHECK (weight >= 0),
+        PRIMARY KEY (hook, op, aid)
+      )");
+      break;
+  }
+  return $ret;
+  
+  // Do initial synchronization of actions in code and the database.
+  include_once(drupal_get_path('module', 'actions') .'/actions.module');
+  actions_synchronize(actions_list());
+}
+
+// 32 chars is a little small for op. Use 40 instead.
+function actions_update_5200() {
+  $ret = array();
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {actions_assignments} CHANGE op op VARCHAR(40)");
+      break;
+      
+    case 'pgsql':
+      $ret[] = update_sql("BEGIN;
+        ALTER TABLE {actions_assignments} ADD COLUMN op_temp VARCHAR(40);
+        UPDATE op_temp SET new_col = CAST(op AS VARCHAR(40));
+        ALTER TABLE {actions_assignments} DROP COLUMN op;
+        RENAME op_temp TO op;
+        COMMIT;");
+      break;
+  }
+  return $ret;
+}
+
+/**
+ * Remove the underscores from the administer actions permission
+ * on existing permission assignments.
+ *
+ * @return array
+ */
+function actions_update_5201() {
+  $ret = array();
+  $ret[] = update_sql("UPDATE {permission} SET perm = REPLACE(perm, 'administer_actions', 'administer actions') WHERE perm LIKE '%administer_actions%'");
+  return $ret;
+}
+
+// 40 chars is still a little small for op. Use 46 instead.
+// Can't use more because compound key becomes larger than
+// MySQL's 1000-byte limit. See http://drupal.org/node/309919
+function actions_update_5202() {
+  $ret = array();
+  switch ($GLOBALS['db_type']) {
+    case 'mysql':
+    case 'mysqli':
+      $ret[] = update_sql("ALTER TABLE {actions_assignments} CHANGE op op VARCHAR(46)");
+      break;
+      
+    case 'pgsql':
+      $ret[] = update_sql("BEGIN;
+        ALTER TABLE {actions_assignments} ADD COLUMN op_temp VARCHAR(46);
+        UPDATE op_temp SET new_col = CAST(op AS VARCHAR(46));
+        ALTER TABLE {actions_assignments} DROP COLUMN op;
+        RENAME op_temp TO op;
+        COMMIT;");
+      break;
+  }
+  return $ret;
+}

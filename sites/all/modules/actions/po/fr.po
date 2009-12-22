@@ -1,0 +1,254 @@
+# $Id: fr.po,v 1.2 2006/07/27 12:35:21 anarcat Exp $
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: actions-module\n"
+"POT-Creation-Date: 2005-12-05 11:31+0100\n"
+"PO-Revision-Date: 2006-07-24 23:22-0000\n"
+"Last-Translator: Anne <goldenberg.anne@courrier.uqam.ca>\n"
+"Language-Team: French <lordya.d@laposte.net>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n > 1);\n"
+"X-Poedit-Language: French\n"
+"X-Poedit-Country: France\n"
+
+#: actions.inc:22
+msgid "Set node id %id to Published"
+msgstr "Mode publié pour le noeud No %id"
+
+#: actions.inc:27
+msgid "Publish node"
+msgstr "Publier le noeud"
+
+#: actions.inc:56
+msgid "Unpublish node"
+msgstr "Dépublier le noeud"
+
+#: actions.inc:68
+msgid "Set node id %id to Unpublished"
+msgstr "Rendre le noeud %id dépublié"
+
+#: actions.inc:95
+msgid "Add node to moderation queue"
+msgstr "Ajouter le noeud à la file de modération"
+
+#: actions.inc:107
+msgid "Added node id %id to moderation queue"
+msgstr "Noeud %id ajouté à la queue de modération"
+
+#: actions.inc:126
+msgid "Remove node from moderation queue"
+msgstr "Enlever le noeud de la queue de modération"
+
+#: actions.inc:138
+msgid "Removed node id %id from moderation queue"
+msgstr "Noeud %id enlevé de la queue de modération"
+
+#: actions.inc:157
+msgid "Make node sticky"
+msgstr "Rendre le noeud persistant"
+
+#: actions.inc:169
+msgid "Made node id %id sticky"
+msgstr "Le noeud %id est persistant"
+
+#: actions.inc:188
+msgid "Make node unsticky"
+msgstr "Rendre le noeud non-persistant"
+
+#: actions.inc:200
+msgid "Made node id %id unsticky"
+msgstr "Le noeud %id n'est plus persistant"
+
+#: actions.inc:218
+msgid "Promote node to front page"
+msgstr "Placer le noeud en page d'accueil"
+
+#: actions.inc:230
+msgid "Promoted node id %id to front page"
+msgstr "Le noeud %id placé en page d'accueil"
+
+#: actions.inc:248
+msgid "Remove node from front page"
+msgstr "Enlever le noeud de la page d'accueil"
+
+#: actions.inc:260
+msgid "Removed node id %id from front page"
+msgstr "Le noeud %id enlevé de la page d'accueil"
+
+#: actions.inc:278
+msgid "Change node author"
+msgstr "Changer l'auteur du noeud"
+
+#: actions.inc:291
+msgid "Changed owner of node %id to uid %uid"
+msgstr "Le propriétaire du noeud %id a été changé pour %uid"
+
+#: actions.inc:297
+msgid "The username of the user to which you would like to assign ownership."
+msgstr "Le nom de l'utilisateur auquel vous voulez donner la propriété."
+
+#: actions.inc:330
+msgid "Please enter a valid username."
+msgstr "Veuillez entrez un nom d'utilisateur valide."
+
+#: actions.inc:364
+msgid "Send Email"
+msgstr "Envoyer un courriel"
+
+#: actions.inc:365
+msgid "Email"
+msgstr "Courriel"
+
+#: actions.inc:399
+msgid "Sent email to %recipient"
+msgstr "Courriel envoyé à %recipient"
+
+#: actions.inc:402
+msgid "Unable to send email to %recipient"
+msgstr "Impossible d'envoyer un courriel à %recipient"
+
+#: actions.inc:417
+msgid "Recipient"
+msgstr "Destinataire"
+
+#: actions.inc:421
+msgid "The email address to which the message should be sent OR enter %author if you would like to send an e-mail to the original author of the post."
+msgstr "L'adresse courriel à qui le message doit être envoyé ou entrez %author si vous voulez que le message soit envoyé à l'auteur original du billet."
+
+#: actions.inc:429
+msgid "The subject of the message."
+msgstr "Le sujet du message."
+
+#: actions.inc:437
+msgid "The message that should be sent.  You may include the following variables: %site_name, %username, %node_url, %node_type, %title, %teaser, %body"
+msgstr "Le message qui sera envoyé. Vous pouvez utiliser les variables suivantes : %site_name, %username, %node_url, %node_type, %title, %teaser, %body"
+
+#: actions.inc:446
+msgid "Please enter a valid email address or %author."
+msgstr "Veuillez entrer une adresse courriel valide ou %author."
+
+#: actions.inc:28;57;96;127;158;189;219;249;279
+msgid "Node"
+msgstr "Noeud"
+
+#: actions.inc:377;421;445;446
+msgid "%author"
+msgstr "%author"
+
+#: actions.install:35
+msgid "The actions module has successfully added tables to the MySQL database."
+msgstr "Le module Actions a ajouté les tables à la base de données MySQL avec succès."
+
+#: actions.install:73
+msgid "The actions module has successfully added tables to the PostgreSQL database."
+msgstr "Le module Actions a ajouté les tables à la base de données PostgreSQL avec succès."
+
+#: actions.install:38;76
+msgid "Drupal was unable to install the database tables for the actions module."
+msgstr "Drupal a été incapable d'installer les tables de la base de données pour le module Actions."
+
+#: actions.module:16
+msgid "Scriptable actions configurable through the web."
+msgstr "Actions scriptables configurables par le web."
+
+#: actions.module:20
+msgid "This page lists all actions that are available. Simple actions that do not require any configuration are listed automatically. Actions that need to be configured are listed in the <em>Add new action</em> menu. To add a configurable action, select the action and click the <em>Add new action</em> button. After completing the configuration form, the action will be available for use by Drupal."
+msgstr "Cette page liste toutes les actions possibles. Les actions simples qui ne demandent pas de configuration sont listées automatiquement. Celles qui ont besoin d'être configurées sont listées dans le menu <em>Ajoutez une nouvelle action</em>. Pour ajouter une action configurable, sélectionnez l'action et cliquez sur <em>Ajoutez une nouvelle action</em>."
+
+#: actions.module:23
+msgid "This is where you configure a certain action that will be performed at some time in the future. For example, you might configure an action to send email to your friend Royce. Your entry in the description field, below, should be descriptive enough to remind you of that."
+msgstr "C'est ici que vous pouvez configurer certaines actions qui seront faites dans le futur. Par exemple vous pourriez configurer une action pour envoyer un couriel à votre ami Jonathan. Ce que vous mettez dans le champ de description, plus bas, devrait être assez descriptif pour que vous vous le remémoriez."
+
+#: actions.module:59
+msgid "configure action"
+msgstr "configurer les actions"
+
+#: actions.module:87
+msgid "administer actions"
+msgstr "administrer les actions"
+
+#: actions.module:132
+msgid "Action Type"
+msgstr "Type d'action"
+
+#: actions.module:155
+msgid "Actions available to Drupal:"
+msgstr "Actions disponibles dans Drupal:"
+
+#: actions.module:205
+msgid "A unique description for this configuration of this action"
+msgstr "Une description unique pour la configuration de cette action"
+
+#: actions.module:225
+msgid "Save"
+msgstr "Sauvegarder"
+
+#: actions.module:246
+msgid "The action has been successfully saved."
+msgstr "Cette action a été sauvegardée avec succès."
+
+#: actions.module:266
+msgid "Really delete action %action?"
+msgstr "Supprimer réellement l'action '%action'?"
+
+#: actions.module:266
+msgid "This cannot be undone."
+msgstr "Ceci ne peut être annulé."
+
+#: actions.module:276
+msgid "Deleted action %aid (%action)"
+msgstr "Action supprimée %aid (%action)"
+
+#: actions.module:277
+msgid "Action %action was deleted"
+msgstr "L'action '%action' a été supprimée"
+
+#: actions.module:312
+msgid "Stack overflow; aborting."
+msgstr "La pile a débordé (stack overflow); abandon."
+
+#: actions.module:519
+msgid "Action '%action' saved."
+msgstr "Action '%action' sauvegardée."
+
+#: actions.module:524
+msgid "Action '%action' created."
+msgstr "Action '%action' créée."
+
+#: actions.module:631
+msgid "Action '%action' added."
+msgstr "Action '%action' ajoutée."
+
+#: actions.module:643
+msgid "Deleted orphaned action"
+msgstr "Action orpheline supprimée"
+
+#: actions.module:652
+msgid "Remove orphaned actions"
+msgstr "Enlever les actions orphelines"
+
+#: actions.module:654
+msgid "%actionphrase in the actions table: "
+msgstr "%actionphrase dans les tables d'actions:"
+
+#: actions.module:654
+msgid "One orphaned action exists"
+msgid_plural "%count orphaned actions exist"
+msgstr[0] "Une action orpheline existe"
+msgstr[1] "Il y a %count actions orphelines"
+
+#: actions.module:115;122
+msgid "Add new action"
+msgstr "Ajouter de nouvelles actions"
+
+#: actions.module:40;312;0
+msgid "actions"
+msgstr "actions"
+
+#: actions.module:66;73
+msgid "delete action"
+msgstr "supprimer l'action"
+

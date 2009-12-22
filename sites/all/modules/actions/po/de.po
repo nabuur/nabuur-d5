@@ -1,0 +1,278 @@
+# #-#-#-#-#  actions-inc.pot (PROJECT VERSION)  #-#-#-#-#
+# LANGUAGE translation of Drupal (actions.inc)
+# Copyright 2006 NAME <EMAIL@ADDRESS>
+# Generated from file: actions.inc,v 1.9 2006/05/29 02:30:47 jvandyk
+#
+# #-#-#-#-#  actions-module.pot (PROJECT VERSION)  #-#-#-#-#
+# LANGUAGE translation of Drupal (actions.module)
+# Copyright 2006 NAME <EMAIL@ADDRESS>
+# Generated from file: actions.module,v 1.20 2006/06/13 18:55:16 jvandyk
+#
+# #-#-#-#-#  general.pot (PROJECT VERSION)  #-#-#-#-#
+# LANGUAGE translation of Drupal (actions.install)
+# Copyright 2006 NAME <EMAIL@ADDRESS>
+# Generated from file: actions.install,v 1.1 2006/04/21 14:02:05 jvandyk
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: Actions\n"
+"POT-Creation-Date: 2006-07-19 21:03-0400\n"
+"PO-Revision-Date: 2007-10-14 20:03+0100\n"
+"Last-Translator: Johannes Kayßer <JK@tannenhof-imshausen.de>\n"
+"Language-Team: J-K@drupalcenter.de <Johannes@Tannenhof-Imshausen.de>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n !=1);\n"
+"X-Poedit-Language: German\n"
+"X-Poedit-Country: GERMANY\n"
+"X-Poedit-Basepath: ../\n"
+
+#: actions.install:35
+msgid "The actions module has successfully added tables to the MySQL database."
+msgstr "Das actions-Modul hat erfolgreich Tabellen zur MySQL-Datenbank hinzugefügt."
+
+#: actions.install:38;76
+msgid "Drupal was unable to install the database tables for the actions module."
+msgstr "Drupal war es unmöglich, die Datenbank-Tabellen für das actions-Modul anzulegen."
+
+#: actions.install:73
+msgid "The actions module has successfully added tables to the PostgreSQL database."
+msgstr "Das actions-Modul hat erfolgreich Tabellen zur MySQL-Datenbank hinzugefügt."
+
+#: actions.inc:22
+msgid "Set node id %id to Published"
+msgstr "Node %id als veröffentlicht kennzeichnen"
+
+#: actions.inc:27
+msgid "Publish node"
+msgstr "Node veröffentlichen"
+
+#: actions.inc:28;57;96;127;158;189;219;249;279
+msgid "Node"
+msgstr "Node"
+
+#: actions.inc:56
+msgid "Unpublish node"
+msgstr "Node als unveröffentlicht kennzeichnen"
+
+#: actions.inc:68
+msgid "Set node id %id to Unpublished"
+msgstr "Node %id als unveröffentlicht kennzeichnen"
+
+#: actions.inc:95
+msgid "Add node to moderation queue"
+msgstr "Den Node zur Moderationswarteschlange hinzufügen"
+
+#: actions.inc:107
+msgid "Added node id %id to moderation queue"
+msgstr "Der Node %id wurde zur Moderationswarteschlange hinzugefügt"
+
+#: actions.inc:126
+msgid "Remove node from moderation queue"
+msgstr "Den Node aus der Moderationswarteschlange entfernen"
+
+#: actions.inc:138
+msgid "Removed node id %id from moderation queue"
+msgstr "Der Node %id wurde aus der Moderationswarteschlange entfernt"
+
+#: actions.inc:157
+msgid "Make node sticky"
+msgstr "Node oben in Listen zeigen"
+
+#: actions.inc:169
+msgid "Made node id %id sticky"
+msgstr "Node %id oben in Listen zeigen"
+
+#: actions.inc:188
+msgid "Make node unsticky"
+msgstr "Node nicht mehr oben in Listen zeigen"
+
+#: actions.inc:200
+msgid "Made node id %id unsticky"
+msgstr "Node %id nicht mehr oben in Listen zeigen"
+
+#: actions.inc:218
+msgid "Promote node to front page"
+msgstr "Den Node auf der Startseite anzeigen"
+
+#: actions.inc:230
+msgid "Promoted node id %id to front page"
+msgstr "Der Node %id wird auf der Startseite angezeigt"
+
+#: actions.inc:248
+msgid "Remove node from front page"
+msgstr "Den Node nicht mehr auf der Startseite anzeigen"
+
+#: actions.inc:260
+msgid "Removed node id %id from front page"
+msgstr "Der Node %id wird nicht mehr auf der Startseite angezeigt"
+
+#: actions.inc:278
+msgid "Change node author"
+msgstr "Autor eines Nodes ändern"
+
+#: actions.inc:291
+msgid "Changed owner of node %id to uid %uid"
+msgstr "Der Autor des Nodes %id wurde zu %uid geändert"
+
+#: actions.inc:297
+msgid "The username of the user to which you would like to assign ownership."
+msgstr "Der Benutzername des Benutzers, dem die Eigentümerschaft übertragen werden soll."
+
+#: actions.inc:330
+msgid "Please enter a valid username."
+msgstr "Bitte gebe einen validen Benutzernamen an."
+
+#: actions.inc:364
+msgid "Send Email"
+msgstr "eMail senden"
+
+#: actions.inc:365
+msgid "Email"
+msgstr "eMail"
+
+#: actions.inc:377;421;445;446
+msgid "%author"
+msgstr "%author"
+
+#: actions.inc:399
+msgid "Sent email to %recipient"
+msgstr "eMail an %recipient senden"
+
+#: actions.inc:402
+msgid "Unable to send email to %recipient"
+msgstr "Kann eMail an %recipient nicht senden"
+
+#: actions.inc:417
+msgid "Recipient"
+msgstr "Empfänger"
+
+#: actions.inc:421
+msgid "The email address to which the message should be sent OR enter %author if you would like to send an e-mail to the original author of the post."
+msgstr "Die eMail-Adresse, an die die Nachricht gesendet werden soll ODER gib %author ein, wenn eine eMail an den ursprünglichen Autor des Beitrages gesendet werden soll."
+
+#: actions.inc:429
+msgid "The subject of the message."
+msgstr "Der Betreff der Nachricht."
+
+#: actions.inc:430
+msgid "Display message to current user"
+msgstr "Eine Nachricht dem aktuellen Benutzer anzeigen"
+
+#: actions.inc:437
+msgid "The message that should be sent.  You may include the following variables: %site_name, %username, %node_url, %node_type, %title, %teaser, %body"
+msgstr "Hier kann der Inhalt der eMail angepasst werden. Mögliche Variablen sind: %site_name, %username, %node_url, %node_type, %title, %teaser, %body"
+
+#: actions.inc:446
+msgid "Please enter a valid email address or %author."
+msgstr "Bitte gebe eine valide eMail-Adresse oder %author an."
+
+#: actions.inc:22;68;107;138;169;200;230;260;291;399
+msgid "action"
+msgstr "Aktion"
+
+#: actions.module:16
+msgid "Scriptable actions configurable through the web."
+msgstr "Programmierbare Aktionen, über's Web konfigurierbar."
+
+#: actions.module:20
+msgid "This page lists all actions that are available. Simple actions that do not require any configuration are listed automatically. Actions that need to be configured are listed in the <em>Add new action</em> menu. To add a configurable action, select the action and click the <em>Add new action</em> button. After completing the configuration form, the action will be available for use by Drupal."
+msgstr "Diese Seite listet alle verfügbaren Aktionen auf. Einfache Aktionen, die keine Konfiguration benötigen, werden automatisch angezeigt. Aktionen, die einer Konfiguration bedürfen, sind  im <em>Neue Aktion anlegen</em> Menü gelistet. Um eine konfigurierbare Aktion hinzuzufügen, selektiere die Aktion und klicke auf die <em>Neue Aktion anlegen</em>-Schaltfläche. Nach Vervollständigung des Konfiguration-Formulars ist die Aktion in Drupal verfügbar."
+
+#: actions.module:23
+msgid "This is where you configure a certain action that will be performed at some time in the future. For example, you might configure an action to send email to your friend Royce. Your entry in the description field, below, should be descriptive enough to remind you of that."
+msgstr "Hier kannst Du eine bestimmte Aktion einrichten, die zu einer bestimmten Zeit in der Zukunft ausgeführt wird. Zum Beispiel möchtest Du eine Aktion anlegen, um Deinem Freund Paul eine eMail zu senden. Der Eintrag in dem Beschreibungsfeld, unten, sollte aussagekräftig genug sein, Dich daran zu erinnern."
+
+#: actions.module:40;312;0
+msgid "actions"
+msgstr "Aktionen"
+
+#: actions.module:37
+msgid "Actions"
+msgstr "Aktionen"
+
+#: actions.module:59
+msgid "configure action"
+msgstr "Aktion bearbeiten"
+
+#: actions.module:66;73
+msgid "delete action"
+msgstr "Aktion löschen"
+
+#: actions.module:115;122
+msgid "Add new action"
+msgstr "Neue Aktion anlegen"
+
+#: actions.module:132
+msgid "Action Type"
+msgstr "Typ"
+
+#: actions.module:155
+msgid "Actions available to Drupal:"
+msgstr "In Drupal verfügbare Aktionen:"
+
+#: actions.module:205
+msgid "A unique description for this configuration of this action"
+msgstr "Eine eindeutige Beschreibung der Konfiguration dieser Aktion"
+
+#: actions.module:225
+msgid "Save"
+msgstr "Speichern"
+
+#: actions.module:246
+msgid "The action has been successfully saved."
+msgstr "Die Aktion wurde erfolgreich gespeichert."
+
+#: actions.module:266
+msgid "Really delete action %action?"
+msgstr "Wirklich die Aktion  %action löschen?"
+
+#: actions.module:266
+msgid "This cannot be undone."
+msgstr "Dieser Vorgang kann nicht rückgängig gemacht werden."
+
+#: actions.module:276
+msgid "Deleted action %aid (%action)"
+msgstr "Gelöschte Aktion %aid (%action)"
+
+#: actions.module:277
+msgid "Action %action was deleted"
+msgstr "Aktion %action wurde gelöscht"
+
+#: actions.module:312
+msgid "Stack overflow; aborting."
+msgstr "Abbruch: stack overflow"
+
+#: actions.module:519
+msgid "Action '%action' saved."
+msgstr "Action '%action' wurde gespeichert."
+
+#: actions.module:524
+msgid "Action '%action' created."
+msgstr "Aktion %action wurde erstellt."
+
+#: actions.module:631
+msgid "Action '%action' added."
+msgstr "Aktion %action wurde gelöscht."
+
+#: actions.module:643
+msgid "Deleted orphaned action"
+msgstr "Gelöschte verwaiste Aktionen"
+
+#: actions.module:652
+msgid "Remove orphaned actions"
+msgstr "Verwaiste Aktionen entfernen"
+
+#: actions.module:654
+msgid "%actionphrase in the actions table: "
+msgstr "%actionphrase in der Tabelle der Aktionen: "
+
+#: actions.module:654
+msgid "One orphaned action exists"
+msgstr "Es existiert eine verwaiste Aktion"
+
+#: actions.module:87
+msgid "administer actions"
+msgstr "Aktionen verwalten"
+

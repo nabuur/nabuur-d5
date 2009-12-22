@@ -1,0 +1,1852 @@
+<?php
+// $Id: actions.module,v 1.43 2008/09/20 22:21:15 jvandyk Exp $
+
+/**
+ * @file
+ * Enables functions to be stored and executed at a later time when
+ * triggered by other modules or by one of Drupal's core API hooks.
+ */
+
+include_once(drupal_get_path('module', 'actions') .'/actions.inc');
+
+/**
+ * Implementation of hook_help().
+ */
+function actions_help($section) {
+  $explanation = '<p>'. t('Triggers are system events, such as when new content is added or when a user logs in. Trigger module combines these triggers with actions (functional tasks), such as unpublishing content or e-mailing an administrator. The <a href="@url">Actions settings page</a> contains a list of existing actions and provides the ability to create and configure additional actions.', array('@url' => url('admin/settings/actions'))) .'</p>';
+  switch ($section) {
+    case 'admin/settings/actions':
+    case 'admin/settings/actions/manage':
+      $output = '<p>'. t('Actions are individual tasks that the system can do, such as unpublishing a piece of content or banning a user. Modules, such as the trigger module, can fire these actions when certain system events happen; for example, when a new post is added or when a user logs in. Modules may also provide additional actions.') .'</p>';
+      $output .= '<p>'. t('There are two types of actions: simple and advanced. Simple actions do not require any additional configuration, and are listed here automatically. Advanced actions can do more than simple actions; for example, send an e-mail to a specified address, or check for certain words within a piece of content. These actions need to be created and configured first before they may be used. To create an advanced action, select the action from the drop-down below and click the <em>Create</em> button.') .'</p>';
+      $output .= '<p>'. t('You may proceed to the <a href="@url">Triggers</a> page to assign these actions to system events.', array('@url' => url('admin/build/trigger'))) .'</p>';
+      return $output;
+    case 'admin/settings/actions/configure':
+      return t('An advanced action offers additional configuration options which may be filled out below. Changing the <em>Description</em> field is recommended, in order to better identify the precise action taking place. This description will be displayed in modules such as the trigger module when assigning actions to system events, so it is best if it is as descriptive as possible (for example, "Send e-mail to Moderation Team" rather than simply "Send e-mail").');
+    case 'admin/build/trigger/comment':
+      return $explanation .'<p>'. t('Below you can assign actions to run when certain comment-related triggers happen. For example, you could promote a post to the front page when a comment is added.') .'</p>';
+    case 'admin/build/trigger/node':
+      return $explanation .'<p>'. t('Below you can assign actions to run when certain content-related triggers happen. For example, you could send an e-mail to an administrator when a post is created or updated.') .'</p>';
+    case 'admin/build/trigger/cron':
+      return $explanation .'<p>'. t('Below you can assign actions to run during each pass of a cron maintenance task.</p>');
+    case 'admin/build/trigger/taxonomy':
+      return $explanation .'<p>'. t('Below you can assign actions to run when certain taxonomy-related triggers happen. For example, you could send an e-mail to an administrator when a term is deleted.') .'</p>';
+    case 'admin/build/trigger/user':
+      return $explanation .'<p>'. t("Below you can assign actions to run when certain user-related triggers happen. For example, you could send an e-mail to an administrator when a user account is deleted.") .'</p>';
+    case 'admin/help#trigger':
+      $output = '<p>'. t('The Trigger module provides the ability to trigger <a href="@actions">actions</a> upon system events, such as when new content is added or when a user logs in.', array('@actions' => url('admin/settings/actions'))) .'</p>';
+      $output .= '<p>'. t('The combination of actions and triggers can perform many useful tasks, such as e-mailing an administrator if a user account is deleted, or automatically unpublishing comments that contain certain words. By default, there are five "contexts" of events (Comments, Content, Cron, Taxonomy, and Users), but more may be added by additional modules.') .'</p>';
+      $output .= '<p>'. t('For more information, see the online handbook entry for <a href="@trigger">Trigger module</a>.', array('@trigger' => 'http://drupal.org/handbook/modules/trigger/')) .'</p>';
+      return $output;
+  }
+}
+
+/**
+ * Implementation of hook_menu().
+ */
+function actions_menu($may_cache) {
+  $items = array();
+  $access = user_access('administer actions');
+
+  if ($may_cache) {
+    $items[] = array(
+      'path' => 'admin/settings/actions',
+      'title' => t('Actions'),
+      'description' => t('Manage the actions defined for your site.'),
+      'callback' => 'actions_manage',
+      'access' => $access,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/actions/manage',
+      'title' => t('Manage actions'),
+      'description' => t('Manage the actions defined for your site.'),
+      'callback' => 'actions_manage',
+      'type' => MENU_DEFAULT_LOCAL_TASK,
+      'weight' => -2,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/actions/configure',
+      'title' => t('Configure an advanced action'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('actions_configure'),
+      'type' => MENU_CALLBACK,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/actions/delete',
+      'title' => t('Delete action'),
+      'description' => t('Delete an action.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('actions_delete_form'),
+      'type' => MENU_CALLBACK,
+    );
+    $items[] = array(
+      'path' => 'admin/settings/actions/orphan',
+      'title' => t('Remove orphans'),
+      'callback' => 'actions_remove_orphans',
+      'type' => MENU_CALLBACK,
+    );
+    $items[] = array(
+      'path' => 'admin/build/trigger',
+      'title' => t('Triggers'),
+      'description' => t('Tell Drupal when to execute actions.'),
+      'callback' => 'actions_assign',
+      'access' => $access,
+    );
+    // We don't use a menu wildcard here because these are tabs,
+    // not invisible items.
+    $items[] = array(
+      'path' => 'admin/build/trigger/node',
+      'title' => t('Content'),
+      'callback' => 'actions_assign',
+      'callback arguments' => array('node'),
+      'access' => $access,
+      'type' => MENU_LOCAL_TASK,
+    );
+    $items[] = array(
+      'path' => 'admin/build/trigger/user',
+      'title' => t('Users'),
+      'callback' => 'actions_assign',
+      'callback arguments' => array('user'),
+      'access' => $access,
+      'type' => MENU_LOCAL_TASK,
+    );
+    $items[] = array(
+      'path' => 'admin/build/trigger/comment',
+      'title' => t('Comments'),
+      'callback' => 'actions_assign',
+      'callback arguments' => array('comment'),
+      'access' => $access,
+      'type' => MENU_LOCAL_TASK,
+    );
+    $items[] = array(
+      'path' => 'admin/build/trigger/taxonomy',
+      'title' => t('Taxonomy'),
+      'callback' => 'actions_assign',
+      'callback arguments' => array('taxonomy'),
+      'access' => $access,
+      'type' => MENU_LOCAL_TASK,
+    );
+    $items[] = array(
+      'path' => 'admin/build/trigger/cron',
+      'title' => t('Cron'),
+      'callback' => 'actions_assign',
+      'callback arguments' => array('cron'),
+      'type' => MENU_LOCAL_TASK,
+    );
+
+    // We want contributed modules to be able to describe
+    // their hooks and have actions assignable to them.
+    $hooks = module_invoke_all('hook_info');
+    foreach ($hooks as $module => $hook) {
+      // We've already done these.
+      if (in_array($module, array('node', 'comment', 'user', 'system', 'taxonomy'))) {
+        continue;
+      }
+      /* // Drupal 5 doesn't have an info column.
+      $info = db_result(db_query("SELECT info FROM {system} WHERE name = '%s'", $module));
+      $info = unserialize($info);
+      $nice_name = $info['name']; // */
+      // We get the name from the .info file of the module.
+      $filename = db_result(db_query("SELECT filename FROM {system} WHERE name = '%s' AND type = 'module'", $module));
+      $info = _module_parse_info_file(dirname($filename) .'/'. $module .'.info');
+      $items[] = array(
+        'path' => 'admin/build/trigger/'. $module,
+        'title' => $info['name'],
+        'callback' => 'actions_assign',
+        'callback arguments' => array($module),
+        'access' => $access,
+        'type' => MENU_LOCAL_TASK,
+      );
+    }
+    $items[] = array(
+      'path' => 'admin/build/trigger/unassign',
+      'title' => t('Unassign'),
+      'description' => t('Unassign an action from a trigger.'),
+      'callback' => 'drupal_get_form',
+      'callback arguments' => array('actions_unassign'),
+      'type' => MENU_CALLBACK,
+    );
+
+    return $items;
+  }
+}
+
+/**
+ * Implementation of hook_perm().
+ */
+function actions_perm() {
+  return array('administer actions');
+}
+
+/**
+ * Menu callback. Display an overview of available and configured actions.
+ */
+function actions_manage() {
+  $output = '';
+  $actions = actions_list();
+  actions_synchronize($actions);
+  $actions_map = actions_actions_map($actions);
+  $options = array(t('Choose an advanced action'));
+  $unconfigurable = array();
+
+  foreach ($actions_map as $key => $array) {
+    if ($array['configurable']) {
+      $options[$key] = $array['description'] .'...';
+    }
+    else {
+      $unconfigurable[] = $array;
+    }
+  }
+
+  $row = array();
+  $instances_present = db_fetch_object(db_query("SELECT aid FROM {actions} WHERE parameters <> ''"));
+  $header = array(
+    array('data' => t('Action type'), 'field' => 'type'),
+    array('data' => t('Description'), 'field' => 'description'),
+    array('data' => $instances_present ? t('Operations') : '', 'colspan' => '2')
+  );
+  $sql = 'SELECT * FROM {actions}';
+  $result = pager_query($sql . tablesort_sql($header), 50);
+  while ($action = db_fetch_object($result)) {
+    $row[] = array(
+      array('data' => $action->type),
+      array('data' => $action->description),
+      array('data' => $action->parameters ? l(t('configure'), "admin/settings/actions/configure/$action->aid") : ''),
+      array('data' => $action->parameters ? l(t('delete'), "admin/settings/actions/delete/$action->aid") : '')
+    );
+  }
+
+  if ($row) {
+    $pager = theme('pager', NULL, 50, 0);
+    if (!empty($pager)) {
+      $row[] = array(array('data' => $pager, 'colspan' => '3'));
+    }
+    $output .= '<h3>'. t('Actions available to Drupal:') .'</h3>';
+    $output .= theme('table', $header, $row);
+  }
+
+  if ($actions_map) {
+    $output .= drupal_get_form('actions_manage_form', $options);
+  }
+
+  return $output;
+}
+
+/**
+ * Define the form for the actions overview page.
+ *
+ * @see actions_manage_form_submit()
+ * @ingroup forms
+ * @param $options
+ *   An array of configurable actions.
+ * @return
+ *   Form definition.
+ */
+function actions_manage_form($options = array()) {
+  $form['parent'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Make a new advanced action available'),
+    '#prefix' => '<div class="container-inline">',
+    '#suffix' => '</div>',
+  );
+  $form['parent']['action'] = array(
+    '#type' => 'select',
+    '#default_value' => '',
+    '#options' => $options,
+    '#description' => '',
+  );
+  $form['parent']['buttons']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Create'),
+  );
+  return $form;
+}
+
+/**
+ * Process actions_manage form submissions.
+ */
+function actions_manage_form_submit($form_id, $form_values) {
+  if ($form_values['action']) {
+    return 'admin/settings/actions/configure/'. $form_values['action'];
+  }
+}
+
+/**
+ * Menu callback. Create the form for configuration of a single action.
+ *
+ * We provide the "Description" field. The rest of the form
+ * is provided by the action. We then provide the Save button.
+ * Because we are combining unknown form elements with the action
+ * configuration form, we use actions_ prefix on our elements.
+ *
+ * @see actions_configure_validate()
+ * @see actions_configure_submit()
+ * @param $action
+ *   md5 hash of action ID or an integer. If it's an md5 hash, we
+ *   are creating a new instance. If it's an integer, we're editing
+ *   an existing instance.
+ * @return
+ *   Form definition.
+ */
+function actions_configure($action = NULL) {
+  if ($action === NULL) {
+    drupal_goto('admin/settings/actions');
+  }
+
+  $actions_map = actions_actions_map(actions_list());
+  $edit = array();
+
+  // Numeric action denotes saved instance of a configurable action;
+  // else we are creating a new action instance.
+  if (is_numeric($action)) {
+    $aid = $action;
+    // Load stored parameter values from database.
+    $data = db_fetch_object(db_query("SELECT * FROM {actions} WHERE aid = %d", intval($aid)));
+    $edit['actions_description'] = $data->description;
+    $edit['actions_type'] = $data->type;
+    $function = $data->callback;
+    $action = md5($data->callback);
+    $params = unserialize($data->parameters);
+    if ($params) {
+      foreach ($params as $name => $val) {
+        $edit[$name] = $val;
+      }
+    }
+  }
+  else {
+    $function = $actions_map[$action]['callback'];
+    $edit['actions_description'] = $actions_map[$action]['description'];
+    $edit['actions_type'] = $actions_map[$action]['type'];
+  }
+
+  $form = array();
+  $form['actions_description'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Description'),
+    '#default_value' => $edit['actions_description'],
+    '#maxlength' => '255',
+    '#description' => t('A unique description for this advanced action. This description will be displayed in the interface of modules that integrate with actions, such as Trigger module.'),
+    '#weight' => -10
+  );
+  $action_form = $function .'_form';
+  $form = array_merge($form, $action_form($edit));
+  $form['actions_type'] = array(
+    '#type' => 'value',
+    '#value' => $edit['actions_type'],
+  );
+  $form['actions_action'] = array(
+    '#type' => 'hidden',
+    '#value' => $action,
+  );
+  // $aid is set when configuring an existing action instance.
+  if (isset($aid)) {
+    $form['actions_aid'] = array(
+      '#type' => 'hidden',
+      '#value' => $aid,
+    );
+  }
+  $form['actions_configured'] = array(
+    '#type' => 'hidden',
+    '#value' => '1',
+  );
+  $form['buttons']['submit'] = array(
+    '#type' => 'submit',
+    '#value' => t('Save'),
+    '#weight' => 13
+  );
+
+  return $form;
+}
+
+/**
+ * Validate actions_configure form submissions.
+ */
+function actions_configure_validate($form_id, $form_values) {
+  $function = actions_function_lookup($form_values['actions_action']) .'_validate';
+  // Hand off validation to the action.
+  if (function_exists($function)) {
+    $function('validate', $form_values);
+  }
+}
+
+/**
+ * Process actions_configure form submissions.
+ */
+function actions_configure_submit($form_id, $form_values) {
+  $function = actions_function_lookup($form_values['actions_action']);
+  $submit_function = $function .'_submit';
+
+  // Action will return keyed array of values to store.
+  $params = $submit_function($form_id, $form_values);
+  $aid = isset($form_values['actions_aid']) ? $form_values['actions_aid'] : NULL;
+
+  actions_save($function, $form_values['actions_type'], $params, $form_values['actions_description'], $aid);
+  drupal_set_message(t('The action has been successfully saved.'));
+
+  return 'admin/settings/actions/manage';
+}
+
+/**
+ * Create the form for confirmation of deleting an action.
+ *
+ * @ingroup forms
+ * @see actions_delete_form_submit()
+ */
+function actions_delete_form($aid) {;
+  $action = actions_load($aid);
+  $form['aid'] = array(
+    '#type' => 'hidden',
+    '#value' => $action->aid,
+  );
+  return confirm_form($form,
+    t('Are you sure you want to delete the action %action?', array('%action' => $action->description)),
+    'admin/settings/actions/manage',
+    t('This cannot be undone.'),
+    t('Delete'), t('Cancel')
+  );
+}
+
+/**
+ * Process actions_delete form submissions.
+ *
+ * Post-deletion operations for action deletion.
+ */
+function actions_delete_form_submit($form_id, $form_values) {
+  $aid = $form_values['aid'];
+  $action = actions_load($aid);
+  actions_delete($aid);
+  $description = check_plain($action->description);
+  watchdog('user', 'Deleted action %aid (%action)', array('%aid' => $aid, '%action' => $description));
+  drupal_set_message(t('Action %action was deleted', array('%action' => $description)));
+  return 'admin/settings/actions/manage';
+}
+
+/**
+ * Post-deletion operations for deleting action orphans.
+ *
+ * @param $orphaned
+ *   An array of orphaned actions.
+ */
+function actions_action_delete_orphans_post($orphaned) {
+  foreach ($orphaned as $callback) {
+    drupal_set_message(t("Deleted orphaned action (%action).", array('%action' => $callback)));
+  }
+}
+
+/**
+ * Remove actions that are in the database but not supported by any enabled module.
+ */
+function actions_remove_orphans() {
+  actions_synchronize(actions_list(), TRUE);
+  drupal_goto('admin/settings/actions/manage');
+}
+
+/**
+ * Admin page callbacks for the trigger module.
+ */
+
+/**
+ * Build the form that allows users to assign actions to hooks.
+ *
+ * @param $type
+ *   Name of hook.
+ * @return
+ *   HTML form.
+ */
+function actions_assign($type = NULL) {
+
+  // If no type is specified we default to node actions, since they
+  // are the most common.
+  if (!isset($type)) {
+    drupal_goto('admin/build/trigger/node');
+  }
+  if ($type == 'node') {
+    $type = 'nodeapi';
+  }
+
+  $output = '';
+  $hooks = module_invoke_all('hook_info');
+  foreach ($hooks as $module => $hook) {
+    if (isset($hook[$type])) {
+      foreach ($hook[$type] as $op => $description) {
+        $form_id = 'actions_'. $type .'_'. $op .'_assign_form';
+        $output .= drupal_get_form($form_id, $type, $op, $description['runs when']);
+      }
+    }
+  }
+  return $output;
+}
+
+/**
+ * Confirm removal of an assigned action.
+ *
+ * @param $hook
+ * @param $op
+ * @param $aid
+ *   The action ID.
+ * @ingroup forms
+ * @see actions_unassign_submit()
+ */
+function actions_unassign($hook = NULL, $op = NULL, $aid = NULL, $form_values = NULL) {
+  if (!($hook && $op && $aid)) {
+    drupal_goto('admin/build/trigger/assign');
+  }
+
+  $form['hook'] = array(
+    '#type' => 'value',
+    '#value' => $hook,
+  );
+  $form['operation'] = array(
+    '#type' => 'value',
+    '#value' => $op,
+  );
+  $form['aid'] = array(
+    '#type' => 'value',
+    '#value' => $aid,
+  );
+
+  $action = db_result(db_query("SELECT aid FROM {actions} WHERE MD5(aid) = '%s' AND parameters <> ''", $aid));
+  $actions = actions_get_all_actions();
+
+  $destination = 'admin/build/trigger/'. ($hook == 'nodeapi' ? 'node' : $hook);
+
+  return confirm_form($form,
+    t('Are you sure you want to unassign the action %title?', array('%title' => $actions[$action]['description'])),
+    $destination,
+    t('You can assign it again later if you wish.'),
+    t('Unassign'), t('Cancel')
+  );
+}
+
+function actions_unassign_submit($form_id, $form_values) {
+  if ($form_values['confirm'] == 1) {
+    $aid = db_result(db_query("SELECT aid FROM {actions} WHERE MD5(aid) = '%s'", $form_values['aid']));
+    db_query("DELETE FROM {actions_assignments} WHERE hook = '%s' AND op = '%s' AND aid = '%s'", $form_values['hook'], $form_values['operation'], $aid);
+    watchdog('actions', t('Action %action has been unassigned.',  array('%action' => check_plain($actions[$aid]['description']))));
+    drupal_set_message(t('Action %action has been unassigned.', array('%action' => $actions[$aid]['description'])));
+    $hook = $form_values['hook'] == 'nodeapi' ? 'node' : $form_values['hook'];
+    return 'admin/build/trigger/'. $hook;
+  }
+  else {
+    drupal_goto('admin/build/trigger');
+  }
+}
+
+/**
+ * Create the form definition for assigning an action to a hook-op combination.
+ *
+ * @param $form_values
+ *   Information about the current form.
+ * @param $hook
+ *   The name of the hook, e.g., 'nodeapi'.
+ * @param $op
+ *   The name of the hook operation, e.g., 'insert'.
+ * @param $description
+ *   A plain English description of what this hook operation does.
+ * @return
+ *
+ * @ingoup forms
+ * @see actions_assign_form_validate()
+ * @see actions_assign_form_submit()
+ */
+function actions_assign_form($hook, $op, $description, $form_value = NULL) {
+  $form['hook'] = array(
+    '#type' => 'hidden',
+    '#value' => $hook,
+  );
+  $form['operation'] = array(
+    '#type' => 'hidden',
+    '#value' => $op,
+  );
+  // All of these forms use the same validate and submit functions.
+  $form['#validate'] = array('actions_assign_form_validate' => array($form_id, &$form));
+  $form['#submit'] = array('actions_assign_form_submit' => array($form_id, &$form));
+
+  $options = array();
+  $functions = array();
+  // Restrict the options list to actions that declare support for this hook-op
+  // combination.
+  foreach (actions_list() as $func => $metadata) {
+    if (isset($metadata['hooks']['any']) // The action supports any hook.
+      || (isset($metadata['hooks'][$hook]) // The action has declared which hooks it supports
+      && is_array($metadata['hooks'][$hook]) // by defining an array.
+      // Either the current op must be in the array or the token 'any' must be in the array.
+      && ((in_array($op, $metadata['hooks'][$hook])) || in_array('any', $metadata['hooks'][$hook])))) {
+        $functions[] = $func;
+    }
+  }
+  foreach (actions_actions_map(actions_get_all_actions()) as $aid => $action) {
+    if (in_array($action['callback'], $functions)) {
+      $options[$action['type']][$aid] = $action['description'];
+    }
+  }
+
+  $form[$op] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Trigger: ') . $description,
+    '#theme' => 'actions_display'
+    );
+  // Retrieve actions that are already assigned to this hook-op combination.
+  $actions = _actions_get_hook_actions($hook, $op);
+  $form[$op]['assigned']['#type'] = 'value';
+  $form[$op]['assigned']['#value'] = array();
+  foreach ($actions as $aid => $description) {
+    $form[$op]['assigned']['#value'][$aid] = array(
+      'description' => $description,
+      'link' => l(t('unassign'), "admin/build/trigger/unassign/$hook/$op/". md5($aid))
+    );
+  }
+
+  $form[$op]['parent'] = array(
+    '#prefix' => "<div class='container-inline'>",
+    '#suffix' => '</div>',
+  );
+  // List possible actions that may be assigned.
+  if (count($options) != 0) {
+    array_unshift($options, t('Choose an action'));
+    $form[$op]['parent']['aid'] = array(
+      '#type' => 'select',
+      '#options' => $options,
+    );
+    $form[$op]['parent']['submit'] = array(
+      '#type' => 'submit',
+      '#value' => t('Assign')
+    );
+  }
+  else {
+    $form[$op]['none'] = array(
+      '#value' => t('No available actions for this trigger.')
+    );
+  }
+  return $form;
+}
+
+/**
+ * Validation function for actions_assign_form().
+ *
+ * Makes sure that the user is not re-assigning an action to an event.
+ */
+function actions_assign_form_validate($form_id, $form_values) {
+  if (!empty($form_values['aid'])) {
+    $aid = actions_function_lookup($form_values['aid']);
+    if (db_result(db_query("SELECT aid FROM {actions_assignments} WHERE hook = '%s' AND op = '%s' AND aid = '%s'", $form_values['hook'], $form_values['operation'], $aid))) {
+      form_set_error($form_values['operation'], t('The action you chose is already assigned to that trigger.'));
+    }
+  }
+}
+
+/**
+ * Submit function for actions_assign_form().
+ */
+function actions_assign_form_submit($form_id, $form_values) {
+  if (!empty($form_values['aid'])) {
+    $callback = actions_function_lookup($form_values['aid']);
+    $aid = db_result(db_query("SELECT aid FROM {actions} WHERE MD5(aid) = '%s'", $form_values['aid']));
+    $weight = db_result(db_query("SELECT MAX(weight) FROM {actions_assignments} WHERE hook = '%s' AND op = '%s'", $form_values['hook'], $form_values['operation']));
+    db_query("INSERT INTO {actions_assignments} values ('%s', '%s', '%s', %d)", $form_values['hook'], $form_values['operation'], $aid, $weight + 1);
+    // If this action changes a node property, we need to save the node
+    // so the change will persist.
+    $actions = actions_list();
+    if (isset($actions[$callback]['behavior']) && in_array('changes_node_property', $actions[$callback]['behavior']) && ($form_values['operation'] != 'presave')) {
+      // Delete previous node_save_action if it exists, and re-add a new one at a higher weight.
+      $save_post_action_assigned = db_result(db_query("SELECT aid FROM {actions_assignments} WHERE hook = '%s' AND op = '%s' AND aid = 'node_save_action'", $form_values['hook'], $form_values['operation']));
+      if ($save_post_action_assigned) {
+        db_query("DELETE FROM {actions_assignments} WHERE hook = '%s' AND op = '%s' AND aid = 'node_save_action'", $form_values['hook'], $form_values['operation']);
+      }
+      db_query("INSERT INTO {actions_assignments} VALUES ('%s', '%s', '%s', %d)", $form_values['hook'], $form_values['operation'], 'node_save_action', $weight + 2);
+      if (!$save_post_action_assigned) {
+        drupal_set_message(t('You have added an action that changes a the property of a post. A Save post action has been added so that the property change will be saved.'));
+      }
+    }
+  }
+}
+
+/**
+ * Display actions assigned to this hook-op combination in a table.
+ *
+ * @param array $element
+ *   The fieldset including all assigned actions.
+ * @return
+ *   The rendered form with the table prepended.
+ *
+ * @ingroup themeable
+ */
+function theme_actions_display($element) {
+  $header = array();
+  $rows = array();
+  if (count($element['assigned']['#value'])) {
+    $header = array(array('data' => t('Name')), array('data' => t('Operation')));
+    $rows = array();
+    foreach ($element['assigned']['#value'] as $aid => $info) {
+      $rows[] = array(
+        $info['description'],
+        $info['link']
+      );
+    }
+  }
+
+  if (count($rows)) {
+    $output = theme('table', $header, $rows) . drupal_render($element);
+  }
+  else {
+    $output = drupal_render($element);
+  }
+  return $output;
+}
+
+
+/**
+ * Get the actions that have already been defined for this
+ * type-hook-op combination.
+ *
+ * @param $type
+ *   One of 'node', 'user', 'comment'.
+ * @param $hook
+ *   The name of the hook for which actions have been assigned,
+ *   e.g. 'nodeapi'.
+ * @param $op
+ *   The hook operation for which the actions have been assigned,
+ *   e.g., 'view'.
+ * @return
+ *   An array of action descriptions keyed by action IDs.
+ */
+function _actions_get_hook_actions($hook, $op, $type = NULL) {
+  $actions = array();
+  if ($type) {
+    $result = db_query("SELECT h.aid, a.description FROM {actions_assignments} h LEFT JOIN {actions} a on a.aid = h.aid WHERE a.type = '%s' AND h.hook = '%s' AND h.op = '%s' ORDER BY h.weight", $type, $hook, $op);
+  }
+  else {
+    $result = db_query("SELECT h.aid, a.description FROM {actions_assignments} h LEFT JOIN {actions} a on a.aid = h.aid WHERE h.hook = '%s' AND h.op = '%s' ORDER BY h.weight", $hook, $op);
+  }
+  while ($action = db_fetch_object($result)) {
+    $actions[$action->aid] = $action->description;
+  }
+  return $actions;
+}
+
+/**
+ * Get the aids of actions to be executed for a hook-op combination.
+ *
+ * @param $hook
+ *   The name of the hook being fired.
+ * @param $op
+ *   The name of the operation being executed. Defaults to an empty string
+ *   because some hooks (e.g., hook_cron()) do not have operations.
+ * @return
+ *   An array of action IDs.
+ */
+function _actions_get_hook_aids($hook, $op = '') {
+  $aids = array();
+  $result = db_query("SELECT aa.aid, a.type FROM {actions_assignments} aa LEFT JOIN {actions} a ON aa.aid = a.aid WHERE aa.hook = '%s' AND aa.op = '%s' ORDER BY weight", $hook, $op);
+  while ($action = db_fetch_object($result)) {
+    $aids[$action->aid]['type'] = $action->type;
+  }
+  return $aids;
+}
+
+/**
+ * Implementation of hook_theme().
+ */
+function actions_theme() {
+  return array(
+    'actions_display' => array(
+      'arguments' => array('element'),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_forms(). We reuse code by using the
+ * same assignment form definition for each node-op combination.
+ */
+function actions_forms() {
+  $hooks = module_invoke_all('hook_info');
+  foreach ($hooks as $module => $info) {
+    foreach ($hooks[$module] as $hook => $ops) {
+      foreach ($ops as $op => $description) {
+        $forms['actions_'. $hook .'_'. $op .'_assign_form'] = array('callback' => 'actions_assign_form');
+      }
+    }
+  }
+
+  return $forms;
+}
+
+/**
+ * When an action is called in a context that does not match its type,
+ * the object that the action expects must be retrieved. For example, when
+ * an action that works on users is called during the node hook, the
+ * user object is not available since the node hook doesn't pass it.
+ * So here we load the object the action expects.
+ *
+ * @param $type
+ *   The type of action that is about to be called.
+ * @param $node
+ *   The node that was passed via the nodeapi hook.
+ * @return
+ *   The object expected by the action that is about to be called.
+ */
+function _actions_normalize_node_context($type, $node) {
+  switch ($type) {
+    // If an action that works on comments is being called in a node context,
+    // the action is expecting a comment object. But we do not know which comment
+    // to give it. The first? The most recent? All of them? So comment actions
+    // in a node context are not supported.
+
+    // An action that works on users is being called in a node context.
+    // Load the user object of the node's author.
+    case 'user':
+      return user_load(array('uid' => $node->uid));
+  }
+}
+
+/**
+ * Implementation of hook_nodeapi().
+ */
+function actions_nodeapi(&$node, $op, $a3, $a4) {
+  // Keep objects for reuse so that changes actions make to objects can persist.
+  static $objects;
+  // Prevent recursion by tracking which operations have already been called.
+  static $recursion;
+  // Support a subset of operations.
+  if (!in_array($op, array('view', 'update', 'presave', 'insert', 'delete')) || isset($recursion[$op][$node->nid])) {
+    return;
+  }
+  $recursion[$op][$node->nid] = TRUE;
+
+  $aids = _actions_get_hook_aids('nodeapi', $op);
+  if (!$aids) {
+    return;
+  }
+  $context = array(
+    'hook' => 'nodeapi',
+    'op' => $op,
+  );
+
+  // We need to get the expected object if the action's type is not 'node'.
+  // We keep the object in $objects so we can reuse it if we have multiple actions
+  // that make changes to an object.
+  foreach ($aids as $aid => $action_info) {
+    if ($action_info['type'] != 'node') {
+      if (!isset($objects[$action_info['type']])) {
+        $objects[$action_info['type']] = _actions_normalize_node_context($action_info['type'], $node);
+      }
+      // Since we know about the node, we pass that info along to the action.
+      $context['node'] = $node;
+      $result = actions_do($aid, $objects[$action_info['type']], $context, $a4, $a4);
+    }
+    else {
+      actions_do($aid, $node, $context, $a3, $a4);
+    }
+  }
+}
+
+/**
+ * When an action is called in a context that does not match its type,
+ * the object that the action expects must be retrieved. For example, when
+ * an action that works on nodes is called during the comment hook, the
+ * node object is not available since the comment hook doesn't pass it.
+ * So here we load the object the action expects.
+ *
+ * @param $type
+ *   The type of action that is about to be called.
+ * @param $comment
+ *   The comment that was passed via the comment hook.
+ * @return
+ *   The object expected by the action that is about to be called.
+ */
+function _actions_normalize_comment_context($type, $comment) {
+  switch ($type) {
+    // An action that works with nodes is being called in a comment context.
+    case 'node':
+      return node_load(is_array($comment) ? $comment['nid'] : $comment->nid);
+
+    // An action that works on users is being called in a comment context.
+    case 'user':
+      return user_load(array('uid' => is_array($comment) ? $comment['uid'] : $comment->uid));
+  }
+}
+
+/**
+ * Implementation of hook_comment().
+ */
+function actions_comment($a1, $op) {
+  // Keep objects for reuse so that changes actions make to objects can persist.
+  static $objects;
+  // We support a subset of operations.
+  if (!in_array($op, array('insert', 'update', 'delete', 'view'))) {
+    return;
+  }
+  $aids = _actions_get_hook_aids('comment', $op);
+  $context = array(
+    'hook' => 'comment',
+    'op' => $op,
+  );
+  // We need to get the expected object if the action's type is not 'comment'.
+  // We keep the object in $objects so we can reuse it if we have multiple actions
+  // that make changes to an object.
+  foreach ($aids as $aid => $action_info) {
+    if ($action_info['type'] != 'comment') {
+      if (!isset($objects[$action_info['type']])) {
+        $objects[$action_info['type']] = _actions_normalize_comment_context($action_info['type'], $a1);
+      }
+      // Since we know about the comment, we pass it along to the action
+      // in case it wants to peek at it.
+      $context['comment'] = (object) $a1;
+      actions_do($aid, $objects[$action_info['type']], $context);
+    }
+    else {
+      $comment = (object) $a1;
+      actions_do($aid, $comment, $context);
+    }
+  }
+}
+
+/**
+ * Implementation of hook_cron().
+ */
+function actions_cron() {
+  $aids = _actions_get_hook_aids('cron');
+  $context = array(
+    'hook' => 'cron',
+    'op' => 'run',
+  );
+  // Cron does not act on any specific object.
+  $object = NULL;
+  actions_do(array_keys($aids), $object, $context);
+}
+
+/**
+ * When an action is called in a context that does not match its type,
+ * the object that the action expects must be retrieved. For example, when
+ * an action that works on nodes is called during the user hook, the
+ * node object is not available since the user hook doesn't pass it.
+ * So here we load the object the action expects.
+ *
+ * @param $type
+ *   The type of action that is about to be called.
+ * @param $account
+ *   The account object that was passed via the user hook.
+ * @return
+ *   The object expected by the action that is about to be called.
+ */
+function _actions_normalize_user_context($type, $account) {
+  switch ($type) {
+    // If an action that works on comments is being called in a user context,
+    // the action is expecting a comment object. But we have no way of
+    // determining the appropriate comment object to pass. So comment
+    // actions in a user context are not supported.
+
+    // An action that works with nodes is being called in a user context.
+    // If a single node is being viewed, return the node.
+    case 'node':
+      // If we are viewing an individual node, return the node.
+      if ((arg(0) == 'node') && is_numeric(arg(1)) && (arg(2) == NULL)) {
+        return node_load(array('nid' => arg(1)));
+      }
+  }
+}
+
+/**
+ * Implementation of hook_user().
+ */
+function actions_user($op, &$edit, &$account, $category = NULL) {
+  // Keep objects for reuse so that changes actions make to objects can persist.
+  static $objects;
+  // We support a subset of operations.
+  if (!in_array($op, array('login', 'logout', 'insert', 'update', 'delete', 'view'))) {
+    return;
+  }
+  $aids = _actions_get_hook_aids('user', $op);
+  $context = array(
+    'hook' => 'user',
+    'op' => $op,
+    'form_values' => &$edit,
+  );
+  foreach ($aids as $aid => $action_info) {
+    if ($action_info['type'] != 'user') {
+      if (!isset($objects[$action_info['type']])) {
+        $objects[$action_info['type']] = _actions_normalize_user_context($action_info['type'], $account);
+      }
+      $context['account'] = $account;
+      actions_do($aid, $objects[$action_info['type']], $context);
+    }
+    else {
+      actions_do($aid, $account, $context, $category);
+    }
+  }
+}
+
+/**
+ * Implementation of hook_taxonomy().
+ */
+function actions_taxonomy($op, $type, $array) {
+  if ($type != 'term') {
+    return;
+  }
+  $aids = _actions_get_hook_aids('taxonomy', $op);
+  $context = array(
+    'hook' => 'taxonomy',
+    'op' => $op
+  );
+  foreach ($aids as $aid => $action_info) {
+    $taxonomy_object = (object) $array;
+    actions_do($aid, $taxonomy_object, $context);
+  }
+}
+
+/**
+ * Often we generate a select field of all actions. This function
+ * generates the options for that select.
+ *
+ * @param $type
+ *   One of 'node', 'user', 'comment'.
+ * @return
+ *   Array keyed by action ID.
+ */
+function actions_options($type = 'all') {
+  $options = array(t('Choose an action'));
+  foreach (actions_actions_map(actions_get_all_actions()) as $aid => $action) {
+    $options[$action['type']][$aid] = $action['description'];
+  }
+
+  if ($type == 'all') {
+    return $options;
+  }
+  else {
+    return $options[$type];
+  }
+}
+
+/**
+ * Implementation of hook_actions_delete().
+ *
+ * Remove all trigger entries for the given action, when deleted.
+ */
+function actions_actions_delete($aid) {
+  db_query("DELETE FROM {actions_assignments} WHERE aid = '%s'", $aid);
+}
+
+/**
+ * Implementation of hook_hook_info().
+ */
+function system_hook_info() {
+  return array(
+    'system' => array(
+      'cron' => array(
+        'run' => array(
+          'runs when' => t('When cron runs'),
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Return a form definition so the Send email action can be configured.
+ *
+ * @see system_send_email_action_validate()
+ * @see system_send_email_action_submit()
+ * @param $context
+ *   Default values (if we are editing an existing action instance).
+ * @return
+ *   Form definition.
+ */
+function system_send_email_action_form($context) {
+  // Set default values for form.
+  if (!isset($context['recipient'])) {
+    $context['recipient'] = '';
+  }
+  if (!isset($context['subject'])) {
+    $context['subject'] = '';
+  }
+  if (!isset($context['message'])) {
+    $context['message'] = '';
+  }
+
+  $form['recipient'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Recipient'),
+    '#default_value' => $context['recipient'],
+    '#maxlength' => '254',
+    '#description' => t('The email address to which the message should be sent OR enter %author if you would like to send an e-mail to the author of the original post.', array('%author' => '%author')),
+  );
+  $form['subject'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Subject'),
+    '#default_value' => $context['subject'],
+    '#maxlength' => '254',
+    '#description' => t('The subject of the message.'),
+  );
+  $form['message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Message'),
+    '#default_value' => $context['message'],
+    '#cols' => '80',
+    '#rows' => '20',
+    '#description' => t('The message that should be sent. You may include the following variables: %site_name, %username, %uid, %node_url, %node_alias, %node_type, %title, %teaser, %body. Not all variables will be available in all contexts.'),
+  );
+  return $form;
+}
+
+/**
+ * Validate system_send_email_action form submissions.
+ */
+function system_send_email_action_validate($form_id, $form_values) {
+  // Validate the configuration form.
+  if (!valid_email_address($form_values['recipient']) && $form_values['recipient'] != '%author') {
+    // We want the literal %author placeholder to be emphasized in the error message.
+    form_set_error('recipient', t('Please enter a valid email address or %author.', array('%author' => '%author')));
+  }
+}
+
+/**
+ * Process system_send_email_action form submissions.
+ */
+function system_send_email_action_submit($form_id, $form_values) {
+  // Process the HTML form to store configuration. The keyed array that
+  // we return will be serialized to the database.
+  $params = array(
+    'recipient' => $form_values['recipient'],
+    'subject'   => $form_values['subject'],
+    'message'   => $form_values['message'],
+  );
+  return $params;
+}
+
+/**
+ * Implementation of a configurable Drupal action. Sends an email.
+ */
+function system_send_email_action($object, $context) {
+  global $user;
+
+  switch ($context['hook']) {
+    case 'nodeapi':
+      // Because this is not an action of type 'node' the node
+      // will not be passed as $object, but it will still be available
+      // in $context.
+      $node = $context['node'];
+      break;
+    case 'comment':
+      // The comment hook provides nid, in $context.
+      $comment = $context['comment'];
+      $node = node_load($comment->nid);
+      break;
+    case 'user':
+      // Because this is not an action of type 'user' the user
+      // object is not passed as $object, but it will still be available
+      // in $context.
+      $account = $context['account'];
+      if (isset($context['node'])) {
+        $node = $context['node'];
+      }
+      elseif ($context['recipient'] == '%author') {
+        // If we don't have a node, we don't have a node author.
+        watchdog('error', t("Cannot use '%author' token in this context."));
+        return;
+      }
+      break;
+    default:
+      // Check context for node.
+      if (!isset($object) && isset($context['node'])) {
+        $node = $context['node'];
+      }
+      else {
+        // We are being called directly.
+        $node = $object;
+      }
+  }
+
+  $recipient = $context['recipient'];
+
+  if (isset($node)) {
+    if (!isset($account)) {
+      $account = user_load(array('uid' => $node->uid));
+    }
+    if ($recipient == '%author') {
+      $recipient = $account->mail;
+    }
+  }
+
+  if (!isset($account)) {
+    $account = $user;
+  }
+
+  $subject = $context['subject'];
+  $message = $context['message'];
+  $from = variable_get('site_mail', ini_get('sendmail_from'));
+
+  $variables = array(
+    '%site_name' => variable_get('site_name', 'Drupal'),
+    '%username' => $account->name,
+  );
+  if ($context['hook'] == 'taxonomy') {
+    $vocabulary = taxonomy_vocabulary_load($object->vid);
+    $variables += array(
+      '%term_name' => $object->name,
+      '%term_description' => $object->description,
+      '%term_id' => $object->tid,
+      '%vocabulary_name' => $vocabulary->name,
+      '%vocabulary_description' => $vocabulary->description,
+      '%vocabulary_id' => $vocabulary->vid,
+    );
+  }
+
+  // Node-based variable translation is only available if we have a node.
+  if (isset($node)) {
+    $variables += array(
+      '%uid' => $node->uid,
+      '%node_url' => actions_node_url($node->nid),
+      '%node_alias' => url('node/'. $node->nid, NULL, NULL, TRUE),
+      '%node_type' => node_get_types('name', $node),
+      '%title' => $node->title,
+      '%teaser' => $node->teaser,
+      '%body' => $node->body,
+    );
+  }
+  $subject = strtr($context['subject'], $variables);
+  $subject = str_replace(array("\r", "\n"), '', $subject);
+  $message = strtr($context['message'], $variables);
+
+  if (drupal_mail('action_send_email', $recipient, $subject, $message, $from)) {
+    watchdog('action', t('Sent email to %recipient', array('%recipient' => $recipient)));
+  }
+  else {
+    watchdog('error', t('Unable to send email to %recipient', array('%recipient' => $recipient)));
+  }
+}
+
+function system_message_action_form($context) {
+  $form['message'] = array(
+    '#type' => 'textarea',
+    '#title' => t('Message'),
+    '#default_value' => isset($context['message']) ? $context['message'] : '',
+    '#required' => TRUE,
+    '#rows' => '8',
+    '#description' => t('The message to be displayed to the current user. You may include the following variables: %site_name, %username, %node_url, %node_alias, %node_type, %title, %teaser, %body. Not all variables will be available in all contexts.'),
+  );
+  return $form;
+}
+
+function system_message_action_submit($form_id, $form_values) {
+  return array('message' => $form_values['message']);
+}
+
+/**
+ * A configurable Drupal action. Sends a message to the current user's screen.
+ */
+function system_message_action(&$object, $context = array()) {
+  global $user;
+  $variables = array(
+    '%site_name' => variable_get('site_name', 'Drupal'),
+    '%username' => $user->name ? theme_username($user) : variable_get('anonymous', t('Anonymous')),
+  );
+
+  // This action can be called in any context, but if placeholders
+  // are used a node object must be present to be the source
+  // of substituted text.
+  switch ($context['hook']) {
+    case 'nodeapi':
+      // Because this is not an action of type 'node' the node
+      // will not be passed as $object, but it will still be available
+      // in $context.
+      $node = $context['node'];
+      break;
+    case 'comment':
+      // The comment hook also provides the node, in context.
+      $comment = $context['comment'];
+      $node = node_load($comment->nid);
+      break;
+    case 'taxonomy':
+      $vocabulary = taxonomy_vocabulary_load($object->vid);
+      $variables = array_merge($variables, array(
+        '%term_name' => $object->name,
+        '%term_description' => $object->description,
+        '%term_id' => $object->tid,
+        '%vocabulary_name' => $vocabulary->name,
+        '%vocabulary_description' => $vocabulary->description,
+        '%vocabulary_id' => $vocabulary->vid,
+        )
+      );
+      break;
+    default:
+      // Check context for node.
+      if (!isset($object) && isset($context['node'])) {
+        $node = $context['node'];
+      }
+      else {
+        // We are being called directly.
+        $node = $object;
+      }
+  }
+
+  if (isset($node) && is_object($node)) {
+    $variables = array_merge($variables, array(
+      '%uid' => $node->uid,
+      '%node_url' => actions_node_url($node->nid),
+      '%node_alias' => url(drupal_get_path_alias('node/' . $node->nid), NULL, NULL, TRUE),
+      '%node_type' => check_plain(node_get_types('name', $node)),
+      '%title' => filter_xss($node->title),
+      '%teaser' => filter_xss($node->teaser),
+      '%body' => filter_xss($node->body),
+      )
+    );
+  }
+  $context['message'] = strtr($context['message'], $variables);
+  drupal_set_message($context['message']);
+}
+
+/**
+ * Implementation of a configurable Drupal action. Redirect user to a URL.
+ */
+function system_goto_action_form($context) {
+  $form['url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('URL'),
+    '#description' => t('The URL to which the user should be redirected. This can be an internal URL like node/1234 or an external URL like http://drupal.org.'),
+    '#default_value' => isset($context['url']) ? $context['url'] : '',
+    '#required' => TRUE,
+  );
+  return $form;
+}
+
+function system_goto_action_submit($form_id, $form_values) {
+  return array(
+    'url' => $form_values['url']
+  );
+}
+
+function system_goto_action($object, $context) {
+  drupal_goto($context['url']);
+}
+
+/**
+ * Implementation of hook_hook_info().
+ */
+function node_hook_info() {
+  return array(
+    'node' => array(
+      'nodeapi' => array(
+        'presave' => array(
+          'runs when' => t('When either saving a new post or updating an existing post'),
+        ),
+        'insert' => array(
+          'runs when' => t('After saving a new post'),
+        ),
+        'update' => array(
+          'runs when' => t('After saving an updated post'),
+        ),
+        'delete' => array(
+          'runs when' => t('After deleting a post')
+        ),
+        'view' => array(
+          'runs when' => t('When content is viewed by an authenticated user')
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implementation of hook_action_info().
+ * All core hook_action_info() implementations consolidated here to avoid
+ * namespace collisions with workflow-ng.
+ */
+function actions_action_info() {
+  return array(
+    'node_publish_action' => array(
+      'type' => 'node',
+      'description' => t('Publish post'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+        'comment' => array('insert', 'update'),
+      ),
+    ),
+    'node_unpublish_action' => array(
+      'type' => 'node',
+      'description' => t('Unpublish post'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+        'comment' => array('delete', 'insert', 'update'),
+      ),
+    ),
+    'node_make_sticky_action' => array(
+      'type' => 'node',
+      'description' => t('Make post sticky'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+        'comment' => array('insert', 'update'),
+      ),
+    ),
+    'node_make_unsticky_action' => array(
+      'type' => 'node',
+      'description' => t('Make post unsticky'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+        'comment' => array('delete', 'insert', 'update'),
+      ),
+    ),
+    'node_promote_action' => array(
+      'type' => 'node',
+      'description' => t('Promote post to front page'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+        'comment' => array('insert', 'update'),
+      ),
+    ),
+    'node_unpromote_action' => array(
+      'type' => 'node',
+      'description' => t('Remove post from front page'),
+      'configurable' => FALSE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'nodeapi' => array('presave'),
+        'comment' => array('delete', 'insert', 'update'),
+      ),
+    ),
+    'node_assign_owner_action' => array(
+      'type' => 'node',
+      'description' => t('Change the author of a post'),
+      'configurable' => TRUE,
+      'behavior' => array('changes_node_property'),
+      'hooks' => array(
+        'any' => TRUE,
+        'nodeapi' => array('presave'),
+        'comment' => array('delete', 'insert', 'update'),
+      ),
+    ),
+    'node_save_action' => array(
+      'type' => 'node',
+      'description' => t('Save post'),
+      'configurable' => FALSE,
+      'hooks' => array(
+        'comment' => array('delete', 'insert', 'update'),
+      ),
+    ),
+    'node_unpublish_by_keyword_action' => array(
+      'type' => 'node',
+      'description' => t('Unpublish post containing keyword(s)'),
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('presave', 'insert', 'update'),
+      ),
+    ),
+    'system_message_action' => array(
+      'type' => 'system',
+      'description' => t('Display a message to the user'),
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('view', 'insert', 'update', 'delete'),
+        'comment' => array('view', 'insert', 'update', 'delete'),
+        'user' => array('view', 'insert', 'update', 'delete', 'login'),
+        'taxonomy' => array('insert', 'update', 'delete'),
+      ),
+    ),
+    'system_send_email_action' => array(
+      'description' => t('Send e-mail'),
+      'type' => 'system',
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('view', 'insert', 'update', 'delete'),
+        'comment' => array('view', 'insert', 'update', 'delete'),
+        'user' => array('view', 'insert', 'update', 'delete', 'login'),
+        'taxonomy' => array('insert', 'update', 'delete'),
+      )
+    ),
+    'system_goto_action' => array(
+      'description' => t('Redirect to URL'),
+      'type' => 'system',
+      'configurable' => TRUE,
+      'hooks' => array(
+        'nodeapi' => array('view', 'insert', 'update', 'delete'),
+        'comment' => array('view', 'insert', 'update', 'delete'),
+        'user' => array('view', 'insert', 'update', 'delete', 'login'),
+      )
+    ),
+    'comment_unpublish_action' => array(
+      'description' => t('Unpublish comment'),
+      'type' => 'comment',
+      'configurable' => FALSE,
+      'hooks' => array(
+        'comment' => array('insert', 'update'),
+      )
+    ),
+    'comment_unpublish_by_keyword_action' => array(
+      'description' => t('Unpublish comment containing keyword(s)'),
+      'type' => 'comment',
+      'configurable' => TRUE,
+      'hooks' => array(
+        'comment' => array('insert', 'update'),
+      )
+    ),
+    'user_block_user_action' => array(
+      'description' => t('Block current user'),
+      'type' => 'user',
+      'configurable' => FALSE,
+      'hooks' => array(),
+    ),
+    'user_block_ip_action' => array(
+      'description' => t('Ban IP address of current user'),
+      'type' => 'user',
+      'configurable' => FALSE,
+      'hooks' => array(),
+    ),
+  );
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Sets the status of a node to 1, meaning published.
+ */
+function node_publish_action(&$node, $context = array()) {
+  $node->status = 1;
+  watchdog('action', t('Set @type %title to published.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Sets the status of a node to 0, meaning unpublished.
+ */
+function node_unpublish_action(&$node, $context = array()) {
+  $node->status = 0;
+  watchdog('action', t('Set @type %title to unpublished.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Sets the sticky-at-top-of-list property of a node to 1.
+ */
+function node_make_sticky_action(&$node, $context = array()) {
+  $node->sticky = 1;
+  watchdog('action', t('Set @type %title to sticky.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Sets the sticky-at-top-of-list property of a node to 0.
+ */
+function node_make_unsticky_action(&$node, $context = array()) {
+  $node->sticky = 0;
+  watchdog('action', t('Set @type %title to unsticky.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Sets the promote property of a node to 1.
+ */
+function node_promote_action(&$node, $context = array()) {
+  $node->promote = 1;
+  watchdog('action', t('Promoted @type %title to front page.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Sets the promote property of a node to 0.
+ */
+function node_unpromote_action(&$node, $context = array()) {
+  $node->promote = 0;
+  watchdog('action', t('Removed @type %title from front page.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Saves a node.
+ */
+function node_save_action($node) {
+  node_save($node);
+  watchdog('action', t('Saved @type %title', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+}
+
+/**
+ * Implementation of a configurable Drupal action.
+ * Assigns ownership of a node to a user.
+ */
+function node_assign_owner_action(&$node, $context) {
+  $node->uid = $context['owner_uid'];
+  $owner_name = db_result(db_query("SELECT name FROM {users} WHERE uid = %d", $context['owner_uid']));
+  watchdog('action', t('Changed owner of @type %title to uid %name.', array('@type' => $node->type, '%title' => $node->title, '%name' => $owner_name)));
+}
+
+function node_assign_owner_action_form($context) {
+  $description = t('The username of the user to which you would like to assign ownership.');
+  $count = db_result(db_query("SELECT COUNT(*) FROM {users}"));
+  $owner_name = '';
+  if (isset($context['owner_uid'])) {
+    $owner_name = db_result(db_query("SELECT name FROM {users} WHERE uid = %d", $context['owner_uid']));
+  }
+
+  // Use dropdown for fewer than 200 users; textbox for more than that.
+  if (intval($count) < 200) {
+    $options = array();
+    $result = db_query("SELECT uid, name FROM {users} WHERE uid > 0 ORDER BY name");
+    while ($data = db_fetch_object($result)) {
+      $options[$data->name] = $data->name;
+    }
+    $form['owner_name'] = array(
+      '#type' => 'select',
+      '#title' => t('Username'),
+      '#default_value' => $owner_name,
+      '#options' => $options,
+      '#description' => $description,
+    );
+  }
+  else {
+    $form['owner_name'] = array(
+      '#type' => 'textfield',
+      '#title' => t('Username'),
+      '#default_value' => $owner_name,
+      '#autocomplete_path' => 'user/autocomplete',
+      '#size' => '10',
+      '#maxlength' => '60',
+      '#description' => $description,
+    );
+  }
+  return $form;
+}
+
+function node_assign_owner_action_validate($form_id, $form_values) {
+  $count = db_result(db_query("SELECT COUNT(*) FROM {users} WHERE name = '%s'", $form_values['owner_name']));
+  if (intval($count) != 1) {
+    form_set_error('owner_name', t('Please enter a valid username.'));
+  }
+}
+
+function node_assign_owner_action_submit($form_id, $form_values) {
+  // Username can change, so we need to store the ID, not the username.
+  $uid = db_result(db_query("SELECT uid from {users} WHERE name = '%s'", $form_values['owner_name']));
+  return array('owner_uid' => $uid);
+}
+
+function node_unpublish_by_keyword_action_form($context) {
+  $form['keywords'] = array(
+    '#title' => t('Keywords'),
+    '#type' => 'textarea',
+    '#description' => t('The post will be unpublished if it contains any of the character sequences above. Use a comma-separated list of character sequences. Example: funny, bungee jumping, "Company, Inc.". Character sequences are case-sensitive.'),
+    '#default_value' => isset($context['keywords']) ? actions_implode_tags($context['keywords']) : '',
+  );
+  return $form;
+}
+
+function node_unpublish_by_keyword_action_submit($form_id, $form_values) {
+  return array('keywords' => actions_explode_tags($form_values['keywords']));
+}
+
+/**
+ * Implementation of a configurable Drupal action.
+ * Unpublish a node if it contains a certain string.
+ *
+ * @param $context
+ *   An array providing more information about the context of the call to this action.
+ * @param $comment
+ *   A node object.
+ */
+function node_unpublish_by_keyword_action($node, $context) {
+  foreach ($context['keywords'] as $keyword) {
+    if (strstr(node_view(drupal_clone($node)), $keyword) || strstr($node->title, $keyword)) {
+      $node->status = 0;
+      watchdog('action', t('Set @type %title to unpublished.', array('@type' => node_get_types('name', $node), '%title' => $node->title)));
+      break;
+    }
+  }
+}
+
+/**
+ * Implementation of hook_hook_info().
+ */
+function comment_hook_info() {
+  return array(
+    'comment' => array(
+      'comment' => array(
+        'insert' => array(
+          'runs when' => t('After saving a new comment'),
+        ),
+        'update' => array(
+          'runs when' => t('After saving an updated comment'),
+        ),
+        'delete' => array(
+          'runs when' => t('After deleting a comment')
+        ),
+        'view' => array(
+          'runs when' => t('When a comment is being viewed by an authenticated user')
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Drupal action to unpublish a comment.
+ *
+ * @param $context
+ *   Keyed array. Must contain the id of the comment if $comment is not passed.
+ * @param $comment
+ *   An optional comment object.
+ */
+function comment_unpublish_action($comment, $context = array()) {
+  if (isset($comment->cid)) {
+    $cid = $comment->cid;
+    $subject = $comment->subject;
+  }
+  else {
+    $cid = $context['cid'];
+    $subject = db_result(db_query("SELECT subject FROM {comments} WHERE cid = %d", $cid));
+  }
+  db_query('UPDATE {comments} SET status = %d WHERE cid = %d', COMMENT_NOT_PUBLISHED, $cid);
+  watchdog('action', t('Unpublished comment %subject.', array('%subject' => $subject)));
+}
+
+/**
+ * Form builder; Prepare a form for blacklisted keywords.
+ *
+ * @ingroup forms
+ */
+function comment_unpublish_by_keyword_action_form($context) {
+  $form['keywords'] = array(
+    '#title' => t('Keywords'),
+    '#type' => 'textarea',
+    '#description' => t('The comment will be unpublished if it contains any of the character sequences above. Use a comma-separated list of character sequences. Example: funny, bungee jumping, "Company, Inc.". Character sequences are case-sensitive.'),
+    '#default_value' => isset($context['keywords']) ? actions_implode_tags($context['keywords']) : '',
+  );
+  return $form;
+}
+
+/**
+ * Process comment_unpublish_by_keyword_action_form form submissions.
+ */
+function comment_unpublish_by_keyword_action_submit($form_id, $form_values) {
+  return array('keywords' => actions_explode_tags($form_values['keywords']));
+}
+
+/**
+ * Implementation of a configurable Drupal action.
+ * Unpublish a comment if it contains a certain string.
+ *
+ * @param $context
+ *   An array providing more information about the context of the call to this action.
+ *   Unused here since this action currently only supports the insert and update ops of
+ *   the comment hook, both of which provide a complete $comment object.
+ * @param $comment
+ *   A comment object.
+ */
+function comment_unpublish_by_keyword_action($comment, $context) {
+  foreach ($context['keywords'] as $keyword) {
+    if (strstr($comment->comment, $keyword) || strstr($comment->subject, $keyword)) {
+      db_query('UPDATE {comments} SET status = %d WHERE cid = %d', COMMENT_NOT_PUBLISHED, $comment->cid);
+      watchdog('action', t('Unpublished comment %subject.', array('%subject' => $comment->subject)));
+      break;
+    }
+  }
+}
+
+/**
+ * Implementation of hook_hook_info().
+ */
+function user_hook_info() {
+  return array(
+    'user' => array(
+      'user' => array(
+        'insert' => array(
+          'runs when' => t('After a user account has been created'),
+        ),
+        'update' => array(
+          'runs when' => t("After a user's profile has been updated"),
+        ),
+        'delete' => array(
+          'runs when' => t('After a user has been deleted')
+        ),
+        'login' => array(
+          'runs when' => t('After a user has logged in')
+        ),
+        'logout' => array(
+          'runs when' => t('After a user has logged out')
+        ),
+        'view' => array(
+          'runs when' => t("When a user's profile is being viewed")
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Blocks the current user.
+ */
+function user_block_user_action(&$object, $context = array()) {
+  if (isset($object->uid)) {
+    $uid = $object->uid;
+  }
+  elseif (isset($context['uid'])) {
+    $uid = $context['uid'];
+  }
+  else {
+    global $user;
+    $uid = $user->uid;
+  }
+  db_query("UPDATE {users} SET status = 0 WHERE uid = %d", $uid);
+  sess_destroy_uid($uid);
+  watchdog('action', t('Blocked user %name.', array('%name' => check_plain($user->name))));
+}
+
+/**
+ * Implementation of a Drupal action.
+ * Adds an access rule that blocks the user's IP address.
+ */
+function user_block_ip_action() {
+  $ip = ip_address();
+  db_query("INSERT INTO {access} (mask, type, status) VALUES ('%s', '%s', %d)", $ip, 'host', 0);
+  watchdog('action', t('Banned IP address %ip', array('%ip' => $ip)));
+}
+
+/**
+ * Implementation of hook_hook_info().
+ */
+function taxonomy_hook_info() {
+  return array(
+    'taxonomy' => array(
+      'taxonomy' => array(
+        'insert' => array(
+          'runs when' => t('After saving a new term to the database'),
+        ),
+        'update' => array(
+          'runs when' => t('After saving an updated term to the database'),
+        ),
+        'delete' => array(
+          'runs when' => t('After deleting a term')
+        ),
+      ),
+    ),
+  );
+}
+
+/**
+ * Stripped-down version of url() that does not do path translation; use only
+ * for building urls of the form http://example.com/node/3.
+ *
+ * @param $nid
+ * @return
+ *   Absolute URL built without path alias.
+ */
+function actions_node_url($nid) {
+  global $base_url;
+  $script = (strpos($_SERVER['SERVER_SOFTWARE'], 'Apache') === FALSE) ? 'index.php' : '';
+  $clean_url = (bool)variable_get('clean_url', '0');
+  if ($clean_url) {
+    return  $base_url . '/node/' . $nid;
+  }
+  else {
+    return  $base_url . '/' . $script . '?q=node/' . $nid;
+  }
+}
+
+include_once(drupal_get_path('module', 'actions') .'/actions.inc');

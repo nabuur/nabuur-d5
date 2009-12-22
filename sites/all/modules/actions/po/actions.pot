@@ -1,0 +1,274 @@
+# LANGUAGE translation of Drupal (actions.install)
+# Copyright YEAR NAME <EMAIL@ADDRESS>
+# Generated from file: actions.install,v 1.1 2006/04/21 14:02:05 jvandyk
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: PROJECT VERSION\n"
+"POT-Creation-Date: 2006-07-19 21:03-0400\n"
+"PO-Revision-Date: YYYY-mm-DD HH:MM+ZZZZ\n"
+"Last-Translator: NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <EMAIL@ADDRESS>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=utf-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#: actions.install:35
+msgid "The actions module has successfully added tables to the MySQL database."
+msgstr ""
+
+#: actions.install:38;76
+msgid ""
+"Drupal was unable to install the database tables for the actions module."
+msgstr ""
+
+#: actions.install:73
+msgid ""
+"The actions module has successfully added tables to the PostgreSQL database."
+msgstr ""
+
+#: actions.inc:22
+msgid "Set node id %id to Published"
+msgstr ""
+
+#: actions.inc:27
+msgid "Publish node"
+msgstr ""
+
+#: actions.inc:28;57;96;127;158;189;219;249;279
+msgid "Node"
+msgstr ""
+
+#: actions.inc:56
+msgid "Unpublish node"
+msgstr ""
+
+#: actions.inc:68
+msgid "Set node id %id to Unpublished"
+msgstr ""
+
+#: actions.inc:95
+msgid "Add node to moderation queue"
+msgstr ""
+
+#: actions.inc:107
+msgid "Added node id %id to moderation queue"
+msgstr ""
+
+#: actions.inc:126
+msgid "Remove node from moderation queue"
+msgstr ""
+
+#: actions.inc:138
+msgid "Removed node id %id from moderation queue"
+msgstr ""
+
+#: actions.inc:157
+msgid "Make node sticky"
+msgstr ""
+
+#: actions.inc:169
+msgid "Made node id %id sticky"
+msgstr ""
+
+#: actions.inc:188
+msgid "Make node unsticky"
+msgstr ""
+
+#: actions.inc:200
+msgid "Made node id %id unsticky"
+msgstr ""
+
+#: actions.inc:218
+msgid "Promote node to front page"
+msgstr ""
+
+#: actions.inc:230
+msgid "Promoted node id %id to front page"
+msgstr ""
+
+#: actions.inc:248
+msgid "Remove node from front page"
+msgstr ""
+
+#: actions.inc:260
+msgid "Removed node id %id from front page"
+msgstr ""
+
+#: actions.inc:278
+msgid "Change node author"
+msgstr ""
+
+#: actions.inc:291
+msgid "Changed owner of node %id to uid %uid"
+msgstr ""
+
+#: actions.inc:297
+msgid "The username of the user to which you would like to assign ownership."
+msgstr ""
+
+#: actions.inc:330
+msgid "Please enter a valid username."
+msgstr ""
+
+#: actions.inc:364
+msgid "Send Email"
+msgstr ""
+
+#: actions.inc:365
+msgid "Email"
+msgstr ""
+
+#: actions.inc:377;421;445;446
+msgid "%author"
+msgstr ""
+
+#: actions.inc:399
+msgid "Sent email to %recipient"
+msgstr ""
+
+#: actions.inc:402
+msgid "Unable to send email to %recipient"
+msgstr ""
+
+#: actions.inc:417
+msgid "Recipient"
+msgstr ""
+
+#: actions.inc:421
+msgid ""
+"The email address to which the message should be sent OR enter %author if "
+"you would like to send an e-mail to the original author of the post."
+msgstr ""
+
+#: actions.inc:429
+msgid "The subject of the message."
+msgstr ""
+
+#: actions.inc:437
+msgid ""
+"The message that should be sent.  You may include the following variables: %"
+"site_name, %username, %node_url, %node_type, %title, %teaser, %body"
+msgstr ""
+
+#: actions.inc:446
+msgid "Please enter a valid email address or %author."
+msgstr ""
+
+#: actions.inc:22;68;107;138;169;200;230;260;291;399
+msgid "action"
+msgstr ""
+
+#: actions.module:16
+msgid "Scriptable actions configurable through the web."
+msgstr ""
+
+#: actions.module:20
+msgid ""
+"This page lists all actions that are available. Simple actions that do not "
+"require any configuration are listed automatically. Actions that need to be "
+"configured are listed in the <em>Add new action</em> menu. To add a "
+"configurable action, select the action and click the <em>Add new action</em> "
+"button. After completing the configuration form, the action will be "
+"available for use by Drupal."
+msgstr ""
+
+#: actions.module:23
+msgid ""
+"This is where you configure a certain action that will be performed at some "
+"time in the future. For example, you might configure an action to send email "
+"to your friend Royce. Your entry in the description field, below, should be "
+"descriptive enough to remind you of that."
+msgstr ""
+
+#: actions.module:40;312;0
+msgid "actions"
+msgstr ""
+
+#: actions.module:59
+msgid "configure action"
+msgstr ""
+
+#: actions.module:66;73
+msgid "delete action"
+msgstr ""
+
+#: actions.module:115;122
+msgid "Add new action"
+msgstr ""
+
+#: actions.module:132
+msgid "Action Type"
+msgstr ""
+
+#: actions.module:155
+msgid "Actions available to Drupal:"
+msgstr ""
+
+#: actions.module:205
+msgid "A unique description for this configuration of this action"
+msgstr ""
+
+#: actions.module:225
+msgid "Save"
+msgstr ""
+
+#: actions.module:246
+msgid "The action has been successfully saved."
+msgstr ""
+
+#: actions.module:266
+msgid "Really delete action %action?"
+msgstr ""
+
+#: actions.module:266
+msgid "This cannot be undone."
+msgstr ""
+
+#: actions.module:276
+msgid "Deleted action %aid (%action)"
+msgstr ""
+
+#: actions.module:277
+msgid "Action %action was deleted"
+msgstr ""
+
+#: actions.module:312
+msgid "Stack overflow; aborting."
+msgstr ""
+
+#: actions.module:519
+msgid "Action '%action' saved."
+msgstr ""
+
+#: actions.module:524
+msgid "Action '%action' created."
+msgstr ""
+
+#: actions.module:631
+msgid "Action '%action' added."
+msgstr ""
+
+#: actions.module:643
+msgid "Deleted orphaned action"
+msgstr ""
+
+#: actions.module:652
+msgid "Remove orphaned actions"
+msgstr ""
+
+#: actions.module:654
+msgid "%actionphrase in the actions table: "
+msgstr ""
+
+#: actions.module:654
+msgid "One orphaned action exists"
+msgid_plural "%count orphaned actions exist"
+msgstr[0] ""
+msgstr[1] ""
+
+#: actions.module:87
+msgid "administer actions"
+msgstr ""
