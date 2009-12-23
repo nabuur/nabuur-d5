@@ -1,5 +1,5 @@
 <?php
-// $Id: filter.module,v 1.160.2.12 2008/12/21 02:47:24 drumm Exp $
+// $Id: filter.module,v 1.160.2.14 2009/06/03 17:52:13 drumm Exp $
 
 /**
  * @file
@@ -1187,13 +1187,13 @@ function _filter_url_trim($text, $length = NULL) {
  */
 function _filter_autop($text) {
   // All block level tags
-  $block = '(?:table|thead|tfoot|caption|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|select|form|blockquote|address|p|h[1-6])';
+  $block = '(?:table|thead|tfoot|caption|colgroup|tbody|tr|td|th|div|dl|dd|dt|ul|ol|li|pre|select|form|blockquote|address|p|h[1-6]|hr)';
 
   // Split at <pre>, <script>, <style> and </pre>, </script>, </style> tags.
   // We don't apply any processing to the contents of these tags to avoid messing
   // up code. We look for matched pairs and allow basic nesting. For example:
   // "processed <pre> ignored <script> ignored </script> ignored </pre> processed"
-  $chunks = preg_split('@(</?(?:pre|script|style)[^>]*>)@i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
+  $chunks = preg_split('@(</?(?:pre|script|style|object)[^>]*>)@i', $text, -1, PREG_SPLIT_DELIM_CAPTURE);
   // Note: PHP ensures the array consists of alternating delimiters and literals
   // and begins and ends with a literal (inserting NULL as required).
   $ignore = FALSE;

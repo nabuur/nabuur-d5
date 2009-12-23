@@ -1,5 +1,5 @@
 <?php
-// $Id: common.inc,v 1.611.2.25 2009/09/16 17:29:09 drumm Exp $
+// $Id: common.inc,v 1.611.2.21 2008/12/25 20:37:07 drumm Exp $
 
 /**
  * @file
@@ -149,15 +149,6 @@ function drupal_set_header($header = NULL) {
  */
 function drupal_get_headers() {
   return drupal_set_header();
-}
-
-/**
- * Make any final alterations to the rendered xhtml.
- */
-function drupal_final_markup($content) {
-  // Make sure that the charset is always specified as the first element of the
-  // head region to prevent encoding-based attacks.
-  return preg_replace('/<head[^>]*>/i', "\$0\n<meta http-equiv=\"Content-Type\" content=\"text/html; charset=utf-8\" />", $content, 1);
 }
 
 /**
@@ -427,18 +418,6 @@ function drupal_http_request($url, $headers = array(), $method = 'GET', $data = 
   // Parse the URL, and make sure we can handle the schema.
   $uri = parse_url($url);
 
-  if ($uri == FALSE) {
-    $result->error = 'unable to parse URL';
-    $result->code = -1001;
-    return $result;
-  }
-
-  if (!isset($uri['scheme'])) {
-    $result->error = 'missing schema';
-    $result->code = -1002;
-    return $result;
-  }
-
   switch ($uri['scheme']) {
     case 'http':
       $port = isset($uri['port']) ? $uri['port'] : 80;
@@ -453,7 +432,6 @@ function drupal_http_request($url, $headers = array(), $method = 'GET', $data = 
       break;
     default:
       $result->error = 'invalid schema '. $uri['scheme'];
-      $result->code = -1003;
       return $result;
   }
 
@@ -923,7 +901,7 @@ function valid_email_address($mail) {
  *
  * This function should only be used on actual URLs. It should not be used for
  * Drupal menu paths, which can contain arbitrary characters.
- * Valid values per RFC 3986.
+ *
  * @param $url
  *   The URL to verify.
  * @param $absolute
@@ -932,26 +910,12 @@ function valid_email_address($mail) {
  *   TRUE if the URL is in a valid format.
  */
 function valid_url($url, $absolute = FALSE) {
+  $allowed_characters = '[a-z0-9\/:_\-_\.\?\$,;~=#&%\+]';
   if ($absolute) {
-    return (bool)preg_match("
-      /^                                                      # Start at the beginning of the text
-      (?:ftp|https?):\/\/                                     # Look for ftp, http, or https schemes
-      (?:                                                     # Userinfo (optional) which is typically
-        (?:(?:[\w\.\-\+!$&'\(\)*\+,;=]|%[0-9a-f]{2})+:)*      # a username or a username and password
-        (?:[\w\.\-\+%!$&'\(\)*\+,;=]|%[0-9a-f]{2})+@          # combination
-      )?
-      (?:
-        (?:[a-z0-9\-\.]|%[0-9a-f]{2})+                        # A domain name or a IPv4 address
-        |(?:\[(?:[0-9a-f]{0,4}:)*(?:[0-9a-f]{0,4})\])         # or a well formed IPv6 address
-      )
-      (?::[0-9]+)?                                            # Server port number (optional)
-      (?:[\/|\?]
-        (?:[\w#!:\.\?\+=&@$'~*,;\/\(\)\[\]\-]|%[0-9a-f]{2})   # The path and query (optional)
-      *)?
-    $/xi", $url);
+    return preg_match("/^(http|https|ftp):\/\/". $allowed_characters ."+$/i", $url);
   }
   else {
-    return (bool)preg_match("/^(?:[\w#!:\.\?\+=&@$'~*,;\/\(\)\[\]\-]|%[0-9a-f]{2})+$/i", $url);
+    return preg_match("/^". $allowed_characters ."+$/i", $url);
   }
 }
 
@@ -2073,7 +2037,7 @@ function page_set_cache() {
  * @param $body
  *   Message to be sent. Drupal will format the correct line endings for you.
  * @param $from
- *   Sets From to this value, if given.
+ *   Sets From, Reply-To, Return-Path and Error-To to this value, if given.
  * @param $headers
  *   Associative array containing the headers to add. This is typically
  *   used to add extra headers (From, Cc, and Bcc).
@@ -2093,10 +2057,10 @@ function drupal_mail($mailkey, $to, $subject, $body, $from = NULL, $headers = ar
   // SMTP server.  Errors-To is redundant, but shouldn't hurt.
   $default_from = variable_get('site_mail', ini_get('sendmail_from'));
   if ($default_from) {
-    $defaults['From'] = $defaults['Sender'] = $defaults['Return-Path'] = $defaults['Errors-To'] = $default_from;
+    $defaults['From'] = $defaults['Reply-To'] = $defaults['Sender'] = $defaults['Return-Path'] = $defaults['Errors-To'] = $default_from;
   }
   if ($from) {
-    $defaults['From'] = $from;
+    $defaults['From'] = $defaults['Reply-To'] = $from;
   }
   $headers = array_merge($defaults, $headers);
   // Custom hook traversal to allow pass by reference
@@ -2151,6 +2115,18 @@ function drupal_cron_run() {
   if (!ini_get('safe_mode')) {
     set_time_limit(240);
   }
+  set_time_limit(800);
+
+  $load = sys_getloadavg();
+  $cron_loadskip = variable_get('cron_loadskip', 0);
+  $cron_loadrun = variable_get('cron_loadrun', 0);
+
+  if ($load[0] > 5) {
+    $cron_loadskip++;
+    watchdog('cron', t('Cron run skipped as load at %load (running total %skip:%run)', array('%load' => $load[0], '%skip' => $cron_loadskip, '%run' => $cron_loadrun)), WATCHDOG_WARNING);
+    variable_set('cron_loadskip', $cron_loadskip);
+    return TRUE;
+  }
 
   // Fetch the cron semaphore
   $semaphore = variable_get('cron_semaphore', FALSE);
@@ -2181,7 +2157,9 @@ function drupal_cron_run() {
 
     // Record cron time
     variable_set('cron_last', time());
-    watchdog('cron', t('Cron run completed.'), WATCHDOG_NOTICE);
+    $cron_loadrun++;
+    watchdog('cron', t('Cron run completed. (running total %skip:%run)', array('%skip' => $cron_loadskip, '%run' => $cron_loadrun)), WATCHDOG_NOTICE);
+    variable_set('cron_loadrun', $cron_loadrun);
 
     // Release cron semaphore
     variable_del('cron_semaphore');
