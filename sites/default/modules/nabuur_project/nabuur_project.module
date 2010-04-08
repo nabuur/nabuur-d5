@@ -1,6 +1,43 @@
 <?php 
 // $Id: nabuur_project.module,v 1.1.2.9 2008/11/26 12:40:59 kester Exp $ 
 
+/**
+ * Testing is this a good place to try and change per row?
+ */
+function nabuur_project_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
+  switch ($op) {
+    case 'rss item':
+      $additions = array();
+
+      // to add location need to find out the group and extract
+      // the group from there.
+      if (isset($node->og_groups) && count($node->og_groups)) {
+        foreach ($node->og_groups as $gid) {
+          $group = node_load($gid);
+          if ($group->field_location && $group->field_location[0]['lat']) {
+            $additions[] = array(
+              'key' => 'georss:point',
+              'value' => $group->field_location[0]['lng'] . ' ' . $group->field_location[0]['lat'],
+              'namespace' => array('georss' => 'xmlns:georss="http://www.georss.org/georss"'),
+            );
+          }
+        }
+      }
+
+      if ($node->type == 'task' || $node->type == 'project') {
+        // date 'c' is PHP5 so using 'Y-m-d\TH:i:s' no timezone
+        $additions[] = array (
+          'key' => 'ev:start',
+          'value' => format_date($node->created, 'custom', 'Y-m-d\TH:i:s'),
+          'namespace' => array('ev' => 'xmlns:ev="http://purl.org/rss/1.0/modules/event/"'),
+        );
+      }
+
+      return $additions;
+  }
+}
+
+
 /**      
  * @file  
  * nabuur.com site group/project pages.
