@@ -1,6 +1,27 @@
 <?php 
 // $Id: nabuur_project.module,v 1.1.2.9 2008/11/26 12:40:59 kester Exp $ 
 
+/*********
+ * Guessing these could go in a seperate include.
+ *
+ * RSS and views rss output for projectrss.
+ */
+
+/**
+ * Provide views plugins for the feed types we support.
+ */
+function nabuur_project_views_style_plugins() {
+  return array(
+    'project_rss' => array(
+      'name' => t('Project RSS feed'),
+      'theme' => 'project_rss_feed',
+      'needs_table_header' => TRUE,
+      'needs_fields' => TRUE,
+      'even_empty' => TRUE,
+    ),
+  );
+}
+
 /**
  * Testing is this a good place to try and change per row?
  */
@@ -35,6 +56,136 @@ function nabuur_project_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
 
       return $additions;
   }
+}
+
+/**
+ * plugin that actually displays an RSS feed
+ */
+function theme_project_rss_feed($view, $nodes, $type) {
+  if ($type == 'block') {
+    return;
+  }
+  global $base_url;
+
+  $channel = array(
+    // a check_plain isn't required on these because format_rss_channel
+    // already does this.
+    'title'       => views_get_title($view, 'page'),
+    'link'        => url($view->feed_url ? $view->feed_url : $view->real_url, NULL, NULL, true),
+    'description' => $view->description,
+  );
+
+  $item_length = variable_get('feed_item_length', 'teaser');
+  $namespaces = array('xmlns:dc="http://purl.org/dc/elements/1.1/"', 'xmlns:projrss="http://projectrss.org/wiki/spec"', 'xmlns:foaf="http://xmlns.com/foaf/0.1/"', 'xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"');
+
+  // Except for the original being a while and this being a foreach, this is
+  // completely cut & pasted from node.module.
+  foreach ($nodes as $node) {
+    // Load the specified node:
+    $item = node_load($node->nid);
+    $link = url("node/$node->nid", NULL, NULL, 1);
+
+    if ($item_length != 'title') {
+      $teaser = ($item_length == 'teaser') ? TRUE : FALSE;
+
+      // Filter and prepare node teaser
+      if (node_hook($item, 'view')) {
+        node_invoke($item, 'view', $teaser, FALSE);
+      }
+      else {
+        $item = node_prepare($item, $teaser);
+      }
+
+      // Allow modules to change $node->teaser before viewing.
+      node_invoke_nodeapi($item, 'view', $teaser, FALSE);
+    }
+
+    // Allow modules to add additional item fields
+    $extra = node_invoke_nodeapi($item, 'rss item');
+    $extra = array_merge($extra, array(array('key' => 'pubDate', 'value' =>  date('r', $item->created)), array('key' => 'dc:creator', 'value' => $item->name), array('key' => 'guid', 'value' => $item->nid . ' at ' . $base_url, 'attributes' => array('isPermaLink' => 'false'))));
+    foreach ($extra as $element) {
+      if ($element['namespace']) {
+        $namespaces = array_merge($namespaces, $element['namespace']);
+      }
+    }
+    
+    // Prepare the item description
+    switch ($item_length) {
+      case 'fulltext':
+        $item_text = $item->body;
+        break;
+      case 'teaser':
+        $item_text = $item->teaser;
+        if ($item->readmore) {
+          $item_text .= '<p>'. l(t('read more'), 'node/'. $item->nid, NULL, NULL, NULL, TRUE) .'</p>';
+        }
+        break;
+      case 'title':
+        $item_text = '';
+        break;
+    }
+
+    $items .= format_rss_item($item->title, $link, $item_text, $extra);
+  }
+
+  $channel_defaults = array(
+    'version'     => '2.0',
+    'title'       => variable_get('site_name', 'drupal') .' - '. variable_get('site_slogan', ''),
+    'link'        => $base_url,
+    'description' => variable_get('site_mission', ''),
+    'language'    => $GLOBALS['locale'],
+  );
+  $channel = array_merge($channel_defaults, $channel);
+
+  $key = FALSE;
+  foreach ($view->argument as $key => $argument) {
+    if ($argument['id'] == 'gid') {
+      $arg = $key;
+      break;
+    }
+  }
+  if (is_numeric($view->args[$arg])) {
+    $group = node_load($view->args[$arg]);
+  }
+  if ($group && og_is_group_type($group->type)) {
+    // ORGANIZATION
+    // should move into own function: nabuur_group_foaf()?
+    $organization = array();
+    $organization[] = array('key' => 'foaf:name', 'value' => check_plain($group->title));
+    $channel['link'] = url('node/' . $group->nid, NULL, NULL, TRUE);
+    $channel['description'] = check_plain($group->og_description);
+    $local_rep = user_load(array('uid' => $group->uid));
+    // MEMBER OF ORGANIZATION
+    // this could have its own function: nabuur_user_foaf() ?
+    $person[] = array('key' => 'foaf:name', 'value' => check_plain($local_rep->nodeprofile->title));
+    $image = array(
+      'key' => 'foaf:image', 
+      'attributes' => array(
+        'rdf:resource' => url($local_rep->nodeprofile->field_user_image[0]['filepath'], NULL, NULL, TRUE),
+      )
+    );
+    $person[] = array('key' => 'foaf:depiction', 'value' => array($image));
+    $account[] = array('key' => 'foaf:accountServiceHomepage', 'attributes' => array('rdf:resource' => url('', NULL, NULL, TRUE)));
+    $account[] = array('key' => 'foaf:accountPersonalHomepage', 'attributes' => array('rdf:resource' => url('user/' . $local_rep->uid, NULL, NULL, TRUE)));
+    $account = array('key' => 'foaf:OnlineAccount', 'value' => $account);
+    $person[] = array('key' => 'foaf:holdsAccount', 'value' => array( $account ));
+    $person[] = array('key' => 'foaf:mbox_sha1sum', 'value' => sha1($local_rep->mail));
+    $organization[] = array('key' => 'foaf:person', 'value' => $person);
+    $organization = array('key' => 'foaf:Organization', 'value' => $organization);
+  }
+  else {
+    // could be from a variable, default.
+  }
+
+  $output = "<?xml version=\"1.0\" encoding=\"utf-8\"?>\n";
+  $output .= "<rss version=\"". $channel["version"] . "\" xml:base=\"". $base_url ."\" ". implode(' ', $namespaces) .">\n";
+  $output .= format_rss_channel($channel['title'], $channel['link'], $channel['description'], $items, $channel['language'], array($organization));
+  $output .= "</rss>\n";
+
+  drupal_set_header('Content-Type: text/xml; charset=utf-8');
+  print $output;
+  module_invoke_all('exit');
+  exit; 
 }
 
 
