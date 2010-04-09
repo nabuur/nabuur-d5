@@ -45,7 +45,7 @@ function nabuur_project_nodeapi(&$node, $op, $a3 = NULL, $a4 = NULL) {
         }
       }
 
-      if ($node->type == 'task' || $node->type == 'project') {
+      if ($node->type == 'task' || $node->type == 'project_outline') {
         // date 'c' is PHP5 so using 'Y-m-d\TH:i:s' no timezone
         $additions[] = array (
           'key' => 'ev:start',
