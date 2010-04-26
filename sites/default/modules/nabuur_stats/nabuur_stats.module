@@ -49,9 +49,9 @@ function nabuur_stats_menu($may_cache) {
       'access' => user_access('administer site configuration'),
     );
     $items[] = array(
-      'path' => 'nabuur/worldschool/students',
-      'title' => t('Overview of worldschool students and posts'),
-      'description' => t('Prints a page of worldschool students and posts in worldschool villages'),
+      'path' => 'nabuur/students',
+      'title' => t('Overview of dutch students and posts'),
+      'description' => t('Prints a page of dutch students and posts in villages'),
       'callback' => 'nabuur_stats_report_worldschool_students_page',
       'access' => user_access('access content'),
     );
@@ -410,7 +410,7 @@ function nabuur_stats_block_worldschool_students() {
 
   $block['content'] = theme('table', $header, $students_5);
   $block['content'] .= '<div class="views_more" align="right"><ul><li>'.
-                         l(t(more), 'nabuur/worldschool/students')
+                         l(t(more), 'nabuur/students')
                          ."</li></ul></div>";
 
   return $block;
