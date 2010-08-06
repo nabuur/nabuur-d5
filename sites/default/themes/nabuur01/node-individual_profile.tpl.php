@@ -21,4 +21,7 @@
     <div class="terms"><?php print $terms ?></div>
   <?php endif;?>
   </div>
+  <div class="block_user">
+    <?php print flag_create_link('block_user', $node_user->uid); ?>
+  </div>
 </div>
