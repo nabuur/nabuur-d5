@@ -285,3 +285,31 @@ function theme_nabuur_users_user_picture($uid) {
   return "<div class=\"picture\">$picture</div>";
 }
 
+function nabuur_users_flag($action, $flag, $content_id, $account) {
+  if ($flag->name == 'block_user') {
+    // get all nodes from this user (except user profile)
+    $q = db_query('SELECT n.nid FROM {node} n WHERE n.type != "individual_profile" AND n.uid = %d', $content_id);
+    while ($node = db_fetch_array($q)) {
+      $nids[] = $node['nid']; 
+    } 
+    switch ($action) {
+      case 'flag':
+        $status = 0;
+        // unpublish nodes from this user (except user profile)
+        // dsm($nids);
+        node_operations_unpublish($nids);
+        break;
+      case 'unflag':
+        $status = 1;
+        node_operations_publish($nids);
+        break;
+    }
+    $flagged_user = user_load(array('uid' => $content_id));
+    $account = user_save($flagged_user, array('status' => $status));
+    // Terminate if an error occured during user_save().
+    if (!$account) {
+      drupal_set_message(t("Error saving user account."), 'error');
+    }
+  }
+}
+
