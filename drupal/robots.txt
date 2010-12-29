@@ -20,7 +20,6 @@
 User-agent: *
 Crawl-delay: 10
 # Directories
-Disallow: /
 Disallow: /misc/
 Disallow: /modules/
 Disallow: /profiles/
@@ -41,6 +40,7 @@ Disallow: /UPGRADE.txt
 Disallow: /xmlrpc.php
 # Paths (clean URLs)
 Disallow: /search/
+Disallow: /taxonomy/
 Disallow: /facet_search/
 Disallow: /village/results/
 Disallow: /group/results/
@@ -60,6 +60,7 @@ Disallow: /?q=contact/
 Disallow: /?q=logout/
 Disallow: /?q=node/add/
 Disallow: /?q=search/
+Disallow: /?q=taxonomy/
 Disallow: /?q=user/
 Disallow: /?q=user/password
 Disallow: /?q=user/register
@@ -67,6 +68,7 @@ Disallow: /?q=user/login
 # Paths (clean URL's whith prefixes)
 # /en/
 Disallow: /en/search/
+Disallow: /en/taxonomy/
 Disallow: /en/facet_search/
 Disallow: /en/village/results/
 Disallow: /en/group/results/
@@ -82,7 +84,8 @@ Disallow: /en/user/password
 Disallow: /en/user/login
 # Paths (clean URL's whith prefixes)
 # /es/
-Disallow: /es/search/
+Disallow: /es/
+Disallow: /es/taxonomy/
 Disallow: /es/facet_search/
 Disallow: /es/village/results/
 Disallow: /es/group/results/
@@ -98,7 +101,8 @@ Disallow: /es/user/password
 Disallow: /es/user/login
 # Paths (clean URL's whith prefixes)
 # /fr/
-Disallow: /fr/search/
+Disallow: /fr/
+Disallow: /fr/taxonomy/
 Disallow: /fr/facet_search/
 Disallow: /fr/village/results/
 Disallow: /fr/group/results/
@@ -114,7 +118,8 @@ Disallow: /fr/user/password
 Disallow: /fr/user/login
 # Paths (clean URL's whith prefixes)
 # /nl/
-Disallow: /nl/search/
+Disallow: /nl/
+Disallow: /nl/taxonomy/
 Disallow: /nl/facet_search/
 Disallow: /nl/village/results/
 Disallow: /nl/group/results/
